@@ -19,6 +19,7 @@ import { StepHeader } from '../../navigation/CreateStandardFlow';
 import { CreateStandardFlowParamList, MainStackParamList } from '../../navigation/types';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
 import { useStandards } from '../../hooks/useStandards';
+import { useUIPreferencesStore } from '../../stores/uiPreferencesStore';
 import { useTheme } from '../../theme/useTheme';
 import { trackStandardEvent } from '../../utils/analytics';
 import { CADENCE_PRESETS, isPresetCadence, CadencePreset } from '../../utils/cadenceUtils';
@@ -67,12 +68,13 @@ export function SetPeriodStep() {
   const flowNavigation = useNavigation<FlowNav>();
   const mainNavigation = useNavigation<MainNav>();
   const { createStandard } = useStandards();
+  const parentNavigation = flowNavigation.getParent<NativeStackNavigationProp<MainStackParamList>>();
+  const setPendingScrollToStandardId = useUIPreferencesStore((s) => s.setPendingScrollToStandardId);
 
   const cadence = useStandardsBuilderStore((s) => s.cadence);
   const setCadence = useStandardsBuilderStore((s) => s.setCadence);
   const setPeriodStartPreference = useStandardsBuilderStore((s) => s.setPeriodStartPreference);
   const generatePayload = useStandardsBuilderStore((s) => s.generatePayload);
-  const reset = useStandardsBuilderStore((s) => s.reset);
 
   // Local UI state
   const [selectedPreset, setSelectedPreset] = useState<SelectedPreset>(() =>
@@ -190,10 +192,17 @@ export function SetPeriodStep() {
 
     setSubmitting(true);
     try {
-      await createStandard(payload);
+      const newStandard = await createStandard(payload);
       trackStandardEvent('standard_create', { activityId: payload.activityId });
-      reset();
-      mainNavigation.goBack();
+      // Tell the dashboard to scroll to the newly created standard's card
+      setPendingScrollToStandardId(newStandard.id);
+      // Dismiss the entire CreateStandardFlow modal via the parent (MainStack) navigator.
+      // The flow's unmount cleanup in CreateStandardFlow.tsx handles store reset.
+      if (parentNavigation) {
+        parentNavigation.goBack();
+      } else {
+        mainNavigation.goBack();
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Something went wrong. Please try again.';
@@ -201,7 +210,7 @@ export function SetPeriodStep() {
     } finally {
       setSubmitting(false);
     }
-  }, [generatePayload, createStandard, reset, mainNavigation]);
+  }, [generatePayload, createStandard, parentNavigation, mainNavigation, setPendingScrollToStandardId]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.chrome }]}>
@@ -210,7 +219,7 @@ export function SetPeriodStep() {
         totalSteps={3}
         title="Set Period"
         onBack={() => flowNavigation.goBack()}
-        onClose={() => mainNavigation.goBack()}
+        onClose={() => parentNavigation ? parentNavigation.goBack() : mainNavigation.goBack()}
       />
 
       <ScrollView

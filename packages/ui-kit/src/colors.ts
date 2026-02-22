@@ -192,7 +192,7 @@ export const lightTheme: ColorTheme = {
       text: '#fff',
     },
     destructive: {
-      background: '#c00',
+      background: '#987e55',
       text: '#fff',
     },
     icon: {
@@ -288,7 +288,7 @@ export const darkTheme: ColorTheme = {
       text: '#B0B0B0',
     },
     destructive: {
-      background: '#EF5350',
+      background: '#987e55',
       text: '#fff',
     },
     icon: {

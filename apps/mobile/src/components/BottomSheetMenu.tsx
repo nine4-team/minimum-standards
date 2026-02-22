@@ -52,8 +52,8 @@ export function BottomSheetMenu({ visible, onRequestClose, items, title }: Botto
 
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
-        const color = item.destructive ? theme.button.destructive.background : theme.text.primary;
-        const iconColor = item.destructive ? theme.button.destructive.background : theme.text.secondary;
+        const color = theme.text.primary;
+        const iconColor = theme.text.secondary;
 
         return (
           <View key={item.key}>

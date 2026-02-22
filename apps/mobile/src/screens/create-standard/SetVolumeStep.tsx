@@ -27,6 +27,7 @@ export function SetVolumeStep() {
   const insets = useSafeAreaInsets();
   const flowNavigation = useNavigation<FlowNav>();
   const mainNavigation = useNavigation<MainNav>();
+  const parentNavigation = flowNavigation.getParent<NativeStackNavigationProp<MainStackParamList>>();
 
   const goalTotal = useStandardsBuilderStore((s) => s.goalTotal);
   const setGoalTotal = useStandardsBuilderStore((s) => s.setGoalTotal);
@@ -54,8 +55,8 @@ export function SetVolumeStep() {
   const effectiveUnit = getEffectiveUnit();
 
   const handleClose = useCallback(() => {
-    mainNavigation.goBack();
-  }, [mainNavigation]);
+    parentNavigation ? parentNavigation.goBack() : mainNavigation.goBack();
+  }, [parentNavigation, mainNavigation]);
 
   const handleBack = useCallback(() => {
     flowNavigation.goBack();

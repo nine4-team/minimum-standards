@@ -52,7 +52,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, RCTBridgeDelegate {
       NSLog("[AppDelegate] FORCE_EMBEDDED_JS_BUNDLE enabled - loading embedded bundle")
       return embeddedBundleURL()
     }
-    let metroURL = RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+    let bundleURLProvider = RCTBundleURLProvider.sharedSettings()
+    bundleURLProvider.jsLocation = "192.168.68.57:8082"
+    let metroURL = bundleURLProvider.jsBundleURL(forBundleRoot: "index")
     NSLog("[AppDelegate] Using Metro bundle at: \(metroURL?.absoluteString ?? "nil")")
     return metroURL
 #else

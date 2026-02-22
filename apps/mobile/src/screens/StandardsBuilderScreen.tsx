@@ -33,6 +33,7 @@ import { useActivities } from '../hooks/useActivities';
 import { useCategories } from '../hooks/useCategories';
 import { findMatchingStandard } from '../utils/standardsFilter';
 import { trackStandardEvent } from '../utils/analytics';
+import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { Standard } from '@minimum-standards/shared-model';
 import { useTheme } from '../theme/useTheme';
 import { typography, BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
@@ -221,11 +222,13 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
   ): Promise<Activity> => {
     if (editingActivity) {
       await updateActivity(editingActivity.id, activityData);
-      return {
+      const updatedActivity = {
         ...editingActivity,
         ...activityData,
         updatedAtMs: Date.now(),
       } as Activity;
+      setSelectedActivity(updatedActivity);
+      return updatedActivity;
     }
     return await createActivity(activityData);
   };
@@ -428,6 +431,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
 
     setSaving(true);
     let shouldCloseAfterSave = false;
+    let createdStandardId: string | null = null;
     try {
       if (isEditMode && standardId) {
         // Update existing standard
@@ -469,6 +473,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
               'Standard activated',
               'An existing inactive Standard has been activated.'
             );
+            createdStandardId = matchingStandard.id;
             shouldCloseAfterSave = true;
           } else {
             // If duplicate found and active: show error
@@ -477,7 +482,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
           }
         } else {
           // No duplicate found: create new Standard
-          await createStandard({
+          const newStandard = await createStandard({
             ...standardPayload,
             periodStartPreference: preference,
           });
@@ -487,6 +492,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
             cadence: payload.cadence,
           });
           Alert.alert('Standard saved', 'Your Standard has been saved successfully.');
+          createdStandardId = newStandard.id;
           shouldCloseAfterSave = true;
         }
         resetForm();
@@ -498,6 +504,9 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     } finally {
       setSaving(false);
       if (shouldCloseAfterSave) {
+        if (createdStandardId) {
+          useUIPreferencesStore.getState().setPendingScrollToStandardId(createdStandardId);
+        }
         onBack();
       }
     }
@@ -667,7 +676,10 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
                   {selectedActivity.name}
                 </Text>
                 <Text style={[styles.selectedActivitySubtitle, { color: theme.text.secondary }]}>
-                  {selectedActivity.unit}
+                  Unit: {selectedActivity.unit}
+                </Text>
+                <Text style={[styles.selectedActivitySubtitle, { color: theme.text.secondary }]}>
+                  Category: {orderedCategories.find((c) => c.id === selectedActivity.categoryId)?.name ?? 'Uncategorized'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -681,24 +693,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
             </View>
           )}
         </View>
-
-        {/* Category info (read-only, inherited from Activity) */}
-        {selectedActivity && (() => {
-          const activityCategory = orderedCategories.find((c) => c.id === selectedActivity.categoryId);
-          return (
-            <View style={[styles.section, { backgroundColor: theme.background.card, shadowColor: theme.shadow }]}>
-              <View style={styles.stepHeader}>
-                <Text style={[styles.sectionLabel, { color: theme.text.tertiary }]}>Category</Text>
-                <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
-                  {activityCategory?.name ?? 'Uncategorized'}
-                </Text>
-              </View>
-              <Text style={[styles.helperText, { color: theme.text.secondary }]}>
-                Category is inherited from the selected activity. Manage categories in Settings.
-              </Text>
-            </View>
-          );
-        })()}
 
         <View style={[styles.section, { backgroundColor: theme.background.card, shadowColor: theme.shadow }]}>
           <View style={styles.stepHeader}>

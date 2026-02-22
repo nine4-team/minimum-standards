@@ -203,10 +203,10 @@ export function StandardProgressCard({
       items.push({ key: 'view-logs', label: 'View Logs', icon: 'history', onPress: () => onViewLogs() });
     }
     if (showCategorizeSubmenu) {
-      items.push({ key: 'categorize', label: categorizeLabel ?? 'Categorize', icon: 'folder', onPress: () => setCategorizeMenuVisible(true) });
+      items.push({ key: 'categorize', label: categorizeLabel ?? 'Category', icon: 'format-list-bulleted', onPress: () => setCategorizeMenuVisible(true) });
     }
     if (showCategorizeAction) {
-      items.push({ key: 'categorize-action', label: categorizeLabel ?? 'Categorize', onPress: () => onCategorize?.() });
+      items.push({ key: 'categorize-action', label: categorizeLabel ?? 'Category', onPress: () => onCategorize?.() });
     }
     if (onEdit) {
       items.push({ key: 'edit', label: 'Edit', icon: 'edit', onPress: () => onEdit() });
@@ -456,7 +456,7 @@ export function StandardProgressCard({
       <BottomSheetMenu
         visible={categorizeMenuVisible}
         onRequestClose={() => setCategorizeMenuVisible(false)}
-        title="Categorize"
+        title="Category"
         items={categoryMenuItems}
       />
     )}

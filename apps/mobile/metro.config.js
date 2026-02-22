@@ -14,20 +14,20 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 const config = {
   // Watch all files in the monorepo and local external packages
   watchFolders: [monorepoRoot],
-  
+
   resolver: {
     // Let Metro find modules from monorepo root
     nodeModulesPaths: [
       path.resolve(projectRoot, 'node_modules'),
       path.resolve(monorepoRoot, 'node_modules'),
     ],
-    
+
     // Force resolution to project's dependencies
     extraNodeModules: {
       'react': path.resolve(projectRoot, 'node_modules/react'),
       'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
     },
-    
+
     // Allow Metro to resolve workspace packages
     unstable_enableSymlinks: true,
   },

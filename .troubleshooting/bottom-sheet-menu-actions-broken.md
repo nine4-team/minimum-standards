@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Opened:** 2026-02-11
-**Resolved:** _pending_
+**Resolved:** _pending_ _
 
 ## Info
 - **Symptom:** Tapping any menu item in any BottomSheetMenu does nothing. Affects: header options menu (sort, show time bar, manage categories, show inactive), active standard action menu, categorize menu. The menu closes but the action never executes.

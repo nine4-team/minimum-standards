@@ -411,12 +411,7 @@ export function LogEntryModal({
       setAndroidPickerMode(null);
       setSelectedDate(new Date());
 
-      if (internalEditEntry) {
-        // Return to create mode after editing a period entry — stay in modal
-        setInternalEditEntry(null);
-      } else {
-        onClose();
-      }
+      onClose();
     } catch (error) {
       if (error instanceof Error) {
         setSaveError(error.message);

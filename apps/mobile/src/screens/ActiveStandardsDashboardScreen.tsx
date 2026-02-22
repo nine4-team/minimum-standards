@@ -23,7 +23,6 @@ import { useCategories } from '../hooks/useCategories';
 import { useStandards } from '../hooks/useStandards';
 import type { Activity } from '@minimum-standards/shared-model';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
-import { useStandardsBuilderStore } from '../stores/standardsBuilderStore';
 import { trackStandardEvent } from '../utils/analytics';
 import { LogEntryModal } from '../components/LogEntryModal';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -101,7 +100,9 @@ export function StandardsScreen({
     });
     return map;
   }, [activities]);
-  const { focusedCategoryId, setFocusedCategoryId, showTimeBar, setShowTimeBar, showInactiveStandards, setShowInactiveStandards } = useUIPreferencesStore();
+  const { focusedCategoryId, setFocusedCategoryId, showTimeBar, setShowTimeBar, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
+  const flatListRef = useRef<FlatList<DashboardStandard>>(null);
+  const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
   // Create activity lookup map for efficient name resolution
   const activityNameMap = useMemo(() => {
@@ -119,7 +120,7 @@ export function StandardsScreen({
   }, [orderedCategories]);
 
   const hasCustomCategories = customCategories.length > 0;
-  const cardCategorizeLabel = hasCustomCategories ? 'Categorize' : 'Create categories';
+  const cardCategorizeLabel = hasCustomCategories ? 'Category' : 'Create categories';
 
   const hasInitializedCategoryFilter = useRef(false);
 
@@ -259,16 +260,9 @@ export function StandardsScreen({
 
   const handleActiveEdit = useCallback(() => {
     if (!activeMenuStandard) return;
-    const activity = activityMap.get(activeMenuStandard.activityId);
-    if (!activity) {
-      Alert.alert('Error', 'Could not find the activity for this standard');
-      setActiveMenuStandard(null);
-      return;
-    }
-    useStandardsBuilderStore.getState().loadFromStandard(activeMenuStandard, activity);
     setActiveMenuStandard(null);
-    onLaunchBuilder();
-  }, [activeMenuStandard, activityMap, onLaunchBuilder]);
+    handleEdit(activeMenuStandard.id);
+  }, [activeMenuStandard, handleEdit]);
 
   const handleActiveDeactivateConfirm = useCallback(async () => {
     if (!activeMenuStandard) return;
@@ -457,6 +451,7 @@ export function StandardsScreen({
           activityNameMap={activityNameMap}
           nowMs={nowMs}
           showTimeBar={showTimeBar}
+          highlighted={item.standard.id === highlightedStandardId}
         />
       );
     },
@@ -466,6 +461,7 @@ export function StandardsScreen({
       activityNameMap,
       nowMs,
       showTimeBar,
+      highlightedStandardId,
     ]
   );
 
@@ -488,6 +484,29 @@ export function StandardsScreen({
         : base.filter((entry) => getEffectiveCategoryId(entry) === focusedCategoryId);
     return [...filtered].sort(sortStandards);
   }, [activityNameMap, dashboardStandards, focusedCategoryId, getEffectiveCategoryId, sortOption]);
+
+  // Scroll to a newly created standard's card when it appears in the list
+  useEffect(() => {
+    if (!pendingScrollToStandardId) return;
+    // Clear category filter so the new card is visible regardless of category
+    if (focusedCategoryId !== null) {
+      setFocusedCategoryId(null);
+    }
+    const index = sortedAndFilteredStandards.findIndex(
+      (entry) => entry.standard.id === pendingScrollToStandardId
+    );
+    if (index === -1) return; // standard hasn't appeared in data yet; effect will re-run when it does
+    setPendingScrollToStandardId(null);
+    setHighlightedStandardId(pendingScrollToStandardId);
+    // Allow FlatList to render the item before scrolling
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+    }, 300);
+    // Clear highlight after a brief flash
+    setTimeout(() => {
+      setHighlightedStandardId(null);
+    }, 2000);
+  }, [pendingScrollToStandardId, sortedAndFilteredStandards, focusedCategoryId, setFocusedCategoryId, setPendingScrollToStandardId]);
 
   const content = useMemo(() => {
     if (loading && dashboardStandards.length === 0) {
@@ -551,11 +570,13 @@ export function StandardsScreen({
 
     return (
       <FlatList
+        ref={flatListRef}
         testID="dashboard-list"
         data={sortedAndFilteredStandards}
         renderItem={renderCard}
         keyExtractor={(item) => item.standard.id}
         contentContainerStyle={styles.listContent}
+        onScrollToIndexFailed={() => {}}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refreshProgress} />
         }
@@ -845,7 +866,7 @@ export function StandardsScreen({
           setCategorizeMenuVisible(false);
           setCategorizeMenuEntry(null);
         }}
-        title="Categorize"
+        title="Category"
         items={categorizeMenuEntry ? [
           ...customCategories.map((category) => ({
             key: category.id,
@@ -899,6 +920,12 @@ export function StandardsScreen({
             onPress: handleActiveEdit,
           },
           {
+            key: 'categorize',
+            label: 'Category',
+            icon: 'format-list-bulleted',
+            onPress: () => setCategoryPickerVisible(true),
+          },
+          {
             key: 'deactivate',
             label: 'Deactivate',
             icon: 'archive',
@@ -910,12 +937,6 @@ export function StandardsScreen({
             icon: 'delete',
             destructive: true,
             onPress: () => setActiveDeleteConfirmVisible(true),
-          },
-          {
-            key: 'categorize',
-            label: 'Categorize',
-            icon: 'category',
-            onPress: () => setCategoryPickerVisible(true),
           },
         ] : []}
       />
@@ -965,7 +986,7 @@ export function StandardsScreen({
           setCategoryPickerVisible(false);
           setActiveMenuStandard(null);
         }}
-        title="Categorize"
+        title="Category"
         items={categoryPickerItems}
       />
     </View>
@@ -980,6 +1001,7 @@ function StandardCard({
   activityNameMap,
   nowMs,
   showTimeBar,
+  highlighted,
 }: {
   entry: DashboardStandard;
   onLogPress: () => void;
@@ -988,6 +1010,7 @@ function StandardCard({
   activityNameMap: Map<string, string>;
   nowMs: number;
   showTimeBar?: boolean;
+  highlighted?: boolean;
 }) {
   const { standard, progress } = entry;
   
@@ -1012,8 +1035,9 @@ function StandardCard({
   const progressPercent = progress?.progressPercent ?? 0;
   const periodStartMs = progress?.periodStartMs;
   const periodEndMs = progress?.periodEndMs;
+  const theme = useTheme();
 
-  return (
+  const card = (
     <StandardProgressCard
       standard={standard}
       activityName={activityName}
@@ -1038,6 +1062,16 @@ function StandardCard({
       showTimeBar={showTimeBar}
     />
   );
+
+  if (highlighted) {
+    return (
+      <View style={{ borderRadius: 18, borderWidth: 2, borderColor: theme.button.primary.background }}>
+        {card}
+      </View>
+    );
+  }
+
+  return card;
 }
 
 const styles = StyleSheet.create({

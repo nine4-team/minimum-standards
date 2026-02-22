@@ -73,8 +73,9 @@ export function SelectActivityStep() {
   const handleCreatedActivitySelect = useCallback(
     (activity: Activity) => {
       setSelectedActivity(activity);
+      flowNavigation.navigate('SetVolume');
     },
-    [setSelectedActivity],
+    [setSelectedActivity, flowNavigation],
   );
 
   const handleEditActivitySave = useCallback(

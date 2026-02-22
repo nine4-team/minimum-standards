@@ -24,6 +24,9 @@ interface UIPreferencesState {
   setActivityCategoryMigrationCompletedAtMs: (timestamp: number | null) => void;
   activityCategoryMigrationConflictActivityIds: string[];
   setActivityCategoryMigrationConflictActivityIds: (ids: string[]) => void;
+  /** Transient: set after creating a standard so the dashboard can scroll to it. Not persisted. */
+  pendingScrollToStandardId: string | null;
+  setPendingScrollToStandardId: (id: string | null) => void;
 }
 
 export const useUIPreferencesStore = create<UIPreferencesState>()(
@@ -47,10 +50,16 @@ export const useUIPreferencesStore = create<UIPreferencesState>()(
       setActivityCategoryMigrationCompletedAtMs: (timestamp) => set({ activityCategoryMigrationCompletedAtMs: timestamp }),
       activityCategoryMigrationConflictActivityIds: [],
       setActivityCategoryMigrationConflictActivityIds: (ids) => set({ activityCategoryMigrationConflictActivityIds: ids }),
+      pendingScrollToStandardId: null,
+      setPendingScrollToStandardId: (id) => set({ pendingScrollToStandardId: id }),
     }),
     {
       name: 'ui-preferences-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => {
+        const { pendingScrollToStandardId, setPendingScrollToStandardId, ...persisted } = state;
+        return persisted;
+      },
     }
   )
 );
