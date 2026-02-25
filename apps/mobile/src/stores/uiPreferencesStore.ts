@@ -18,6 +18,8 @@ interface UIPreferencesState {
   setFocusedCategoryId: (categoryId: string | null) => void;
   showTimeBar: boolean;
   setShowTimeBar: (show: boolean) => void;
+  hiddenTimeBarStandardIds: string[];
+  toggleTimeBarForStandard: (standardId: string) => void;
   showInactiveStandards: boolean;
   setShowInactiveStandards: (show: boolean) => void;
   activityCategoryMigrationCompletedAtMs: number | null;
@@ -43,7 +45,15 @@ export const useUIPreferencesStore = create<UIPreferencesState>()(
       focusedCategoryId: null,
       setFocusedCategoryId: (categoryId) => set({ focusedCategoryId: categoryId }),
       showTimeBar: true,
-      setShowTimeBar: (show) => set({ showTimeBar: show }),
+      setShowTimeBar: (show) => set({ showTimeBar: show, hiddenTimeBarStandardIds: [] }),
+      hiddenTimeBarStandardIds: [],
+      toggleTimeBarForStandard: (standardId) => set((state) => {
+        const hidden = state.hiddenTimeBarStandardIds;
+        if (hidden.includes(standardId)) {
+          return { hiddenTimeBarStandardIds: hidden.filter((id) => id !== standardId) };
+        }
+        return { hiddenTimeBarStandardIds: [...hidden, standardId] };
+      }),
       showInactiveStandards: false,
       setShowInactiveStandards: (show) => set({ showInactiveStandards: show }),
       activityCategoryMigrationCompletedAtMs: null,

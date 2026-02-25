@@ -46,42 +46,23 @@ export interface StandardProgressCardProps {
   periodEndMs?: number;
   nowMs?: number;
   showTimeBar?: boolean;
+  onToggleTimeBar?: () => void;
 }
 
-// Helper function to format time elapsed/remaining
-function formatTimeProgress(elapsedMs: number, remainingMs: number, durationMs: number): {
-  elapsedLabel: string;
-  remainingLabel: string;
-} {
+
+// Helper function to format time remaining
+function formatRemainingLabel(remainingMs: number, durationMs: number): string {
   const MS_PER_HOUR = 60 * 60 * 1000;
   const MS_PER_DAY = 24 * MS_PER_HOUR;
   const FORTY_EIGHT_HOURS_MS = 48 * MS_PER_HOUR;
 
-  // Choose unit based on total duration (stable across the period)
-  const useHours = durationMs < FORTY_EIGHT_HOURS_MS;
-
-  if (useHours) {
-    const elapsedH = Math.floor(elapsedMs / MS_PER_HOUR);
+  if (durationMs < FORTY_EIGHT_HOURS_MS) {
     const remainingH = Math.ceil(remainingMs / MS_PER_HOUR);
-    return {
-      elapsedLabel: `${elapsedH} hours elapsed`,
-      remainingLabel: `${remainingH} hours remaining`,
-    };
+    return `${remainingH} hours remaining`;
   } else {
-    const elapsedDays = elapsedMs / MS_PER_DAY;
     const remainingDays = remainingMs / MS_PER_DAY;
-    
-    const formatDays = (days: number): string => {
-      if (days < 10) {
-        return days.toFixed(1);
-      }
-      return Math.round(days).toString();
-    };
-
-    return {
-      elapsedLabel: `${formatDays(elapsedDays)} days elapsed`,
-      remainingLabel: `${formatDays(remainingDays)} days remaining`,
-    };
+    const formatted = remainingDays < 10 ? remainingDays.toFixed(1) : Math.round(remainingDays).toString();
+    return `${formatted} days remaining`;
   }
 }
 
@@ -117,33 +98,20 @@ export function StandardProgressCard({
   periodEndMs,
   nowMs,
   showTimeBar: showTimeBarProp = true,
+  onToggleTimeBar,
 }: StandardProgressCardProps) {
   const theme = useTheme();
   const [menuVisible, setMenuVisible] = useState(false);
   const [categorizeMenuVisible, setCategorizeMenuVisible] = useState(false);
 
   const isCompact = variant === 'compact';
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
-  
+
   // Use green when progress is complete (100%+), otherwise use brown
   const progressBarColor = progressPercent >= 100 ? theme.status.met.barComplete : theme.status.met.bar;
   
-  // Format volume/period: "1800 minutes / week" (derive from standard data)
-  const { interval, unit: cadenceUnit } = standard.cadence;
-  const cadenceStr = interval === 1 ? cadenceUnit : `${interval} ${cadenceUnit}s`;
-  const minimumUnitText = formatUnitWithCount(standard.unit, standard.minimum);
-  const volumePeriodText = `${standard.minimum} ${minimumUnitText} / ${cadenceStr}`;
-  
-  // Format session params: "5 sessions × 15 minutes" (only show if sessionsPerCadence > 1)
   const sessionConfig = standard.sessionConfig;
   const usesSessions = sessionConfig.sessionsPerCadence > 1;
-  let sessionParamsText: string | null = null;
-  if (usesSessions) {
-    const sessionLabelPlural = `${sessionConfig.sessionLabel}s`;
-    const sessionVolumeUnit = formatUnitWithCount(standard.unit, sessionConfig.volumePerSession);
-    sessionParamsText = `${sessionConfig.sessionsPerCadence} ${sessionLabelPlural} × ${sessionConfig.volumePerSession} ${sessionVolumeUnit}`;
-  }
-  
+
   // Format summaries (derive from standard data)
   const targetUnitText = formatUnitWithCount(standard.unit, standard.minimum);
   const periodSummary = `${currentTotalFormatted} / ${standard.minimum} ${targetUnitText}`;
@@ -166,14 +134,14 @@ export function StandardProgressCard({
   );
 
   let timePercent = 0;
-  let timeLabels: { elapsedLabel: string; remainingLabel: string } | null = null;
+  let remainingLabel: string | null = null;
 
   if (shouldShowTimeBar) {
     const durationMs = periodEndMs - periodStartMs;
     const elapsedMs = Math.max(0, Math.min(currentNowMs - periodStartMs, durationMs));
     const remainingMs = durationMs - elapsedMs;
     timePercent = Math.max(0, Math.min((elapsedMs / durationMs) * 100, 100));
-    timeLabels = formatTimeProgress(elapsedMs, remainingMs, durationMs);
+    remainingLabel = formatRemainingLabel(remainingMs, durationMs);
   }
 
   const handleLogPress = useCallback((e: any) => {
@@ -256,154 +224,85 @@ export function StandardProgressCard({
         accessibilityLabel={onCardPress ? `View details for ${activityName}` : undefined}
       >
         <View style={styles.cardContent}>
-          <View style={[styles.cardHeader, isCompact && styles.cardHeaderCompact]}>
-            <View style={styles.titleBlock}>
-              <View style={styles.titleRow}>
+          <View style={styles.cardHeader}>
+            <Text
+              style={[styles.activityName, { color: theme.text.primary }]}
+              numberOfLines={1}
+              accessibilityLabel={`Activity ${activityName}`}
+            >
+              {activityName}
+            </Text>
+            {showLogButton && (
+              <TouchableOpacity
+                onPress={handleLogPress}
+                style={[
+                  styles.logButtonHeader,
+                  { backgroundColor: theme.button.primary.background },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Log progress for ${activityName}`}
+              >
                 <Text
-                  style={[styles.activityName, { color: theme.text.primary }]}
-                  numberOfLines={1}
-                  accessibilityLabel={`Activity ${activityName}`}
+                  style={[
+                    styles.logButtonText,
+                    {
+                      fontSize: 14,
+                      fontWeight: typography.button.primary.fontWeight,
+                      color: theme.button.primary.text,
+                      includeFontPadding: false,
+                      textAlignVertical: 'center',
+                    },
+                  ]}
                 >
-                  {activityName}
+                  Log
                 </Text>
-                {isCompact && (
-                  <TouchableOpacity
-                    onPress={(e: any) => {
-                      e.stopPropagation();
-                      setDetailsExpanded((prev) => !prev);
-                    }}
-                    style={styles.expandButton}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      detailsExpanded
-                        ? `Hide details for ${activityName}`
-                        : `Show details for ${activityName}`
-                    }
-                  >
-                    <MaterialIcons
-                      name={detailsExpanded ? 'expand-less' : 'expand-more'}
-                      size={20}
-                      color={theme.text.secondary}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-              {!isCompact && (
-                <>
-                  <Text
-                    style={[styles.volumePeriodText, { color: theme.text.primary }]}
-                    numberOfLines={1}
-                    accessibilityLabel={`Volume: ${volumePeriodText}`}
-                  >
-                    {volumePeriodText}
-                  </Text>
-                  {sessionParamsText !== null && (
-                    <Text
-                      style={[styles.sessionParamsText, { color: theme.text.secondary }]}
-                      numberOfLines={1}
-                      accessibilityLabel={`Session params: ${sessionParamsText}`}
-                    >
-                      {sessionParamsText}
-                    </Text>
-                  )}
-                  <Text
-                    style={[styles.dateLine, { color: theme.text.secondary }]}
-                    numberOfLines={1}
-                    accessibilityLabel={`Period: ${periodLabel}`}
-                  >
-                    {periodLabel}
-                  </Text>
-                </>
-              )}
-              {isCompact && detailsExpanded && (
-                <>
-                  <Text
-                    style={[styles.volumePeriodText, { color: theme.text.primary }]}
-                    numberOfLines={1}
-                    accessibilityLabel={`Volume: ${volumePeriodText}`}
-                  >
-                    {volumePeriodText}
-                  </Text>
-                  {sessionParamsText !== null && (
-                    <Text
-                      style={[styles.sessionParamsText, { color: theme.text.secondary }]}
-                      numberOfLines={1}
-                      accessibilityLabel={`Session params: ${sessionParamsText}`}
-                    >
-                      {sessionParamsText}
-                    </Text>
-                  )}
-                  <Text
-                    style={[styles.dateLine, { color: theme.text.secondary }]}
-                    numberOfLines={1}
-                    accessibilityLabel={`Period: ${periodLabel}`}
-                  >
-                    {periodLabel}
-                  </Text>
-                </>
-              )}
-            </View>
-            <View style={[styles.headerActions, isCompact && styles.headerActionsCompact]}>
-              <View style={styles.actionButtonsRow}>
-                {showLogButton ? (
-                  <TouchableOpacity
-                    onPress={handleLogPress}
-                    style={[
-                      styles.logButtonHeader,
-                      isCompact && styles.logButtonHeaderCompact,
-                      {
-                        backgroundColor: theme.button.primary.background,
-                      },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Log progress for ${activityName}`}
-                  >
-                    <Text
-                      style={[
-                        styles.logButtonText,
-                        {
-                          fontSize: 14, // Slightly smaller than primary for the card header
-                          fontWeight: typography.button.primary.fontWeight,
-                          color: theme.button.primary.text,
-                          includeFontPadding: false,
-                          textAlignVertical: 'center',
-                        },
-                      ]}
-                    >
-                      Log
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-                {showMenu && (
-                      <TouchableOpacity
-                      onPress={handleMenuPress}
-                      style={styles.menuButton}
-                      accessibilityRole="button"
-                      accessibilityLabel={`More options for ${activityName}`}
-                    >
-                      <MaterialIcons name="more-vert" size={20} color={theme.button.icon.icon} />
-                    </TouchableOpacity>
-                )}
-              </View>
-            </View>
+              </TouchableOpacity>
+            )}
+            {onToggleTimeBar && (
+              <TouchableOpacity
+                onPress={(e: any) => {
+                  e.stopPropagation();
+                  onToggleTimeBar();
+                }}
+                style={styles.timeBarToggle}
+                accessibilityRole="button"
+                accessibilityLabel={showTimeBarProp ? 'Hide time bar' : 'Show time bar'}
+              >
+                <MaterialIcons
+                  name="timer"
+                  size={18}
+                  color={showTimeBarProp ? theme.button.icon.icon : theme.text.tertiary}
+                />
+              </TouchableOpacity>
+            )}
+            {showMenu && (
+              <TouchableOpacity
+                onPress={handleMenuPress}
+                style={styles.menuButton}
+                accessibilityRole="button"
+                accessibilityLabel={`More options for ${activityName}`}
+              >
+                <MaterialIcons name="more-vert" size={20} color={theme.button.icon.icon} />
+              </TouchableOpacity>
+            )}
           </View>
 
         <View
           style={[
             styles.progressContainer,
             isCompact && styles.progressContainerCompact,
-            { backgroundColor: theme.background.card, borderTopColor: theme.border.secondary },
+            { backgroundColor: theme.background.card },
           ]}
         >
           {/* Time progress bar */}
-          {showTimeBarProp && shouldShowTimeBar && timeLabels && (
-            <>
+          {showTimeBarProp && shouldShowTimeBar && remainingLabel && (
+            <View style={styles.timeBarSection}>
               <View style={styles.progressSummaries}>
                 <Text style={[styles.progressSummaryText, { color: theme.text.secondary }]}>
-                  {timeLabels.elapsedLabel}
+                  {periodLabel}
                 </Text>
                 <Text style={[styles.progressSummaryText, { color: theme.text.secondary }]}>
-                  {timeLabels.remainingLabel}
+                  {remainingLabel}
                 </Text>
               </View>
               <View style={styles.progressBarRow}>
@@ -419,28 +318,30 @@ export function StandardProgressCard({
                   />
                 </View>
               </View>
-            </>
+            </View>
           )}
 
-          <View style={styles.progressBarRow}>
-            <Text style={[styles.progressBarLabel, { color: progressBarColor }]}>v</Text>
-            <View style={[styles.progressBar, styles.progressBarRowBar, { backgroundColor: theme.border.secondary }]}>
-              <View
-                style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: progressBarColor }]}
-                accessibilityRole="progressbar"
-                accessibilityValue={{ now: progressPercent, min: 0, max: 100 }}
-              />
+          <View style={styles.volumeBarSection}>
+            <View style={styles.progressBarRow}>
+              <Text style={[styles.progressBarLabel, { color: progressBarColor }]}>v</Text>
+              <View style={[styles.progressBar, styles.progressBarRowBar, { backgroundColor: theme.border.secondary }]}>
+                <View
+                  style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: progressBarColor }]}
+                  accessibilityRole="progressbar"
+                  accessibilityValue={{ now: progressPercent, min: 0, max: 100 }}
+                />
+              </View>
             </View>
-          </View>
-          <View style={styles.progressSummaries}>
-            <Text style={[styles.progressSummaryText, { color: progressBarColor }]}>
-              {periodSummary}
-            </Text>
-            {sessionsSummary !== null && (
+            <View style={styles.progressSummaries}>
               <Text style={[styles.progressSummaryText, { color: progressBarColor }]}>
-                {sessionsSummary}
+                {periodSummary}
               </Text>
-            )}
+              {sessionsSummary !== null && (
+                <Text style={[styles.progressSummaryText, { color: progressBarColor }]}>
+                  {sessionsSummary}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -472,95 +373,51 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardContent: {
-    gap: 0,
+    padding: 12,
+    gap: 8,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
-    padding: CARD_PADDING,
   },
-  cardHeaderCompact: {
-    padding: 12,
-    alignItems: 'center',
-  },
-  titleBlock: {
-    flex: 1,
-    gap: 4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  expandButton: {
-    padding: 2,
+  timeBarToggle: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 24,
-    minHeight: 24,
   },
   activityName: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    flexShrink: 1,
     includeFontPadding: false,
     textAlignVertical: 'center',
     lineHeight: 20,
   },
-  volumePeriodText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  sessionParamsText: {
-    fontSize: 13,
-  },
-  dateLine: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  headerActions: {
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-  },
-  headerActionsCompact: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
   logButtonHeader: {
     borderRadius: BUTTON_BORDER_RADIUS,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  logButtonHeaderCompact: {
-    minHeight: 32,
   },
   logButtonText: {
     // fontSize and fontWeight come from typography.button.primary
   },
   menuButton: {
-    padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 32,
-    minHeight: 32,
+    marginRight: -6,
   },
   progressContainer: {
-    padding: CARD_PADDING,
-    borderTopWidth: 1,
-    gap: 12,
+    gap: 4,
   },
-  progressContainerCompact: {
-    padding: 12,
-    gap: 8,
+  progressContainerCompact: {},
+  timeBarSection: {
+    gap: 4,
+  },
+  volumeBarSection: {
+    gap: 4,
   },
   progressBar: {
     width: '100%',

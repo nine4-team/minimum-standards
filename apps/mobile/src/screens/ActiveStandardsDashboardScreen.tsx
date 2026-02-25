@@ -100,7 +100,7 @@ export function StandardsScreen({
     });
     return map;
   }, [activities]);
-  const { focusedCategoryId, setFocusedCategoryId, showTimeBar, setShowTimeBar, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
+  const { focusedCategoryId, setFocusedCategoryId, showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
@@ -442,6 +442,9 @@ export function StandardsScreen({
 
   const renderCard = useCallback(
     ({ item }: { item: DashboardStandard }) => {
+      const standardId = item.standard.id;
+      const isHiddenForStandard = hiddenTimeBarStandardIds.includes(standardId);
+      const effectiveShowTimeBar = showTimeBar && !isHiddenForStandard;
       return (
         <StandardCard
           entry={item}
@@ -450,7 +453,8 @@ export function StandardsScreen({
           onMenuPress={() => handleActiveMenuOpen(item.standard)}
           activityNameMap={activityNameMap}
           nowMs={nowMs}
-          showTimeBar={showTimeBar}
+          showTimeBar={effectiveShowTimeBar}
+          onToggleTimeBar={() => toggleTimeBarForStandard(standardId)}
           highlighted={item.standard.id === highlightedStandardId}
         />
       );
@@ -461,6 +465,8 @@ export function StandardsScreen({
       activityNameMap,
       nowMs,
       showTimeBar,
+      hiddenTimeBarStandardIds,
+      toggleTimeBarForStandard,
       highlightedStandardId,
     ]
   );
@@ -674,7 +680,14 @@ export function StandardsScreen({
             <Text style={[styles.backButton, { color: theme.primary.main }]}>{backButtonLabel}</Text>
           </TouchableOpacity>
         ) : (
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity
+            onPress={() => setShowTimeBar(!showTimeBar)}
+            style={styles.headerLeftButton}
+            accessibilityRole="button"
+            accessibilityLabel={showTimeBar ? 'Hide all time bars' : 'Show all time bars'}
+          >
+            <MaterialIcons name="timer" size={24} color={showTimeBar ? theme.button.icon.icon : theme.text.tertiary} />
+          </TouchableOpacity>
         )}
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Standards</Text>
         <TouchableOpacity
@@ -818,12 +831,6 @@ export function StandardsScreen({
         onRequestClose={() => setHeaderMenuVisible(false)}
         title="Options"
         items={[
-          {
-            key: 'show-time-bar',
-            label: 'Show Time Bar',
-            icon: showTimeBar ? 'check' : undefined,
-            onPress: () => setShowTimeBar(!showTimeBar),
-          },
           {
             key: 'sort-completion',
             label: 'Sort by Completion',
@@ -1001,6 +1008,7 @@ function StandardCard({
   activityNameMap,
   nowMs,
   showTimeBar,
+  onToggleTimeBar,
   highlighted,
 }: {
   entry: DashboardStandard;
@@ -1010,6 +1018,7 @@ function StandardCard({
   activityNameMap: Map<string, string>;
   nowMs: number;
   showTimeBar?: boolean;
+  onToggleTimeBar?: () => void;
   highlighted?: boolean;
 }) {
   const { standard, progress } = entry;
@@ -1060,6 +1069,7 @@ function StandardCard({
       periodEndMs={periodEndMs}
       nowMs={nowMs}
       showTimeBar={showTimeBar}
+      onToggleTimeBar={onToggleTimeBar}
     />
   );
 
@@ -1098,6 +1108,12 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 64,
+  },
+  headerLeftButton: {
+    width: 64,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
   headerMenuButton: {
     width: 64,

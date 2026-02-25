@@ -337,6 +337,28 @@ export function LogEntryModal({
     }
   }, [visible, selectedStandard, showPicker, isEditMode, logMode]);
 
+  // In edit mode, focus the value input with cursor at the end
+  useEffect(() => {
+    if (visible && isEditMode && logMode === 'manual') {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const task = InteractionManager.runAfterInteractions(() => {
+        timeoutId = setTimeout(() => {
+          const input = valueInputRef.current;
+          if (input) {
+            input.focus();
+            // Move cursor to end of existing value
+            const len = String(effectiveLogEntry?.value ?? '').length;
+            input.setNativeProps({ selection: { start: len, end: len } });
+          }
+        }, Platform.OS === 'android' ? 250 : 100);
+      });
+      return () => {
+        task.cancel();
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    }
+  }, [visible, isEditMode, logMode]);
+
 
   const handleStandardSelect = (selected: Standard) => {
     setSelectedStandard(selected);
@@ -1126,9 +1148,18 @@ export function LogEntryModal({
                     : `Log ${activityName ?? 'Activity'}`}
                 </Text>
                 {selectedStandard && !showPicker && (
-                  <Text style={[styles.standardSummary, { color: theme.text.secondary }]} numberOfLines={1}>
-                    {selectedStandard.summary}
-                  </Text>
+                  <>
+                    <Text style={[styles.standardSummary, { color: theme.text.secondary }]} numberOfLines={1}>
+                      {selectedStandard.summary}
+                    </Text>
+                    {currentPeriodStartMs !== undefined && currentPeriodEndMs !== undefined && (
+                      <Text style={[styles.periodDateRange, { color: theme.text.tertiary }]} numberOfLines={1}>
+                        {new Date(currentPeriodStartMs).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                        {' – '}
+                        {new Date(currentPeriodEndMs - 1).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                      </Text>
+                    )}
+                  </>
                 )}
               </View>
               <TouchableOpacity 
@@ -1245,6 +1276,10 @@ const styles = StyleSheet.create({
   },
   standardSummary: {
     fontSize: 14,
+  },
+  periodDateRange: {
+    fontSize: 12,
+    marginTop: 2,
   },
   closeButton: {
     fontSize: 24,
