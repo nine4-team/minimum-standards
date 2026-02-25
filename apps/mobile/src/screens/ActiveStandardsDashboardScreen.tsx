@@ -443,8 +443,8 @@ export function StandardsScreen({
   const renderCard = useCallback(
     ({ item }: { item: DashboardStandard }) => {
       const standardId = item.standard.id;
-      const isHiddenForStandard = hiddenTimeBarStandardIds.includes(standardId);
-      const effectiveShowTimeBar = showTimeBar && !isHiddenForStandard;
+      const isOverriddenForStandard = hiddenTimeBarStandardIds.includes(standardId);
+      const effectiveShowTimeBar = isOverriddenForStandard ? !showTimeBar : showTimeBar;
       return (
         <StandardCard
           entry={item}
@@ -686,7 +686,7 @@ export function StandardsScreen({
             accessibilityRole="button"
             accessibilityLabel={showTimeBar ? 'Hide all time bars' : 'Show all time bars'}
           >
-            <MaterialIcons name="timer" size={24} color={showTimeBar ? theme.button.icon.icon : theme.text.tertiary} />
+            <MaterialIcons name="hourglass-empty" size={24} color={showTimeBar ? theme.button.icon.icon : theme.text.tertiary} />
           </TouchableOpacity>
         )}
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Standards</Text>

@@ -269,7 +269,7 @@ export function StandardProgressCard({
                 accessibilityLabel={showTimeBarProp ? 'Hide time bar' : 'Show time bar'}
               >
                 <MaterialIcons
-                  name="timer"
+                  name="hourglass-empty"
                   size={18}
                   color={showTimeBarProp ? theme.button.icon.icon : theme.text.tertiary}
                 />
