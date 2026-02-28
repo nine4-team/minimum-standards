@@ -8,6 +8,7 @@ import {
   SettingsStackParamList,
 } from './types';
 import { ActivityHistoryScreen } from '../screens/ActivityHistoryScreen';
+import { ScorecardSummaryScreen } from '../screens/ScorecardSummaryScreen';
 import { StandardsBuilderScreen } from '../screens/StandardsBuilderScreen';
 import { StandardsScreen } from '../screens/ActiveStandardsDashboardScreen';
 import { StandardDetailScreen } from '../screens/StandardDetailScreen';
@@ -20,10 +21,22 @@ type StandardsNavigationProp = NativeStackNavigationProp<StandardsStackParamList
 type ScorecardNavigationProp = NativeStackNavigationProp<ScorecardStackParamList>;
 
 // Wrapper components that adapt existing screens to React Navigation
-export function ScorecardScreenWrapper() {
+export function ScorecardSummaryScreenWrapper() {
+  const navigation = useNavigation<ScorecardNavigationProp>();
+
+  return (
+    <ScorecardSummaryScreen
+      onNavigateToDetail={(activityId) => {
+        navigation.navigate('ScorecardDetail', { activityId });
+      }}
+    />
+  );
+}
+
+export function ScorecardDetailScreenWrapper() {
   const navigation = useNavigation<ScorecardNavigationProp>();
   const route = useRoute();
-  const activityId = (route.params as { activityId?: string } | undefined)?.activityId;
+  const activityId = (route.params as { activityId: string }).activityId;
 
   return (
     <ActivityHistoryScreen
@@ -51,7 +64,7 @@ export function StandardsScreenWrapper() {
     <StandardsScreen
       onBack={() => {}}
       onLaunchBuilder={() => {
-        navigation.navigate('StandardsBuilder', {});
+        (navigation as any).navigate('CreateStandardFlow');
       }}
       onNavigateToDetail={(standardId: string) => {
         // No navigation per Activity History plan - standard taps are now a no-op

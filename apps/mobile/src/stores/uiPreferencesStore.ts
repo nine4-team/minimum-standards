@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { TimeRange } from '../components/RangeFilterDrawer';
 
 export type ChartType = 'Daily Volume' | 'Daily Progress' | 'Period Progress' | 'Standards Progress' | 'Cumulative Volume';
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -22,6 +23,8 @@ interface UIPreferencesState {
   toggleTimeBarForStandard: (standardId: string) => void;
   showInactiveStandards: boolean;
   setShowInactiveStandards: (show: boolean) => void;
+  scorecardTimeRange: TimeRange;
+  setScorecardTimeRange: (range: TimeRange) => void;
   activityCategoryMigrationCompletedAtMs: number | null;
   setActivityCategoryMigrationCompletedAtMs: (timestamp: number | null) => void;
   activityCategoryMigrationConflictActivityIds: string[];
@@ -56,6 +59,8 @@ export const useUIPreferencesStore = create<UIPreferencesState>()(
       }),
       showInactiveStandards: false,
       setShowInactiveStandards: (show) => set({ showInactiveStandards: show }),
+      scorecardTimeRange: 'All',
+      setScorecardTimeRange: (range) => set({ scorecardTimeRange: range }),
       activityCategoryMigrationCompletedAtMs: null,
       setActivityCategoryMigrationCompletedAtMs: (timestamp) => set({ activityCategoryMigrationCompletedAtMs: timestamp }),
       activityCategoryMigrationConflictActivityIds: [],

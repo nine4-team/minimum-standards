@@ -25,7 +25,8 @@ export type StandardsStackParamList = {
 };
 
 export type ScorecardStackParamList = {
-  Scorecard: { activityId?: string } | undefined;
+  ScorecardSummary: undefined;
+  ScorecardDetail: { activityId: string };
 };
 
 export type SettingsStackParamList = {

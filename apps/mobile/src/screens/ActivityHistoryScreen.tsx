@@ -37,6 +37,7 @@ import {
   MergedActivityHistoryRow,
 } from '../utils/activityHistory';
 import { aggregateDailyVolume, aggregateDailyProgress } from '../utils/activityCharts';
+import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 
 export interface ActivityHistoryScreenProps {
   activityId?: string;
@@ -62,7 +63,8 @@ export function ActivityHistoryScreen({
   const scrollRef = useRef<ScrollView>(null);
   const cardPositions = useRef<Record<string, number>>({});
 
-  const [timeRange, setTimeRange] = useState<TimeRange>('All');
+  const timeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
+  const setTimeRange = useUIPreferencesStore((s) => s.setScorecardTimeRange);
   const [isRangeDrawerVisible, setIsRangeDrawerVisible] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(activityId ?? null);
   const [isActivitySelectorVisible, setIsActivitySelectorVisible] = useState(false);
