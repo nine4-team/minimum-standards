@@ -1,6 +1,7 @@
 import type { Activity, Standard } from '@minimum-standards/shared-model';
 import type { MergedActivityHistoryRow } from '../activityHistory';
 import {
+  aggregatePeriodStats,
   buildActivitySummaryCards,
   type ActivitySummaryCard,
 } from '../scorecardSummary';
@@ -72,6 +73,86 @@ const makeRow = (
 // Tests
 // ---------------------------------------------------------------------------
 
+describe('aggregatePeriodStats', () => {
+  test('single standard, all Met', () => {
+    const rows = [
+      makeRow({ standardId: 'std-1', periodStartMs: 1000, total: 10, status: 'Met' }),
+      makeRow({ standardId: 'std-1', periodStartMs: 2000, total: 20, status: 'Met' }),
+      makeRow({ standardId: 'std-1', periodStartMs: 3000, total: 30, status: 'Met' }),
+    ];
+
+    const result = aggregatePeriodStats(rows);
+
+    expect(result.completedCount).toBe(3);
+    expect(result.metCount).toBe(3);
+    expect(result.totalVolume).toBe(60);
+  });
+
+  test('single standard, mixed statuses', () => {
+    const rows = [
+      makeRow({ standardId: 'std-1', periodStartMs: 1000, total: 10, status: 'Met' }),
+      makeRow({ standardId: 'std-1', periodStartMs: 2000, total: 20, status: 'Missed' }),
+      makeRow({ standardId: 'std-1', periodStartMs: 3000, total: 30, status: 'In Progress' }),
+    ];
+
+    const result = aggregatePeriodStats(rows);
+
+    // In Progress is excluded from completedCount
+    expect(result.completedCount).toBe(2);
+    // Only Met rows count toward metCount
+    expect(result.metCount).toBe(1);
+    expect(result.totalVolume).toBe(60);
+  });
+
+  test('each row counts as its own period regardless of periodStartMs', () => {
+    const rows = [
+      makeRow({ standardId: 'std-1', periodStartMs: 1000, total: 10, status: 'Met' }),
+      makeRow({ standardId: 'std-2', periodStartMs: 1000, total: 25, status: 'Met' }),
+    ];
+
+    const result = aggregatePeriodStats(rows);
+
+    // Each row = 1 period, no dedup
+    expect(result.completedCount).toBe(2);
+    expect(result.metCount).toBe(2);
+    expect(result.totalVolume).toBe(35);
+  });
+
+  test('Met and Missed rows both count as completed', () => {
+    const rows = [
+      makeRow({ standardId: 'std-1', periodStartMs: 1000, total: 10, status: 'Met' }),
+      makeRow({ standardId: 'std-2', periodStartMs: 1000, total: 5, status: 'Missed' }),
+    ];
+
+    const result = aggregatePeriodStats(rows);
+
+    expect(result.completedCount).toBe(2);
+    expect(result.metCount).toBe(1);
+    expect(result.totalVolume).toBe(15);
+  });
+
+  test('In Progress rows excluded from completedCount', () => {
+    const rows = [
+      makeRow({ standardId: 'std-1', periodStartMs: 1000, total: 10, status: 'Met' }),
+      makeRow({ standardId: 'std-2', periodStartMs: 2000, total: 5, status: 'In Progress' }),
+    ];
+
+    const result = aggregatePeriodStats(rows);
+
+    expect(result.completedCount).toBe(1);
+    expect(result.metCount).toBe(1);
+    expect(result.totalVolume).toBe(15);
+  });
+
+  test('empty input returns all zeros', () => {
+    const result = aggregatePeriodStats([]);
+
+    expect(result.completedCount).toBe(0);
+    expect(result.metCount).toBe(0);
+    expect(result.totalVolume).toBe(0);
+  });
+});
+
 describe('buildActivitySummaryCards', () => {
   // ---- 1. Happy path -------------------------------------------------------
   test('aggregates two activities with mixed Met/Missed rows correctly', () => {
@@ -87,13 +168,13 @@ describe('buildActivitySummaryCards', () => {
 
     const mergedRowsByActivity: Record<string, MergedActivityHistoryRow[]> = {
       'act-1': [
-        makeRow({ standardId: 'std-1', total: 30, status: 'Met' }),
-        makeRow({ standardId: 'std-1', total: 20, status: 'Missed' }),
-        makeRow({ standardId: 'std-1', total: 50, status: 'Met' }),
+        makeRow({ standardId: 'std-1', periodStartMs: 1000, total: 30, status: 'Met' }),
+        makeRow({ standardId: 'std-1', periodStartMs: 2000, total: 20, status: 'Missed' }),
+        makeRow({ standardId: 'std-1', periodStartMs: 3000, total: 50, status: 'Met' }),
       ],
       'act-2': [
-        makeRow({ standardId: 'std-2', total: 5, status: 'Met' }),
-        makeRow({ standardId: 'std-2', total: 3, status: 'Missed' }),
+        makeRow({ standardId: 'std-2', periodStartMs: 1000, total: 5, status: 'Met' }),
+        makeRow({ standardId: 'std-2', periodStartMs: 2000, total: 3, status: 'Missed' }),
       ],
     };
 
@@ -115,6 +196,7 @@ describe('buildActivitySummaryCards', () => {
     expect(pushups.completedCount).toBe(3);
     expect(pushups.metCount).toBe(2);
     expect(pushups.percentMet).toBe(67); // Math.round(2/3 * 100)
+    expect(pushups.totalPeriods).toBe(3);
     expect(pushups.countMetLabel).toBe('2/3 periods');
 
     const running = result[1];
@@ -125,6 +207,7 @@ describe('buildActivitySummaryCards', () => {
     expect(running.completedCount).toBe(2);
     expect(running.metCount).toBe(1);
     expect(running.percentMet).toBe(50);
+    expect(running.totalPeriods).toBe(2);
     expect(running.countMetLabel).toBe('1/2 periods');
   });
 
@@ -150,6 +233,7 @@ describe('buildActivitySummaryCards', () => {
     expect(card.completedCount).toBe(0);
     expect(card.metCount).toBe(0);
     expect(card.percentMet).toBe(0);
+    expect(card.totalPeriods).toBe(2);
     expect(card.countMetLabel).toBe('0/0 periods');
   });
 
@@ -159,8 +243,8 @@ describe('buildActivitySummaryCards', () => {
     const standards = [makeStandard()];
     const mergedRowsByActivity: Record<string, MergedActivityHistoryRow[]> = {
       'act-1': [
-        makeRow({ total: 0, status: 'Missed' }),
-        makeRow({ total: 0, status: 'Met' }),
+        makeRow({ periodStartMs: 1000, total: 0, status: 'Missed' }),
+        makeRow({ periodStartMs: 2000, total: 0, status: 'Met' }),
       ],
     };
 
@@ -300,6 +384,7 @@ describe('buildActivitySummaryCards', () => {
     expect(card.completedCount).toBe(0);
     expect(card.metCount).toBe(0);
     expect(card.percentMet).toBe(0);
+    expect(card.totalPeriods).toBe(0);
     expect(card.countMetLabel).toBe('0/0 periods');
   });
 

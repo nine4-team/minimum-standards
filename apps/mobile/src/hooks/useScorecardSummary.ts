@@ -111,11 +111,13 @@ export function useScorecardSummary(): {
 
     for (const activityId of relevantActivityIds) {
       const persisted = persistedRowsByActivity[activityId] ?? [];
-      result[activityId] = mergeActivityHistoryRows({
+      const merged = mergeActivityHistoryRows({
         persistedRows: persisted,
         syntheticRows: [],
         timezone,
+        nowMs: Date.now(),
       });
+      result[activityId] = merged;
     }
 
     return result;
@@ -131,14 +133,16 @@ export function useScorecardSummary(): {
 
     for (const activityId of relevantActivityIds) {
       const rows = mergedRowsByActivity[activityId] ?? [];
+      let filtered: MergedActivityHistoryRow[];
 
       if (scorecardTimeRange === 'All') {
-        result[activityId] = rows;
+        filtered = rows;
       } else {
-        result[activityId] = rows.filter(
+        filtered = rows.filter(
           (row) => row.periodStartMs < nowMs && row.periodEndMs >= rangeStartMs
         );
       }
+      result[activityId] = filtered;
     }
 
     return result;

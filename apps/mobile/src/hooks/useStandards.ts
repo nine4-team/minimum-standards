@@ -291,7 +291,7 @@ export function useStandards(): UseStandardsResult {
           preferenceChanged;
 
         if (shouldRecompute) {
-          triggerActivityHistoryRecompute(updated, Date.now());
+          triggerActivityHistoryRecompute(updated, Date.now(), previousStandard ?? undefined);
         }
       }
       return updated;
@@ -380,7 +380,7 @@ export function useStandards(): UseStandardsResult {
   );
 
   const triggerActivityHistoryRecompute = useCallback(
-    (standard: Standard, occurredAtMs: number) => {
+    (standard: Standard, occurredAtMs: number, previousStandard?: Standard) => {
       if (!userId) {
         return;
       }
@@ -389,6 +389,7 @@ export function useStandards(): UseStandardsResult {
         userId,
         standard,
         occurredAtMs,
+        previousStandard,
       }).catch((error) => {
         console.error(
           '[useStandards] Failed to recompute activity history period',

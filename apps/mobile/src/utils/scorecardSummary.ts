@@ -2,6 +2,33 @@ import type { Activity, Standard } from '@minimum-standards/shared-model';
 import type { MergedActivityHistoryRow } from './activityHistory';
 import { formatTotal } from './activityHistory';
 
+/**
+ * Aggregates period stats from rows. Each row = one period.
+ * completedCount excludes In Progress rows.
+ * metCount counts only Met rows among completed.
+ */
+export function aggregatePeriodStats(rows: MergedActivityHistoryRow[]): {
+  completedCount: number;
+  metCount: number;
+  totalVolume: number;
+} {
+  let totalVolume = 0;
+  let metCount = 0;
+  let completedCount = 0;
+
+  for (const row of rows) {
+    totalVolume += row.total;
+    if (row.status !== 'In Progress') {
+      completedCount += 1;
+      if (row.status === 'Met') {
+        metCount += 1;
+      }
+    }
+  }
+
+  return { completedCount, metCount, totalVolume };
+}
+
 export interface ActivitySummaryCard {
   activityId: string;
   activityName: string;
@@ -11,6 +38,7 @@ export interface ActivitySummaryCard {
   percentMet: number;
   metCount: number;
   completedCount: number;
+  totalPeriods: number;
   countMetLabel: string;
 }
 
@@ -55,24 +83,13 @@ export function buildActivitySummaryCards(params: {
     if (!activity) continue;
 
     const rows = mergedRowsByActivity[activityId] ?? [];
-
-    let totalVolume = 0;
-    let metCount = 0;
-    let completedCount = 0;
-
-    for (const row of rows) {
-      totalVolume += row.total;
-      if (row.status !== 'In Progress') {
-        completedCount += 1;
-        if (row.status === 'Met') {
-          metCount += 1;
-        }
-      }
-    }
+    const { completedCount, metCount, totalVolume } = aggregatePeriodStats(rows);
 
     const percentMet = completedCount > 0
       ? Math.round((metCount / completedCount) * 100)
       : 0;
+
+    const totalPeriods = rows.length;
 
     cards.push({
       activityId,
@@ -83,6 +100,7 @@ export function buildActivitySummaryCards(params: {
       percentMet,
       metCount,
       completedCount,
+      totalPeriods,
       countMetLabel: `${metCount}/${completedCount} periods`,
     });
   }

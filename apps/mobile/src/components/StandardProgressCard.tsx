@@ -8,6 +8,9 @@ import {
 } from 'react-native';
 import type { Standard } from '@minimum-standards/shared-model';
 import { formatUnitWithCount, UNCATEGORIZED_CATEGORY_ID } from '@minimum-standards/shared-model';
+
+/** Minimal standard shape needed by the card — satisfied by both Standard and ActivityHistoryStandardSnapshot. */
+export type StandardProgressCardStandard = Pick<Standard, 'sessionConfig' | 'unit' | 'minimum'>;
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import { typography, BUTTON_BORDER_RADIUS, CARD_PADDING, getCardBorderStyle, getCardBaseStyle } from '@nine4/ui-kit';
@@ -15,7 +18,7 @@ import { BottomSheetMenu } from './BottomSheetMenu';
 import type { BottomSheetMenuItem } from './BottomSheetMenu';
 
 export interface StandardProgressCardProps {
-  standard: Standard;
+  standard: StandardProgressCardStandard;
   activityName: string;
   periodLabel: string;
   currentTotal: number;

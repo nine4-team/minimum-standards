@@ -64,7 +64,7 @@ export function ScorecardSummaryScreen({
       >
         <View style={styles.headerSpacer} />
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
-          Scorecard
+          Scorecards
         </Text>
         <TouchableOpacity
           onPress={() => setHeaderMenuVisible(true)}

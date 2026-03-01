@@ -112,8 +112,9 @@ export function mergeActivityHistoryRows(params: {
   persistedRows: ActivityHistoryRow[];
   syntheticRows: MergedActivityHistoryRow[];
   timezone: string;
+  nowMs: number;
 }): MergedActivityHistoryRow[] {
-  const { persistedRows, syntheticRows, timezone } = params;
+  const { persistedRows, syntheticRows, timezone, nowMs } = params;
 
   // Create a map to track which (standardId, periodStartMs) combinations we've seen
   const seenKeys = new Set<string>();
@@ -146,7 +147,7 @@ export function mergeActivityHistoryRows(params: {
         total: persisted.total,
         currentSessions: persisted.currentSessions,
         targetSessions: persisted.targetSessions,
-        status: persisted.status,
+        status: derivePeriodStatus(persisted.total, persisted.standardSnapshot.minimum, nowMs, boundaries.endMs),
         progressPercent: persisted.progressPercent,
         isCurrentPeriod: false,
       });

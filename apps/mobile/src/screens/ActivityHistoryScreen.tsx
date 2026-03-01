@@ -16,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { Standard, formatStandardSummary } from '@minimum-standards/shared-model';
 import { useActivityHistory } from '../hooks/useActivityHistory';
 import { useActivityLogs } from '../hooks/useActivityLogs';
 import { useActivityRangeLogs, ActivityLogSlice } from '../hooks/useActivityRangeLogs';
@@ -36,6 +35,7 @@ import {
   formatTotal,
   MergedActivityHistoryRow,
 } from '../utils/activityHistory';
+import { aggregatePeriodStats } from '../utils/scorecardSummary';
 import { aggregateDailyVolume, aggregateDailyProgress } from '../utils/activityCharts';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 
@@ -104,18 +104,21 @@ export function ActivityHistoryScreen({
 
   useEffect(() => {
     if (sortedActivities.length === 0) {
-      setSelectedActivityId(null);
       return;
     }
 
-    const isValidSelection = selectedActivityId
-      ? sortedActivities.some((activity) => activity.id === selectedActivityId)
+    // Prefer the activityId prop, then current selection, then first in list
+    const preferred = activityId ?? selectedActivityId;
+    const isValid = preferred
+      ? sortedActivities.some((a) => a.id === preferred)
       : false;
 
-    if (!isValidSelection) {
+    if (isValid && preferred !== selectedActivityId) {
+      setSelectedActivityId(preferred);
+    } else if (!isValid) {
       setSelectedActivityId(sortedActivities[0].id);
     }
-  }, [sortedActivities, selectedActivityId]);
+  }, [sortedActivities, activityId, selectedActivityId]);
 
   const { rows: persistedRows, loading: historyLoading, error: historyError } = useActivityHistory(selectedActivityId);
 
@@ -174,19 +177,11 @@ export function ActivityHistoryScreen({
     });
   }, [activeStandards, selectedActivityId, currentPeriodLogs, timezone, nowMs]);
 
-  // Merge persisted and synthetic rows
+  // Merge persisted and synthetic rows — show ALL historical periods regardless
+  // of whether the originating standard still exists (fixes deleted-standard hiding)
   const mergedRows = useMemo(() => {
-    const merged = mergeActivityHistoryRows({
-      persistedRows,
-      syntheticRows,
-      timezone,
-    });
-    if (relevantStandardIds.length === 0) {
-      return merged;
-    }
-    const allowed = new Set(relevantStandardIds);
-    return merged.filter((row) => allowed.has(row.standardId));
-  }, [persistedRows, syntheticRows, timezone, relevantStandardIds]);
+    return mergeActivityHistoryRows({ persistedRows, syntheticRows, timezone, nowMs });
+  }, [persistedRows, syntheticRows, timezone, nowMs]);
 
   const effectiveRangeStartMs = useMemo(() => {
     if (timeRange !== 'All') {
@@ -211,9 +206,13 @@ export function ActivityHistoryScreen({
   // Filtered rows for charts + list based on timeRange (full period totals)
   // Period list includes any periods that overlap the selected range
   const filteredRowsForList = useMemo(() => {
-    if (timeRange === 'All') return mergedRows;
-    // Include periods that overlap with the selected range
-    return mergedRows.filter(row => row.periodStartMs < nowMs && row.periodEndMs >= requestedRangeStartMs);
+    let result: MergedActivityHistoryRow[];
+    if (timeRange === 'All') {
+      result = mergedRows;
+    } else {
+      result = mergedRows.filter(row => row.periodStartMs < nowMs && row.periodEndMs >= requestedRangeStartMs);
+    }
+    return result;
   }, [mergedRows, timeRange, requestedRangeStartMs, nowMs]);
 
   const logsByStandard = useMemo(() => {
@@ -304,23 +303,23 @@ export function ActivityHistoryScreen({
 
   // Aggregate Stats Panel Data
   const stats = useMemo(() => {
-    // We want to show stats if we have ANY logs, even if we don't have completed periods yet
-    if (rangeLogs.length === 0 && clippedRows.length === 0) return null;
+    if (clippedRows.length === 0) return null;
 
-    // Total value should reflect ALL logs in the selected range, not just those mapped to period rows
-    const totalValueRaw = rangeLogs.reduce((sum, log) => sum + log.value, 0);
-    
-    const completedRows = clippedRows.filter(entry => entry.row.status !== 'In Progress');
-    const metCount = completedRows.filter(entry => entry.clippedTotal >= entry.row.standardSnapshot.minimum).length;
-    const completedPeriods = completedRows.length;
-    const percentMet = completedPeriods > 0 ? Math.round((metCount / completedPeriods) * 100) : 0;
+    // Use snapshot totals for completed periods, live clipped data for in-progress
+    const totalValueRaw = clippedRows.reduce((sum, entry) => {
+      return sum + (entry.row.isCurrentPeriod ? entry.clippedTotal : entry.row.total);
+    }, 0);
+
+    const clippedMergedRows = clippedRows.map((entry) => entry.row);
+    const { completedCount, metCount } = aggregatePeriodStats(clippedMergedRows);
+    const percentMet = completedCount > 0 ? Math.round((metCount / completedCount) * 100) : 0;
 
     // Standard Change logic - use all mergedRows to find full history
     const standardsHistory = [...mergedRows]
       .reverse() // Oldest first
       .map(row => row.standardSnapshot.minimum)
       .filter((val, index, self) => index === 0 || val !== self[index - 1]);
-    
+
     let standardChange = 'No changes yet';
     if (standardsHistory.length > 1) {
       const first = standardsHistory[0];
@@ -331,7 +330,7 @@ export function ActivityHistoryScreen({
     return {
       totalValue: formatTotal(totalValueRaw),
       percentMet,
-      countMet: `${metCount} / ${completedPeriods} periods`,
+      countMet: `${metCount} / ${completedCount} periods`,
       standardChange,
       standardHistory: standardsHistory.reverse(), // For the drill-down, latest first
     };
@@ -419,6 +418,7 @@ export function ActivityHistoryScreen({
   const handlePeriodPress = (row: MergedActivityHistoryRow) => {
     navigation.navigate('StandardPeriodActivityLogs', {
       standardId: row.standardId,
+      activityId: selectedActivityId ?? undefined,
       periodStartMs: row.periodStartMs,
       periodEndMs: row.periodEndMs,
       periodStandardSnapshot: row.standardSnapshot,
@@ -430,36 +430,6 @@ export function ActivityHistoryScreen({
     if (y !== undefined) {
       scrollRef.current?.scrollTo({ y: y - 10, animated: true });
     }
-  };
-
-  // Create a Standard-like object from snapshot for rendering
-  const createStandardFromSnapshot = (
-    snapshot: MergedActivityHistoryRow['standardSnapshot'],
-    standardId: string
-  ): Standard => {
-    // Compute summary from snapshot data
-    const summary = formatStandardSummary(
-      snapshot.minimum,
-      snapshot.unit,
-      snapshot.cadence,
-      snapshot.sessionConfig
-    );
-
-    return {
-      id: standardId,
-      activityId,
-      minimum: snapshot.minimum,
-      unit: snapshot.unit,
-      cadence: snapshot.cadence,
-      sessionConfig: snapshot.sessionConfig,
-      state: 'active' as const,
-      summary,
-      archivedAtMs: null,
-      createdAtMs: 0,
-      updatedAtMs: 0,
-      deletedAtMs: null,
-      periodStartPreference: snapshot.periodStartPreference ?? undefined,
-    };
   };
 
   const hasActivities = sortedActivities.length > 0;
@@ -479,7 +449,7 @@ export function ActivityHistoryScreen({
         <TouchableOpacity onPress={onBack} accessibilityRole="button">
           <Text style={[styles.backButton, { color: theme.primary.main }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Scorecard</Text>
+        <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Scorecard Detail</Text>
         <TouchableOpacity 
           onPress={() => setIsRangeDrawerVisible(true)}
           style={[styles.rangeTrigger, { backgroundColor: theme.background.surface, borderColor: theme.border.primary }]}
@@ -574,42 +544,71 @@ export function ActivityHistoryScreen({
             />
           )}
 
-          <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Period History</Text>
+          {filteredRowsForList.some((r) => r.isCurrentPeriod) && (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Current Period</Text>
+              {filteredRowsForList
+                .filter((r) => r.isCurrentPeriod)
+                .map((row) => (
+                  <View
+                    key={`${row.standardId}__${row.periodStartMs}`}
+                    onLayout={(e) => {
+                      cardPositions.current[row.periodStartMs.toString()] = e.nativeEvent.layout.y;
+                    }}
+                  >
+                    <StandardProgressCard
+                      standard={row.standardSnapshot}
+                      activityName={activityName}
+                      periodLabel={row.periodLabel}
+                      currentTotal={row.total}
+                      currentTotalFormatted={formatTotal(row.total)}
+                      targetValue={row.standardSnapshot.minimum}
+                      targetValueFormatted={formatTotal(row.standardSnapshot.minimum)}
+                      unit={row.standardSnapshot.unit}
+                      progressPercent={row.progressPercent}
+                      status={row.status}
+                      currentSessions={row.currentSessions}
+                      targetSessions={row.targetSessions}
+                      sessionLabel={row.standardSnapshot.sessionConfig.sessionLabel}
+                      onCardPress={() => handlePeriodPress(row)}
+                    />
+                  </View>
+                ))}
+            </>
+          )}
 
-          {filteredRowsForList.map((row) => {
-            const snapshotStandard = createStandardFromSnapshot(row.standardSnapshot, row.standardId);
-
-            const targetValue = row.standardSnapshot.minimum;
-            const targetValueFormatted = Math.round(targetValue).toString();
-            const currentTotalFormatted = formatTotal(row.total);
-
-            return (
-              <View
-                key={`${row.standardId}__${row.periodStartMs}`}
-                onLayout={(e) => {
-                  cardPositions.current[row.periodStartMs.toString()] = e.nativeEvent.layout.y;
-                }}
-              >
-                <StandardProgressCard
-                  standard={snapshotStandard}
-                  activityName={activityName}
-                  periodLabel={row.isCurrentPeriod ? `${row.periodLabel} (In Progress)` : row.periodLabel}
-                  currentTotal={row.total}
-                  currentTotalFormatted={currentTotalFormatted}
-                  targetValue={targetValue}
-                  targetValueFormatted={targetValueFormatted}
-                  progressPercent={row.progressPercent}
-                  status={row.status}
-                  currentSessions={row.currentSessions}
-                  targetSessions={row.targetSessions}
-                  sessionLabel={row.standardSnapshot.sessionConfig.sessionLabel}
-                  unit={row.standardSnapshot.unit}
-                  showLogButton={false}
-                  onCardPress={() => handlePeriodPress(row)}
-                />
-              </View>
-            );
-          })}
+          {filteredRowsForList.some((r) => !r.isCurrentPeriod) && (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>History</Text>
+              {filteredRowsForList
+                .filter((r) => !r.isCurrentPeriod)
+                .map((row) => (
+                  <View
+                    key={`${row.standardId}__${row.periodStartMs}`}
+                    onLayout={(e) => {
+                      cardPositions.current[row.periodStartMs.toString()] = e.nativeEvent.layout.y;
+                    }}
+                  >
+                    <StandardProgressCard
+                      standard={row.standardSnapshot}
+                      activityName={activityName}
+                      periodLabel={row.periodLabel}
+                      currentTotal={row.total}
+                      currentTotalFormatted={formatTotal(row.total)}
+                      targetValue={row.standardSnapshot.minimum}
+                      targetValueFormatted={formatTotal(row.standardSnapshot.minimum)}
+                      unit={row.standardSnapshot.unit}
+                      progressPercent={row.progressPercent}
+                      status={row.status}
+                      currentSessions={row.currentSessions}
+                      targetSessions={row.targetSessions}
+                      sessionLabel={row.standardSnapshot.sessionConfig.sessionLabel}
+                      onCardPress={() => handlePeriodPress(row)}
+                    />
+                  </View>
+                ))}
+            </>
+          )}
         </ScrollView>
       )}
 

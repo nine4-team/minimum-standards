@@ -26,7 +26,7 @@ type RouteProps = RouteProp<RootStackParamList, 'StandardPeriodActivityLogs'>;
 export function StandardPeriodActivityLogsScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProps>();
-  const { standardId, periodStartMs, periodEndMs, periodStandardSnapshot } = route.params;
+  const { standardId, activityId: activityIdParam, periodStartMs, periodEndMs, periodStandardSnapshot } = route.params;
 
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -44,10 +44,14 @@ export function StandardPeriodActivityLogsScreen() {
     [standards, standardId]
   );
 
+  const resolvedActivityId = standard?.activityId ?? activityIdParam;
   const activity = useMemo(
-    () => activities.find(a => a.id === standard?.activityId),
-    [activities, standard?.activityId]
+    () => activities.find(a => a.id === resolvedActivityId),
+    [activities, resolvedActivityId]
   );
+
+  // When the standard has been deleted, fall back to the embedded snapshot
+  const isReadOnly = !standard && !!periodStandardSnapshot;
 
   // Calculate period boundaries and label if not provided
   const periodInfo = useMemo(() => {
@@ -161,7 +165,7 @@ export function StandardPeriodActivityLogsScreen() {
     }
   };
 
-  if (!standard || !activity || !periodInfo) {
+  if ((!standard && !periodStandardSnapshot) || !activity || !periodInfo) {
     return (
       <View style={[styles.screen, { backgroundColor: theme.background.screen }]}>
         <ErrorBanner error={new Error('Standard or period information not found')} />
@@ -171,10 +175,10 @@ export function StandardPeriodActivityLogsScreen() {
 
   // Calculate progress for the header
   const totalValue = logs.reduce((sum, log) => sum + log.value, 0);
-  const targetValue = periodStandardSnapshot?.minimum ?? standard.minimum;
+  const targetValue = periodStandardSnapshot?.minimum ?? standard?.minimum ?? 0;
   const progressPercent = targetValue > 0 ? Math.min((totalValue / targetValue) * 100, 100) : 0;
-  const headerUnit = periodStandardSnapshot?.unit ?? standard.unit;
-  const headerSessionConfig = periodStandardSnapshot?.sessionConfig ?? standard.sessionConfig;
+  const headerUnit = periodStandardSnapshot?.unit ?? standard?.unit ?? '';
+  const headerSessionConfig = periodStandardSnapshot?.sessionConfig ?? standard?.sessionConfig;
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background.screen }]}>
@@ -204,6 +208,15 @@ export function StandardPeriodActivityLogsScreen() {
 
       <ErrorBanner error={error} />
 
+      {isReadOnly && (
+        <View style={[styles.infoBanner, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary }]}>
+          <MaterialIcons name="info-outline" size={16} color={theme.text.secondary} />
+          <Text style={[styles.infoBannerText, { color: theme.text.secondary }]}>
+            This standard has been deleted. Logs are read-only.
+          </Text>
+        </View>
+      )}
+
       {/* Activity Logs with header included */}
       <ActivityLogsList
         logs={logs}
@@ -211,8 +224,8 @@ export function StandardPeriodActivityLogsScreen() {
         hasMore={hasMore}
         onRefresh={handleRefresh}
         onLoadMore={loadMore}
-        onEditLog={handleEditLog}
-        onDeleteLog={handleDeleteLog}
+        onEditLog={isReadOnly ? undefined : handleEditLog}
+        onDeleteLog={isReadOnly ? undefined : handleDeleteLog}
         unit={headerUnit}
         periodHeaderProps={{
           periodLabel: periodInfo.label,
@@ -225,20 +238,22 @@ export function StandardPeriodActivityLogsScreen() {
         }}
       />
 
-      {/* Edit Log Modal */}
-      <LogEntryModal
-        visible={editModalVisible}
-        standard={standard}
-        logEntry={editingLog}
-        onClose={handleModalClose}
-        onSave={handleLogSave}
-        resolveActivityName={(activityId) => {
-          const activity = activities.find(a => a.id === activityId);
-          return activity?.name;
-        }}
-        currentPeriodStartMs={periodInfo?.startMs}
-        currentPeriodEndMs={periodInfo?.endMs}
-      />
+      {/* Edit Log Modal — only for active standards */}
+      {!isReadOnly && (
+        <LogEntryModal
+          visible={editModalVisible}
+          standard={standard!}
+          logEntry={editingLog}
+          onClose={handleModalClose}
+          onSave={handleLogSave}
+          resolveActivityName={(activityId) => {
+            const act = activities.find(a => a.id === activityId);
+            return act?.name;
+          }}
+          currentPeriodStartMs={periodInfo?.startMs}
+          currentPeriodEndMs={periodInfo?.endMs}
+        />
+      )}
     </View>
   );
 }
@@ -263,5 +278,17 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 24, // Match back icon width for centering
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  infoBannerText: {
+    fontSize: 13,
+    flex: 1,
   },
 });

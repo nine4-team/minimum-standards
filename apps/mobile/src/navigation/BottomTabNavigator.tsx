@@ -107,14 +107,14 @@ export function BottomTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="Scorecard"
+        name="Scorecards"
         component={ActivitiesStack}
         options={{
-          tabBarLabel: 'Scorecard',
+          tabBarLabel: 'Scorecards',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="assessment" size={size || 24} color={color} />
           ),
-          tabBarAccessibilityLabel: 'Scorecard tab',
+          tabBarAccessibilityLabel: 'Scorecards tab',
         }}
       />
       <Tab.Screen

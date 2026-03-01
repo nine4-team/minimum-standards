@@ -43,7 +43,7 @@ export type SettingsStackParamList = {
 // Bottom tab navigator param list
 export type BottomTabParamList = {
   Standards: NavigatorScreenParams<StandardsStackParamList>;
-  Scorecard: NavigatorScreenParams<ScorecardStackParamList>;
+  Scorecards: NavigatorScreenParams<ScorecardStackParamList>;
   SettingsTab: NavigatorScreenParams<SettingsStackParamList>;
   Create: undefined;
 };
@@ -59,6 +59,7 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainStackParamList>;
   StandardPeriodActivityLogs: {
     standardId: string;
+    activityId?: string;
     periodStartMs?: number;
     periodEndMs?: number;
     periodStandardSnapshot?: ActivityHistoryStandardSnapshot;

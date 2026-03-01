@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  deleteDoc,
   getDocs,
   query,
   where,
@@ -11,6 +12,7 @@ import {
   calculatePeriodWindow,
   derivePeriodStatus,
 } from '@minimum-standards/shared-model';
+import { buildActivityHistoryDocId } from '@minimum-standards/firestore-model';
 import { firebaseFirestore } from '../firebase/firebaseApp';
 import { writeActivityHistoryPeriod } from './activityHistoryFirestore';
 
@@ -19,6 +21,7 @@ export interface RecomputeActivityHistoryPeriodParams {
   standard: Standard;
   occurredAtMs: number;
   source?: 'log-edit';
+  previousStandard?: Standard;
 }
 
 export async function recomputeActivityHistoryPeriod({
@@ -26,6 +29,7 @@ export async function recomputeActivityHistoryPeriod({
   standard,
   occurredAtMs,
   source = 'log-edit',
+  previousStandard,
 }: RecomputeActivityHistoryPeriodParams): Promise<void> {
   if (!userId) {
     throw new Error('[activityHistoryRecompute] userId is required');
@@ -95,4 +99,24 @@ export async function recomputeActivityHistoryPeriod({
     },
     source,
   });
+
+  // Clean up orphaned doc if boundary shifted
+  if (previousStandard) {
+    const oldWindow = calculatePeriodWindow(
+      occurredAtMs,
+      previousStandard.cadence,
+      timezone,
+      { periodStartPreference: previousStandard.periodStartPreference }
+    );
+    const oldDocId = buildActivityHistoryDocId(standard.activityId, standard.id, oldWindow.startMs);
+    const newDocId = buildActivityHistoryDocId(standard.activityId, standard.id, window.startMs);
+
+    if (oldDocId !== newDocId) {
+      const userDocRef = doc(firebaseFirestore, 'users', userId);
+      const oldDocRef = doc(collection(userDocRef, 'activityHistory'), oldDocId);
+      deleteDoc(oldDocRef).catch((err) => {
+        console.error('[activityHistoryRecompute] Failed to delete orphaned doc', oldDocId, err);
+      });
+    }
+  }
 }
