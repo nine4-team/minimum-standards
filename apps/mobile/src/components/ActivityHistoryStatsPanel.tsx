@@ -5,6 +5,7 @@ import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { CARD_PADDING } from '@nine4/ui-kit';
 
 export interface ActivityHistoryStatsPanelProps {
+  activityName: string;
   totalValue: string;
   unit: string;
   percentMet: number;
@@ -16,6 +17,7 @@ export interface ActivityHistoryStatsPanelProps {
 }
 
 export function ActivityHistoryStatsPanel({
+  activityName,
   totalValue,
   unit,
   percentMet,
@@ -44,6 +46,12 @@ export function ActivityHistoryStatsPanel({
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background.surface, borderColor: theme.border.secondary }]}>
+        <View style={[styles.activityHeader, { borderBottomColor: theme.border.secondary }]}>
+          <Text style={[styles.activityName, { color: theme.text.primary }]}>{activityName}</Text>
+          {!!unit && (
+            <Text style={[styles.activityUnit, { color: theme.text.secondary }]}>{unit}</Text>
+          )}
+        </View>
         <View style={styles.gridContent}>
           {[1, 2].map((i) => (
             <View key={i} style={styles.skeletonItem}>
@@ -67,6 +75,12 @@ export function ActivityHistoryStatsPanel({
           },
         ]}
       >
+        <View style={[styles.activityHeader, { borderBottomColor: theme.border.secondary }]}>
+          <Text style={[styles.activityName, { color: theme.text.primary }]}>{activityName}</Text>
+          {!!unit && (
+            <Text style={[styles.activityUnit, { color: theme.text.secondary }]}>{unit}</Text>
+          )}
+        </View>
         <View style={styles.emptyContent}>
           <Text style={[styles.emptyText, { color: theme.text.secondary }]}>
             Start logging to see trends
@@ -86,6 +100,12 @@ export function ActivityHistoryStatsPanel({
         },
       ]}
     >
+      <View style={[styles.activityHeader, { borderBottomColor: theme.border.secondary }]}>
+        <Text style={[styles.activityName, { color: theme.text.primary }]}>{activityName}</Text>
+        {!!unit && (
+          <Text style={[styles.activityUnit, { color: theme.text.secondary }]}>{unit}</Text>
+        )}
+      </View>
       <View style={styles.gridContent}>
         <StatItem
           label={`Total ${unit}`}
@@ -236,6 +256,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 0,
     overflow: 'hidden',
+  },
+  activityHeader: {
+    paddingHorizontal: CARD_PADDING,
+    paddingTop: CARD_PADDING,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  activityName: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  activityUnit: {
+    fontSize: 14,
   },
   gridContent: {
     padding: CARD_PADDING,

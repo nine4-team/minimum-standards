@@ -6,9 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
   AppState,
   AppStateStatus,
 } from 'react-native';
@@ -21,7 +18,7 @@ import { useActivityLogs } from '../hooks/useActivityLogs';
 import { useActivityRangeLogs, ActivityLogSlice } from '../hooks/useActivityRangeLogs';
 import { useStandards } from '../hooks/useStandards';
 import { useActivities } from '../hooks/useActivities';
-import { StandardProgressCard } from '../components/StandardProgressCard';
+import { PeriodProgressCard } from '../components/PeriodProgressCard';
 import { ActivityHistoryStatsPanel } from '../components/ActivityHistoryStatsPanel';
 import { ActivityVolumeCharts } from '../components/ActivityVolumeCharts';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -66,24 +63,12 @@ export function ActivityHistoryScreen({
   const timeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
   const setTimeRange = useUIPreferencesStore((s) => s.setScorecardTimeRange);
   const [isRangeDrawerVisible, setIsRangeDrawerVisible] = useState(false);
-  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(activityId ?? null);
-  const [isActivitySelectorVisible, setIsActivitySelectorVisible] = useState(false);
+  const selectedActivityId = activityId ?? null;
 
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const { standards } = useStandards();
   const { activities, loading: activitiesLoading, error: activitiesError } = useActivities();
-
-  const sortedActivities = useMemo(
-    () => [...activities].sort((a, b) => a.name.localeCompare(b.name)),
-    [activities]
-  );
-
-  useEffect(() => {
-    if (activityId) {
-      setSelectedActivityId(activityId);
-    }
-  }, [activityId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -102,32 +87,14 @@ export function ActivityHistoryScreen({
     };
   }, []);
 
-  useEffect(() => {
-    if (sortedActivities.length === 0) {
-      return;
-    }
-
-    // Prefer the activityId prop, then current selection, then first in list
-    const preferred = activityId ?? selectedActivityId;
-    const isValid = preferred
-      ? sortedActivities.some((a) => a.id === preferred)
-      : false;
-
-    if (isValid && preferred !== selectedActivityId) {
-      setSelectedActivityId(preferred);
-    } else if (!isValid) {
-      setSelectedActivityId(sortedActivities[0].id);
-    }
-  }, [sortedActivities, activityId, selectedActivityId]);
-
   const { rows: persistedRows, loading: historyLoading, error: historyError } = useActivityHistory(selectedActivityId);
 
   // Get activity name
   const activity = useMemo(
-    () => sortedActivities.find((a) => a.id === selectedActivityId) ?? null,
-    [sortedActivities, selectedActivityId]
+    () => activities.find((a) => a.id === selectedActivityId) ?? null,
+    [activities, selectedActivityId]
   );
-  const activityName = activity?.name ?? 'Select activity';
+  const activityName = activity?.name ?? '';
   const unit = activity?.unit ?? '';
 
   // Get all standards (active and inactive) that reference this activity
@@ -432,7 +399,7 @@ export function ActivityHistoryScreen({
     }
   };
 
-  const hasActivities = sortedActivities.length > 0;
+  const hasActivities = activities.length > 0;
 
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
@@ -468,30 +435,6 @@ export function ActivityHistoryScreen({
 
       <ErrorBanner error={error} />
 
-      <View style={[styles.selectorSection, { borderBottomColor: theme.border.secondary }]}>
-        <Text style={[styles.selectorTitle, { color: theme.text.secondary }]}>Activity</Text>
-        <TouchableOpacity
-          style={[styles.selectorButton, { backgroundColor: theme.input.background, borderColor: theme.input.border }]}
-          onPress={() => {
-            if (hasActivities) {
-              setIsActivitySelectorVisible(true);
-            }
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Select activity"
-        >
-          <View style={styles.selectorTextBlock}>
-            <Text style={[styles.selectorValue, { color: theme.text.primary }]}>
-              {activityName}
-            </Text>
-            {!!unit && (
-              <Text style={[styles.selectorUnit, { color: theme.text.secondary }]}>{unit}</Text>
-            )}
-          </View>
-          <MaterialIcon name="keyboard-arrow-down" size={22} color={theme.text.secondary} />
-        </TouchableOpacity>
-      </View>
-
       {!hasActivities && !activitiesLoading ? (
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: theme.text.secondary }]}>
@@ -521,6 +464,7 @@ export function ActivityHistoryScreen({
         >
           {stats && (
             <ActivityHistoryStatsPanel
+              activityName={activityName}
               totalValue={stats.totalValue}
               unit={unit}
               percentMet={stats.percentMet}
@@ -556,7 +500,7 @@ export function ActivityHistoryScreen({
                       cardPositions.current[row.periodStartMs.toString()] = e.nativeEvent.layout.y;
                     }}
                   >
-                    <StandardProgressCard
+                    <PeriodProgressCard
                       standard={row.standardSnapshot}
                       activityName={activityName}
                       periodLabel={row.periodLabel}
@@ -589,7 +533,7 @@ export function ActivityHistoryScreen({
                       cardPositions.current[row.periodStartMs.toString()] = e.nativeEvent.layout.y;
                     }}
                   >
-                    <StandardProgressCard
+                    <PeriodProgressCard
                       standard={row.standardSnapshot}
                       activityName={activityName}
                       periodLabel={row.periodLabel}
@@ -612,57 +556,6 @@ export function ActivityHistoryScreen({
         </ScrollView>
       )}
 
-      <Modal
-        visible={isActivitySelectorVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsActivitySelectorVisible(false)}
-      >
-        <Pressable
-          style={[styles.selectorOverlay, { backgroundColor: theme.overlay }]}
-          onPress={() => setIsActivitySelectorVisible(false)}
-        >
-          <Pressable
-            style={[styles.selectorSheet, { backgroundColor: theme.background.modal }]}
-            onPress={(event) => event.stopPropagation()}
-          >
-            <Text style={[styles.selectorSheetTitle, { color: theme.text.primary }]}>Select activity</Text>
-            <FlatList
-              data={sortedActivities}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => {
-                const isSelected = item.id === selectedActivityId;
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.selectorItem,
-                      isSelected && { backgroundColor: theme.background.tertiary },
-                    ]}
-                    onPress={() => {
-                      setSelectedActivityId(item.id);
-                      setIsActivitySelectorVisible(false);
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Select ${item.name}`}
-                  >
-                    <View style={styles.selectorItemText}>
-                      <Text style={[styles.selectorItemName, { color: theme.text.primary }]}>
-                        {item.name}
-                      </Text>
-                      <Text style={[styles.selectorItemUnit, { color: theme.text.secondary }]}>
-                        {item.unit}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <MaterialIcon name="check" size={20} color={theme.primary.main} />
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -689,9 +582,6 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  headerSpacer: {
-    width: 60, // Match back button width for centering
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -714,70 +604,6 @@ const styles = StyleSheet.create({
     paddingTop: SCREEN_PADDING,
     paddingHorizontal: SCREEN_PADDING,
     gap: CARD_LIST_GAP,
-  },
-  selectorSection: {
-    marginHorizontal: SCREEN_PADDING,
-    marginTop: SCREEN_PADDING,
-    paddingBottom: SCREEN_PADDING,
-    borderBottomWidth: 1,
-    gap: 8,
-  },
-  selectorTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  selectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  selectorTextBlock: {
-    gap: 2,
-  },
-  selectorValue: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  selectorUnit: {
-    fontSize: 12,
-  },
-  selectorOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  selectorSheet: {
-    padding: SCREEN_PADDING,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '70%',
-  },
-  selectorSheetTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  selectorItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  selectorItemText: {
-    gap: 4,
-  },
-  selectorItemName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  selectorItemUnit: {
-    fontSize: 12,
   },
   rangeTrigger: {
     flexDirection: 'row',
