@@ -262,9 +262,8 @@ const styles = StyleSheet.create({
     paddingTop: CARD_PADDING,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
+    flexDirection: 'column',
+    gap: 2,
   },
   activityName: {
     fontSize: 18,
