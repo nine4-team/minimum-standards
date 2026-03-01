@@ -164,6 +164,28 @@ export function StandardPeriodActivityLogsScreen() {
   if (!standard || !activity || !periodInfo) {
     return (
       <View style={[styles.screen, { backgroundColor: theme.background.screen }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.background.chrome,
+              borderBottomColor: theme.border.secondary,
+              paddingTop: Math.max(insets.top, 12),
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={handleBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <MaterialIcons name="arrow-back" size={24} color={theme.primary.main} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
+            Activity Logs
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
         <ErrorBanner error={new Error('Standard or period information not found')} />
       </View>
     );
