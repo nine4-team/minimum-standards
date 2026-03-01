@@ -1,5 +1,5 @@
 import { FirebaseFirestoreTypes, serverTimestamp, Timestamp } from '@react-native-firebase/firestore';
-import { Standard, standardSchema } from '@minimum-standards/shared-model';
+import { Standard, ConfigEra, standardSchema } from '@minimum-standards/shared-model';
 
 export type FirestoreStandardData = {
   activityId: string;
@@ -16,6 +16,7 @@ export type FirestoreStandardData = {
   updatedAt: FirebaseFirestoreTypes.Timestamp | null;
   deletedAt: FirebaseFirestoreTypes.Timestamp | null;
   periodStartPreference?: Standard['periodStartPreference'];
+  configEras?: ConfigEra[];
 };
 
 /**
@@ -40,6 +41,7 @@ export function fromFirestoreStandard(
     summary: data.summary,
     sessionConfig: data.sessionConfig,
     periodStartPreference: data.periodStartPreference,
+    configEras: Array.isArray(data.configEras) ? data.configEras : undefined,
     categoryId: data.categoryId ?? null,
     quickAddValues: Array.isArray(data.quickAddValues)
       ? data.quickAddValues.filter(

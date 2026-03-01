@@ -77,6 +77,16 @@ export const categorySchema = z.object({
   deletedAtMs: timestampMsSchema.nullable()
 });
 
+export const configEraSchema = z.object({
+  effectiveFromMs: timestampMsSchema,
+  minimum: z.number().min(0),
+  unit: z.string().min(1).max(40),
+  cadence: standardCadenceSchema,
+  sessionConfig: standardSessionConfigSchema,
+  summary: z.string().min(1).max(200),
+  periodStartPreference: periodStartPreferenceSchema.optional(),
+});
+
 export const standardSchema = z.object({
   id: z.string().min(1),
   activityId: z.string().min(1),
@@ -106,6 +116,7 @@ export const standardSchema = z.object({
   quickAddValues: z.array(z.number().positive()).max(5).optional(),
   sessionConfig: standardSessionConfigSchema, // Required: session-based configuration
   periodStartPreference: periodStartPreferenceSchema.optional(),
+  configEras: z.array(configEraSchema).optional(),
   categoryId: z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
   createdAtMs: timestampMsSchema,
   updatedAtMs: timestampMsSchema,
@@ -142,7 +153,7 @@ export const dashboardPinsSchema = z.object({
   updatedAtMs: timestampMsSchema
 });
 
-export const activityHistorySourceSchema = z.enum(['boundary', 'resume']);
+export const activityHistorySourceSchema = z.enum(['boundary', 'resume', 'log-edit']);
 
 export const activityHistoryStandardSnapshotSchema = z.object({
   minimum: z.number().min(0),
@@ -169,6 +180,7 @@ export const activityHistoryDocSchema = z
     progressPercent: z.number().min(0).max(100),
     generatedAtMs: timestampMsSchema,
     source: activityHistorySourceSchema,
+    deletedAtMs: timestampMsSchema.nullable().optional(),
     periodStartMs: timestampMsSchema.optional(),
     periodEndMs: timestampMsSchema.optional(),
     periodLabel: z.string().min(1).max(200).optional(),

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
   AppState,
   AppStateStatus,
 } from 'react-native';
@@ -35,6 +36,8 @@ import {
 import { aggregatePeriodStats } from '../utils/scorecardSummary';
 import { aggregateDailyVolume, aggregateDailyProgress } from '../utils/activityCharts';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
+import { softDeleteActivityHistoryDoc } from '../utils/activityHistoryFirestore';
+import { firebaseAuth } from '../firebase/firebaseApp';
 
 export interface ActivityHistoryScreenProps {
   activityId?: string;
@@ -381,6 +384,34 @@ export function ActivityHistoryScreen({
     }
   }, [rangeLogsError]);
 
+  const handleDeletePeriod = useCallback((row: MergedActivityHistoryRow) => {
+    const userId = firebaseAuth.currentUser?.uid;
+    if (!userId || !selectedActivityId) {
+      return;
+    }
+    Alert.alert(
+      'Delete Period Record',
+      'This removes it from your history and stats.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            softDeleteActivityHistoryDoc({
+              userId,
+              activityId: selectedActivityId,
+              standardId: row.standardId,
+              periodStartMs: row.periodStartMs,
+            }).catch((err: unknown) => {
+              console.error('[ActivityHistoryScreen] Failed to delete period record', err);
+            });
+          },
+        },
+      ]
+    );
+  }, [selectedActivityId]);
+
   // Handle period card press - navigate to period activity logs
   const handlePeriodPress = (row: MergedActivityHistoryRow) => {
     navigation.navigate('StandardPeriodActivityLogs', {
@@ -548,6 +579,7 @@ export function ActivityHistoryScreen({
                       targetSessions={row.targetSessions}
                       sessionLabel={row.standardSnapshot.sessionConfig.sessionLabel}
                       onCardPress={() => handlePeriodPress(row)}
+                      onCardLongPress={() => handleDeletePeriod(row)}
                     />
                   </View>
                 ))}

@@ -13,6 +13,7 @@ import {
   Standard,
   StandardCadence,
   StandardSessionConfig,
+  ConfigEra,
   formatStandardSummary,
   PeriodStartPreference,
 } from '@minimum-standards/shared-model';
@@ -210,6 +211,7 @@ export function useStandards(): UseStandardsResult {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         deletedAt: null,
+        configEras: [],
       };
 
       await retryFirestoreWrite(async () => {
@@ -239,6 +241,23 @@ export function useStandards(): UseStandardsResult {
         input.standardId
       );
 
+      // Determine whether config is changing so we can build configEras before writing
+      const inputPref = input.clearPeriodStartPreference
+        ? null
+        : (input.periodStartPreference ?? null);
+      const prevPref = previousStandard?.periodStartPreference ?? null;
+      const preferenceChanging =
+        JSON.stringify(prevPref) !== JSON.stringify(inputPref);
+      const configChanging = previousStandard
+        ? previousStandard.minimum !== input.minimum ||
+          previousStandard.unit !== input.unit ||
+          previousStandard.cadence.interval !== input.cadence.interval ||
+          previousStandard.cadence.unit !== input.cadence.unit ||
+          previousStandard.sessionConfig.sessionsPerCadence !== input.sessionConfig.sessionsPerCadence ||
+          previousStandard.sessionConfig.volumePerSession !== input.sessionConfig.volumePerSession ||
+          preferenceChanging
+        : false;
+
       const payload: Record<string, unknown> = {
         activityId: input.activityId,
         minimum: input.minimum,
@@ -263,6 +282,45 @@ export function useStandards(): UseStandardsResult {
       }
 
       // categoryId is legacy - no longer written. Categories belong to Activities.
+
+      // When config changes, append a new era so historical periods retain the old config
+      if (configChanging && previousStandard) {
+        const existingEras: ConfigEra[] = previousStandard.configEras ?? [];
+        const nowMs = Date.now();
+
+        let updatedEras: ConfigEra[];
+        if (existingEras.length === 0) {
+          // Seed initial era from previousStandard config, effective from creation
+          const initialEra: ConfigEra = {
+            effectiveFromMs: previousStandard.createdAtMs,
+            minimum: previousStandard.minimum,
+            unit: previousStandard.unit,
+            cadence: previousStandard.cadence,
+            sessionConfig: previousStandard.sessionConfig,
+            summary: previousStandard.summary,
+            ...(previousStandard.periodStartPreference
+              ? { periodStartPreference: previousStandard.periodStartPreference }
+              : {}),
+          };
+          updatedEras = [initialEra];
+        } else {
+          updatedEras = [...existingEras];
+        }
+
+        // Append new era for the incoming config
+        const newEra: ConfigEra = {
+          effectiveFromMs: nowMs,
+          minimum: input.minimum,
+          unit: input.unit,
+          cadence: input.cadence,
+          sessionConfig: input.sessionConfig,
+          summary: formatStandardSummary(input.minimum, input.unit, input.cadence, input.sessionConfig),
+          ...(inputPref ? { periodStartPreference: inputPref } : {}),
+        };
+        updatedEras = [...updatedEras, newEra];
+
+        payload.configEras = updatedEras;
+      }
 
       await retryFirestoreWrite(async () => {
         await standardRef.update(payload);

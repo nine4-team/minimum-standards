@@ -64,6 +64,7 @@ export type Standard = SoftDelete &
     quickAddValues?: number[]; // Optional preset chips for fast logging (e.g., [1])
     sessionConfig: StandardSessionConfig; // Required: session-based configuration
     periodStartPreference?: PeriodStartPreference;
+    configEras?: ConfigEra[];
     /** @deprecated Legacy field - READ-ONLY. Categories now belong to Activities. Use Activity.categoryId instead. */
     categoryId: string | null; // null means Uncategorized
   };
@@ -85,6 +86,16 @@ export type DashboardPins = {
 };
 
 export type ActivityHistorySource = 'boundary' | 'resume' | 'log-edit';
+
+export type ConfigEra = {
+  effectiveFromMs: TimestampMs;
+  minimum: number;
+  unit: string;
+  cadence: StandardCadence;
+  sessionConfig: StandardSessionConfig;
+  summary: string;
+  periodStartPreference?: PeriodStartPreference;
+};
 
 export type ActivityHistoryStandardSnapshot = {
   minimum: number;
@@ -110,6 +121,7 @@ export type ActivityHistoryDoc = {
   progressPercent: number;
   generatedAtMs: TimestampMs;
   source: ActivityHistorySource;
+  deletedAtMs?: TimestampMs | null;
   // Legacy snapshot fields retained for backwards compatibility; derived in UI going forward.
   periodStartMs?: TimestampMs;
   periodEndMs?: TimestampMs;

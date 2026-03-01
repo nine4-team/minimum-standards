@@ -22,6 +22,7 @@ export interface PeriodProgressCardProps {
   sessionLabel: string;
   unit: string;
   onCardPress?: () => void;
+  onCardLongPress?: () => void;
 }
 
 /**
@@ -44,6 +45,7 @@ export function PeriodProgressCard({
   sessionLabel,
   unit,
   onCardPress,
+  onCardLongPress,
 }: PeriodProgressCardProps) {
   const theme = useTheme();
 
@@ -71,6 +73,7 @@ export function PeriodProgressCard({
         },
       ]}
       onPress={onCardPress}
+      onLongPress={onCardLongPress}
       accessibilityRole={onCardPress ? 'button' : undefined}
       accessibilityLabel={onCardPress ? `View details for ${activityName}` : undefined}
     >

@@ -44,6 +44,22 @@ export interface GetLatestHistoryForStandardParams {
   standardId: string;
 }
 
+export interface GetActivityHistoryDocParams {
+  firestore: unknown;
+  userId: string;
+  activityId: string;
+  standardId: string;
+  periodStartMs: number;
+}
+
+export interface SoftDeleteActivityHistoryDocParams {
+  firestore: unknown;
+  userId: string;
+  activityId: string;
+  standardId: string;
+  periodStartMs: number;
+}
+
 export interface ListenActivityHistoryForActivityParams {
   firestore: unknown;
   userId: string;
@@ -60,12 +76,19 @@ type QuerySnapshotLike = {
   forEach(callback: (doc: { id: string; data(): Record<string, unknown> }) => void): void;
 };
 
+type DocumentSnapshotLike = {
+  exists: boolean;
+  id: string;
+  data(): Record<string, unknown> | undefined;
+};
+
 export type ActivityHistoryFirestoreBindings = CollectionBindings & {
   query: (...args: unknown[]) => unknown;
   where: (...args: unknown[]) => unknown;
   orderBy: (...args: unknown[]) => unknown;
   limit: (...args: unknown[]) => unknown;
   getDocs: (queryRef: unknown) => Promise<QuerySnapshotLike>;
+  getDoc: (docRef: unknown) => Promise<DocumentSnapshotLike>;
   setDoc: (docRef: unknown, data: ActivityHistoryDoc, options?: { merge?: boolean }) => Promise<void>;
   onSnapshot: (
     queryRef: unknown,
@@ -90,6 +113,7 @@ type RawActivityHistoryDoc = {
   progressPercent?: number;
   generatedAtMs?: number;
   source?: ActivityHistorySource;
+  deletedAtMs?: number | null;
 };
 
 function toActivityHistoryDoc(
@@ -138,6 +162,7 @@ function toActivityHistoryDoc(
     progressPercent: data.progressPercent,
     generatedAtMs: data.generatedAtMs ?? Date.now(),
     source: data.source ?? 'boundary',
+    deletedAtMs: data.deletedAtMs ?? null,
   };
 }
 
@@ -150,6 +175,7 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
     orderBy,
     limit,
     getDocs,
+    getDoc,
     setDoc,
     onSnapshot,
   } = bindings;
@@ -189,11 +215,71 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
       progressPercent: rollup.progressPercent,
       generatedAtMs: Date.now(),
       source,
+      deletedAtMs: null,
     };
-    
-    // We do not use { merge: true } here because we want to ensure the document 
+
+    // We do not use { merge: true } here because we want to ensure the document
     // exactly matches our payload, satisfying the strict hasOnlyKeys rules.
     // Overwriting is safe because we compute the complete rollup for the period.
+    await setDoc(docRef, payload);
+  }
+
+  async function getActivityHistoryDoc(
+    params: GetActivityHistoryDocParams
+  ): Promise<ActivityHistoryDoc | null> {
+    const { firestore, userId, activityId, standardId, periodStartMs } = params;
+
+    const collections = getUserScopedCollections({
+      firestore,
+      userId,
+      bindings: { collection, doc },
+    });
+    const docId = buildActivityHistoryDocId(activityId, standardId, periodStartMs);
+    const docRef = doc(collections.activityHistory, docId);
+
+    const snapshot = await getDoc(docRef);
+    if (!snapshot.exists) {
+      return null;
+    }
+
+    const raw = snapshot.data() as RawActivityHistoryDoc | undefined;
+    if (!raw) {
+      return null;
+    }
+    return toActivityHistoryDoc(docId, raw);
+  }
+
+  async function softDeleteActivityHistoryDoc(
+    params: SoftDeleteActivityHistoryDocParams
+  ): Promise<void> {
+    const { firestore, userId, activityId, standardId, periodStartMs } = params;
+
+    const existing = await getActivityHistoryDoc({
+      firestore,
+      userId,
+      activityId,
+      standardId,
+      periodStartMs,
+    });
+
+    if (!existing) {
+      return; // Nothing to soft-delete
+    }
+
+    const collections = getUserScopedCollections({
+      firestore,
+      userId,
+      bindings: { collection, doc },
+    });
+    const docId = buildActivityHistoryDocId(activityId, standardId, periodStartMs);
+    const docRef = doc(collections.activityHistory, docId);
+
+    const payload: ActivityHistoryDoc = {
+      ...existing,
+      deletedAtMs: Date.now(),
+      generatedAtMs: Date.now(),
+    };
+
     await setDoc(docRef, payload);
   }
 
@@ -240,11 +326,12 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
       userId,
       bindings: { collection, doc },
     });
+    // Fetch a few extra to client-side filter soft-deleted docs
     const historyQuery = query(
       collections.activityHistory,
       where('standardId', '==', standardId),
       orderBy('referenceTimestampMs', 'desc'),
-      limit(1)
+      limit(5)
     );
 
     const snapshot = await getDocs(historyQuery);
@@ -252,8 +339,15 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
       return null;
     }
 
-    const raw = snapshot.docs[0].data() as RawActivityHistoryDoc;
-    return toActivityHistoryDoc(snapshot.docs[0].id, raw);
+    for (const docSnap of snapshot.docs) {
+      const raw = docSnap.data() as RawActivityHistoryDoc;
+      if (raw.deletedAtMs) {
+        continue; // skip soft-deleted
+      }
+      return toActivityHistoryDoc(docSnap.id, raw);
+    }
+
+    return null;
   }
 
   function listenActivityHistoryForActivity(
@@ -277,7 +371,11 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
       (snapshot) => {
         const docs: ActivityHistoryDoc[] = [];
         snapshot.forEach((docSnap) => {
-          const parsed = toActivityHistoryDoc(docSnap.id, docSnap.data() as RawActivityHistoryDoc);
+          const raw = docSnap.data() as RawActivityHistoryDoc;
+          if (raw.deletedAtMs) {
+            return; // skip soft-deleted
+          }
+          const parsed = toActivityHistoryDoc(docSnap.id, raw);
           if (parsed) {
             docs.push(parsed);
           }
@@ -294,6 +392,8 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
 
   return {
     writeActivityHistoryPeriod,
+    getActivityHistoryDoc,
+    softDeleteActivityHistoryDoc,
     getLatestHistoryForStandard,
     listenActivityHistoryForActivity,
   };

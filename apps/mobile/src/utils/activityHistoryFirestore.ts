@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDocs,
+  getDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -12,8 +13,10 @@ import {
 import { ActivityHistoryDoc } from '@minimum-standards/shared-model';
 import {
   ActivityHistoryFirestoreBindings,
+  GetActivityHistoryDocParams,
   GetLatestHistoryForStandardParams,
   ListenActivityHistoryForActivityParams,
+  SoftDeleteActivityHistoryDocParams,
   WriteActivityHistoryPeriodParams,
   createActivityHistoryHelpers,
 } from '@minimum-standards/firestore-model';
@@ -27,6 +30,7 @@ const reactNativeBindings: ActivityHistoryFirestoreBindings = {
   orderBy,
   limit,
   getDocs,
+  getDoc: (reference: FirebaseFirestoreTypes.DocumentReference) => reference.get(),
   onSnapshot,
   setDoc: (
     reference: FirebaseFirestoreTypes.DocumentReference,
@@ -37,6 +41,8 @@ const reactNativeBindings: ActivityHistoryFirestoreBindings = {
 
 const {
   writeActivityHistoryPeriod: writeActivityHistoryPeriodInternal,
+  getActivityHistoryDoc: getActivityHistoryDocInternal,
+  softDeleteActivityHistoryDoc: softDeleteActivityHistoryDocInternal,
   getLatestHistoryForStandard: getLatestHistoryForStandardInternal,
   listenActivityHistoryForActivity: listenActivityHistoryForActivityInternal,
 } = createActivityHistoryHelpers(reactNativeBindings);
@@ -45,6 +51,24 @@ export function writeActivityHistoryPeriod(
   params: Omit<WriteActivityHistoryPeriodParams, 'firestore'>
 ) {
   return writeActivityHistoryPeriodInternal({
+    ...params,
+    firestore: firebaseFirestore,
+  });
+}
+
+export function getActivityHistoryDoc(
+  params: Omit<GetActivityHistoryDocParams, 'firestore'>
+) {
+  return getActivityHistoryDocInternal({
+    ...params,
+    firestore: firebaseFirestore,
+  });
+}
+
+export function softDeleteActivityHistoryDoc(
+  params: Omit<SoftDeleteActivityHistoryDocParams, 'firestore'>
+) {
+  return softDeleteActivityHistoryDocInternal({
     ...params,
     firestore: firebaseFirestore,
   });
@@ -91,4 +115,3 @@ export function listenActivityHistoryForActivity(
     firestore: firebaseFirestore,
   });
 }
-

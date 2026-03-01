@@ -13,13 +13,16 @@ import {
 import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
 import { useStandards } from './useStandards';
 import {
-  ActivityHistoryStandardSnapshot,
   Standard,
   calculatePeriodWindow,
   derivePeriodStatus,
+  resolveEraForTimestamp,
+  buildSnapshotFromEra,
+  buildSnapshotFromStandard,
 } from '@minimum-standards/shared-model';
 import {
   writeActivityHistoryPeriod,
+  getActivityHistoryDoc,
   getLatestHistoryForStandard,
 } from '../utils/activityHistoryFirestore';
 
@@ -42,12 +45,15 @@ export function useActivityHistoryEngine() {
 
   /**
    * Computes rollups for a period window by querying logs.
+   * minimumOverride allows callers to use an era-resolved minimum rather than
+   * the standard's current minimum, preserving historical accuracy.
    */
   const computeRollupsForPeriod = useCallback(
     async (
       standard: Standard,
       window: { startMs: number; endMs: number },
-      nowMs: number
+      nowMs: number,
+      minimumOverride?: number
     ) => {
       if (!userId) {
         throw new Error('User not authenticated');
@@ -79,14 +85,17 @@ export function useActivityHistoryEngine() {
         ? logs.reduce((sum, log) => sum + log.value, 0)
         : 0;
       const currentSessions = logs.length;
-      const targetSessions = standard.sessionConfig.sessionsPerCadence;
+      const targetSessions = minimumOverride !== undefined
+        ? standard.sessionConfig.sessionsPerCadence
+        : standard.sessionConfig.sessionsPerCadence;
+      const effectiveMinimum = minimumOverride ?? standard.minimum;
       const status = derivePeriodStatus(
         total,
-        standard.minimum,
+        effectiveMinimum,
         nowMs,
         window.endMs
       );
-      const safeMinimum = Math.max(standard.minimum, 0);
+      const safeMinimum = Math.max(effectiveMinimum, 0);
       const ratio = safeMinimum === 0 ? 1 : Math.min(total / safeMinimum, 1);
       const progressPercent = Number.isFinite(ratio)
         ? Number((ratio * 100).toFixed(2))
@@ -226,36 +235,34 @@ export function useActivityHistoryEngine() {
             if (window.endMs <= nowMs) {
               console.log(`[useActivityHistoryEngine] Processing completed period for ${standard.id}: ${window.label}`);
 
-              // Compute rollups
-              const rollup = await computeRollupsForPeriod(standard, window, nowMs);
-              console.log(`[useActivityHistoryEngine] Computed rollup for ${standard.id}: ${rollup.total} total`);
-
-              // Write history document
-              const standardSnapshot: ActivityHistoryStandardSnapshot = {
-                minimum: standard.minimum,
-                unit: standard.unit,
-                cadence: {
-                  interval: standard.cadence.interval,
-                  unit: standard.cadence.unit,
-                },
-                sessionConfig: {
-                  sessionLabel: standard.sessionConfig.sessionLabel,
-                  sessionsPerCadence: standard.sessionConfig.sessionsPerCadence,
-                  volumePerSession: standard.sessionConfig.volumePerSession,
-                },
-                summary: standard.summary,
-              };
-
-              if (standard.periodStartPreference) {
-                if (standard.periodStartPreference.mode === 'default') {
-                  standardSnapshot.periodStartPreference = { mode: 'default' };
-                } else if (standard.periodStartPreference.mode === 'weekDay') {
-                  standardSnapshot.periodStartPreference = {
-                    mode: 'weekDay',
-                    weekStartDay: standard.periodStartPreference.weekStartDay,
-                  };
-                }
+              // Check-before-write: skip if a doc already exists to preserve its snapshot
+              const existingDoc = await getActivityHistoryDoc({
+                userId,
+                activityId: standard.activityId,
+                standardId: standard.id,
+                periodStartMs: window.startMs,
+              });
+              if (existingDoc && !existingDoc.deletedAtMs) {
+                console.log(`[useActivityHistoryEngine] Doc already exists for ${standard.id} at ${window.label}, skipping`);
+                currentReference = window.endMs;
+                iterations++;
+                continue;
               }
+
+              // Build era-resolved snapshot for new docs
+              const era = resolveEraForTimestamp(standard, window.startMs);
+              const standardSnapshot = era
+                ? buildSnapshotFromEra(era)
+                : buildSnapshotFromStandard(standard);
+
+              // Compute rollups using the era-resolved minimum for historical accuracy
+              const rollup = await computeRollupsForPeriod(
+                standard,
+                window,
+                nowMs,
+                era ? era.minimum : undefined
+              );
+              console.log(`[useActivityHistoryEngine] Computed rollup for ${standard.id}: ${rollup.total} total`);
 
               console.log(`[useActivityHistoryEngine] Writing history document for ${standard.id}`);
               await writeActivityHistoryPeriod({

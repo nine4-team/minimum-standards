@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  deleteDoc,
   getDocs,
   query,
   where,
@@ -11,10 +10,17 @@ import {
   Standard,
   calculatePeriodWindow,
   derivePeriodStatus,
+  resolveEraForTimestamp,
+  buildSnapshotFromEra,
+  buildSnapshotFromStandard,
 } from '@minimum-standards/shared-model';
 import { buildActivityHistoryDocId } from '@minimum-standards/firestore-model';
 import { firebaseFirestore } from '../firebase/firebaseApp';
-import { writeActivityHistoryPeriod } from './activityHistoryFirestore';
+import {
+  writeActivityHistoryPeriod,
+  getActivityHistoryDoc,
+  softDeleteActivityHistoryDoc,
+} from './activityHistoryFirestore';
 
 export interface RecomputeActivityHistoryPeriodParams {
   userId: string;
@@ -73,16 +79,23 @@ export async function recomputeActivityHistoryPeriod({
     ? Number((ratio * 100).toFixed(2))
     : 0;
 
-  const standardSnapshot = {
-    minimum: standard.minimum,
-    unit: standard.unit,
-    cadence: standard.cadence,
-    sessionConfig: standard.sessionConfig,
-    summary: standard.summary,
-    ...(standard.periodStartPreference
-      ? { periodStartPreference: standard.periodStartPreference }
-      : {}),
-  };
+  // Preserve existing snapshot if doc already exists and isn't soft-deleted.
+  // On log-edit, we don't want to corrupt historical accuracy with the current config.
+  // Fall back to era-resolved config for new docs.
+  const existingDoc = await getActivityHistoryDoc({
+    userId,
+    activityId: standard.activityId,
+    standardId: standard.id,
+    periodStartMs: window.startMs,
+  });
+
+  let standardSnapshot;
+  if (existingDoc && !existingDoc.deletedAtMs) {
+    standardSnapshot = existingDoc.standardSnapshot;
+  } else {
+    const era = resolveEraForTimestamp(standard, window.startMs);
+    standardSnapshot = era ? buildSnapshotFromEra(era) : buildSnapshotFromStandard(standard);
+  }
 
   await writeActivityHistoryPeriod({
     userId,
@@ -100,7 +113,8 @@ export async function recomputeActivityHistoryPeriod({
     source,
   });
 
-  // Clean up orphaned doc if boundary shifted
+  // Clean up orphaned doc if boundary shifted — soft-delete instead of hard-delete
+  // (hard-delete fails silently against allow delete: if false)
   if (previousStandard) {
     const oldWindow = calculatePeriodWindow(
       occurredAtMs,
@@ -112,10 +126,13 @@ export async function recomputeActivityHistoryPeriod({
     const newDocId = buildActivityHistoryDocId(standard.activityId, standard.id, window.startMs);
 
     if (oldDocId !== newDocId) {
-      const userDocRef = doc(firebaseFirestore, 'users', userId);
-      const oldDocRef = doc(collection(userDocRef, 'activityHistory'), oldDocId);
-      deleteDoc(oldDocRef).catch((err) => {
-        console.error('[activityHistoryRecompute] Failed to delete orphaned doc', oldDocId, err);
+      softDeleteActivityHistoryDoc({
+        userId,
+        activityId: standard.activityId,
+        standardId: standard.id,
+        periodStartMs: oldWindow.startMs,
+      }).catch((err) => {
+        console.error('[activityHistoryRecompute] Failed to soft-delete orphaned doc', oldDocId, err);
       });
     }
   }
