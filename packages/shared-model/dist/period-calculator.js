@@ -14,8 +14,8 @@ function createDayWindow(start, interval) {
         endMs: end.toMillis(),
         periodKey: start.toFormat('yyyy-LL-dd'),
         label: interval === 1
-            ? formatLabel(start, 'MM/dd/yyyy')
-            : `${formatLabel(start, 'MM/dd/yyyy')} - ${formatLabel(inclusiveEnd, 'MM/dd/yyyy')}`,
+            ? formatLabel(start, 'MMM d')
+            : `${formatLabel(start, 'MMM d')} - ${formatLabel(inclusiveEnd, 'MMM d')}`,
     };
 }
 function createWeekWindow(start, interval) {
@@ -25,7 +25,7 @@ function createWeekWindow(start, interval) {
         startMs: start.toMillis(),
         endMs: end.toMillis(),
         periodKey: start.toFormat('yyyy-LL-dd'),
-        label: `${formatLabel(start, 'MM/dd/yyyy')} - ${formatLabel(inclusiveEnd, 'MM/dd/yyyy')}`,
+        label: `${formatLabel(start, 'MMM d')} - ${formatLabel(inclusiveEnd, 'MMM d')}`,
     };
 }
 function createMonthWindow(start, interval) {
@@ -36,8 +36,8 @@ function createMonthWindow(start, interval) {
         endMs: end.toMillis(),
         periodKey: start.toFormat('yyyy-LL'),
         label: interval === 1
-            ? formatLabel(start, 'MM/yyyy')
-            : `${formatLabel(start, 'MM/yyyy')} - ${formatLabel(inclusiveEnd, 'MM/yyyy')}`,
+            ? formatLabel(start, 'MMM')
+            : `${formatLabel(start, 'MMM')} - ${formatLabel(inclusiveEnd, 'MMM')}`,
     };
 }
 function buildWindowFromStart(start, cadence) {

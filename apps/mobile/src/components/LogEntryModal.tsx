@@ -18,12 +18,14 @@ import {
   InteractionManager,
   AppState,
   AppStateStatus,
+  useColorScheme,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { Standard } from '@minimum-standards/shared-model';
 import { calculatePeriodWindow } from '@minimum-standards/shared-model';
 import { useStandards } from '../hooks/useStandards';
 import { useTheme } from '../theme/useTheme';
+import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { BUTTON_BORDER_RADIUS, CARD_LIST_GAP } from '@nine4/ui-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StandardCard } from './StandardCard';
@@ -63,6 +65,9 @@ export function LogEntryModal({
   onDeleteLogEntry,
 }: LogEntryModalProps) {
   const theme = useTheme();
+  const systemColorScheme = useColorScheme();
+  const themePreference = useUIPreferencesStore((s) => s.themePreference);
+  const isDark = themePreference === 'system' ? systemColorScheme === 'dark' : themePreference === 'dark';
   const insets = useSafeAreaInsets();
   const [value, setValue] = useState('');
   const [note, setNote] = useState('');
@@ -470,9 +475,8 @@ export function LogEntryModal({
 
   const formatDate = (date: Date): string => {
     return new Intl.DateTimeFormat('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
     }).format(date);
@@ -480,9 +484,8 @@ export function LogEntryModal({
 
   const formatDateOnly = (date: Date): string => {
     return new Intl.DateTimeFormat('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     }).format(date);
   };
 
@@ -514,6 +517,7 @@ export function LogEntryModal({
     if (saving) {
       return;
     }
+    Keyboard.dismiss();
     setShowWhen((prev) => {
       const next = !prev;
       if (!next) {
@@ -835,6 +839,7 @@ export function LogEntryModal({
                     value={selectedDate}
                     mode="date"
                     display="spinner"
+                    themeVariant={isDark ? 'dark' : 'light'}
                     onChange={(event, date) => {
                       if (date) {
                         setSelectedDate(date);
@@ -847,6 +852,7 @@ export function LogEntryModal({
                     value={selectedDate}
                     mode="time"
                     display="spinner"
+                    themeVariant={isDark ? 'dark' : 'light'}
                     onChange={(event, date) => {
                       if (date) {
                         setSelectedDate(date);

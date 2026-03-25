@@ -36,10 +36,10 @@ function createDayWindow(start: DateTime, interval: number): PeriodWindow {
     periodKey: start.toFormat('yyyy-LL-dd'),
     label:
       interval === 1
-        ? formatLabel(start, 'MM/dd/yyyy')
-        : `${formatLabel(start, 'MM/dd/yyyy')} - ${formatLabel(
+        ? formatLabel(start, 'MMM d')
+        : `${formatLabel(start, 'MMM d')} - ${formatLabel(
             inclusiveEnd,
-            'MM/dd/yyyy'
+            'MMM d'
           )}`,
   };
 }
@@ -51,9 +51,9 @@ function createWeekWindow(start: DateTime, interval: number): PeriodWindow {
     startMs: start.toMillis(),
     endMs: end.toMillis(),
     periodKey: start.toFormat('yyyy-LL-dd'),
-    label: `${formatLabel(start, 'MM/dd/yyyy')} - ${formatLabel(
+    label: `${formatLabel(start, 'MMM d')} - ${formatLabel(
       inclusiveEnd,
-      'MM/dd/yyyy'
+      'MMM d'
     )}`,
   };
 }
@@ -67,10 +67,10 @@ function createMonthWindow(start: DateTime, interval: number): PeriodWindow {
     periodKey: start.toFormat('yyyy-LL'),
     label:
       interval === 1
-        ? formatLabel(start, 'MM/yyyy')
-        : `${formatLabel(start, 'MM/yyyy')} - ${formatLabel(
+        ? formatLabel(start, 'MMM')
+        : `${formatLabel(start, 'MMM')} - ${formatLabel(
             inclusiveEnd,
-            'MM/yyyy'
+            'MMM'
           )}`,
   };
 }
