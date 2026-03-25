@@ -93,7 +93,10 @@ export function PeriodProgressCard({
         <View style={styles.progressContainer}>
           <View style={styles.volumeBarSection}>
             <View style={styles.progressBarRow}>
-              <Text style={[styles.progressBarLabel, { color: progressBarColor }]}>v</Text>
+              <View style={styles.progressBarLabelRow}>
+                <MaterialIcons name="bar-chart" size={10} color={progressBarColor} />
+                <Text style={[styles.progressBarLabel, { color: progressBarColor }]}>volume</Text>
+              </View>
               <View style={[styles.progressBar, styles.progressBarRowBar, { backgroundColor: theme.border.secondary }]}>
                 <View
                   style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: progressBarColor }]}
@@ -166,6 +169,11 @@ const styles = StyleSheet.create({
   },
   progressBarRowBar: {
     flex: 1,
+  },
+  progressBarLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   progressBarLabel: {
     fontSize: 10,

@@ -309,7 +309,10 @@ export function StandardProgressCard({
                 </Text>
               </View>
               <View style={styles.progressBarRow}>
-                <Text style={[styles.progressBarLabel, { color: theme.text.secondary }]}>t</Text>
+                <View style={styles.progressBarLabelRow}>
+                  <MaterialIcons name="hourglass-empty" size={10} color={theme.text.secondary} />
+                  <Text style={[styles.progressBarLabel, { color: theme.text.secondary }]}>period</Text>
+                </View>
                 <View style={[styles.progressBar, styles.progressBarRowBar, { backgroundColor: theme.border.secondary }]}>
                   <View
                     style={[
@@ -326,7 +329,10 @@ export function StandardProgressCard({
 
           <View style={styles.volumeBarSection}>
             <View style={styles.progressBarRow}>
-              <Text style={[styles.progressBarLabel, { color: progressBarColor }]}>v</Text>
+              <View style={styles.progressBarLabelRow}>
+                <MaterialIcons name="bar-chart" size={10} color={progressBarColor} />
+                <Text style={[styles.progressBarLabel, { color: progressBarColor }]}>volume</Text>
+              </View>
               <View style={[styles.progressBar, styles.progressBarRowBar, { backgroundColor: theme.border.secondary }]}>
                 <View
                   style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: progressBarColor }]}
@@ -434,6 +440,11 @@ const styles = StyleSheet.create({
   },
   progressBarRowBar: {
     flex: 1,
+  },
+  progressBarLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   progressBarLabel: {
     fontSize: 10,
