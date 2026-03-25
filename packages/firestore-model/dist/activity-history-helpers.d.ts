@@ -26,6 +26,20 @@ export interface GetLatestHistoryForStandardParams {
     userId: string;
     standardId: string;
 }
+export interface GetActivityHistoryDocParams {
+    firestore: unknown;
+    userId: string;
+    activityId: string;
+    standardId: string;
+    periodStartMs: number;
+}
+export interface SoftDeleteActivityHistoryDocParams {
+    firestore: unknown;
+    userId: string;
+    activityId: string;
+    standardId: string;
+    periodStartMs: number;
+}
 export interface ListenActivityHistoryForActivityParams {
     firestore: unknown;
     userId: string;
@@ -45,12 +59,18 @@ type QuerySnapshotLike = {
         data(): Record<string, unknown>;
     }) => void): void;
 };
+type DocumentSnapshotLike = {
+    exists: boolean;
+    id: string;
+    data(): Record<string, unknown> | undefined;
+};
 export type ActivityHistoryFirestoreBindings = CollectionBindings & {
     query: (...args: unknown[]) => unknown;
     where: (...args: unknown[]) => unknown;
     orderBy: (...args: unknown[]) => unknown;
     limit: (...args: unknown[]) => unknown;
     getDocs: (queryRef: unknown) => Promise<QuerySnapshotLike>;
+    getDoc: (docRef: unknown) => Promise<DocumentSnapshotLike>;
     setDoc: (docRef: unknown, data: ActivityHistoryDoc, options?: {
         merge?: boolean;
     }) => Promise<void>;
@@ -58,6 +78,8 @@ export type ActivityHistoryFirestoreBindings = CollectionBindings & {
 };
 export declare function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreBindings): {
     writeActivityHistoryPeriod: (params: WriteActivityHistoryPeriodParams) => Promise<void>;
+    getActivityHistoryDoc: (params: GetActivityHistoryDocParams) => Promise<ActivityHistoryDoc | null>;
+    softDeleteActivityHistoryDoc: (params: SoftDeleteActivityHistoryDocParams) => Promise<void>;
     getLatestHistoryForStandard: (params: GetLatestHistoryForStandardParams) => Promise<ActivityHistoryDoc | null>;
     listenActivityHistoryForActivity: (params: ListenActivityHistoryForActivityParams) => Unsubscribe;
 };

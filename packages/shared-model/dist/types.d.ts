@@ -30,6 +30,7 @@ export type Activity = SoftDelete & AuditTimestamps & {
     name: string;
     unit: string;
     notes: string | null;
+    categoryId: string | null;
 };
 export declare const UNCATEGORIZED_CATEGORY_ID: "uncategorized";
 export type Category = SoftDelete & AuditTimestamps & {
@@ -50,6 +51,8 @@ export type Standard = SoftDelete & AuditTimestamps & {
     quickAddValues?: number[];
     sessionConfig: StandardSessionConfig;
     periodStartPreference?: PeriodStartPreference;
+    configEras?: ConfigEra[];
+    /** @deprecated Legacy field - READ-ONLY. Categories now belong to Activities. Use Activity.categoryId instead. */
     categoryId: string | null;
 };
 export type ActivityLog = SoftDelete & AuditTimestamps & {
@@ -66,6 +69,15 @@ export type DashboardPins = {
     updatedAtMs: TimestampMs;
 };
 export type ActivityHistorySource = 'boundary' | 'resume' | 'log-edit';
+export type ConfigEra = {
+    effectiveFromMs: TimestampMs;
+    minimum: number;
+    unit: string;
+    cadence: StandardCadence;
+    sessionConfig: StandardSessionConfig;
+    summary: string;
+    periodStartPreference?: PeriodStartPreference;
+};
 export type ActivityHistoryStandardSnapshot = {
     minimum: number;
     unit: string;
@@ -88,6 +100,7 @@ export type ActivityHistoryDoc = {
     progressPercent: number;
     generatedAtMs: TimestampMs;
     source: ActivityHistorySource;
+    deletedAtMs?: TimestampMs | null;
     periodStartMs?: TimestampMs;
     periodEndMs?: TimestampMs;
     periodLabel?: string;

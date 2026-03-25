@@ -19,4 +19,5 @@ __exportStar(require("./schemas"), exports);
 __exportStar(require("./period-calculator"), exports);
 __exportStar(require("./unit-normalization"), exports);
 __exportStar(require("./standard-summary"), exports);
+__exportStar(require("./config-eras"), exports);
 //# sourceMappingURL=index.js.map

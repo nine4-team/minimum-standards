@@ -150,7 +150,9 @@ export function buildSnapshotPayload({
       unit: standard.unit,
       cadence: standard.cadence,
       sessionConfig: standard.sessionConfig,
-      periodStartPreference: standard.periodStartPreference,
+      ...(standard.periodStartPreference
+        ? { periodStartPreference: standard.periodStartPreference }
+        : {}),
     })),
   };
 }
@@ -164,6 +166,7 @@ export async function importSnapshotForUser({
 }): Promise<{
   snapshotId: string;
   ownerUserId: string;
+  isOwnSnapshot: boolean;
   alreadyInstalled: boolean;
   createdCounts: {
     categories: number;
@@ -220,6 +223,16 @@ export async function importSnapshotForUser({
     throw new SnapshotImportError('payload-empty', 'Snapshot has no standards to import');
   }
 
+  if (snapshotData.ownerUserId === userId) {
+    return {
+      snapshotId: snapshotDoc.id,
+      ownerUserId: snapshotData.ownerUserId,
+      isOwnSnapshot: true,
+      alreadyInstalled: false,
+      createdCounts: { categories: 0, activities: 0, standards: 0 },
+    };
+  }
+
   const installRef = doc(
     collection(doc(firebaseFirestore, 'users', userId), 'snapshotInstalls'),
     snapshotDoc.id
@@ -229,6 +242,7 @@ export async function importSnapshotForUser({
     return {
       snapshotId: snapshotDoc.id,
       ownerUserId: snapshotData.ownerUserId,
+      isOwnSnapshot: false,
       alreadyInstalled: true,
       createdCounts: { categories: 0, activities: 0, standards: 0 },
     };
@@ -411,6 +425,7 @@ export async function importSnapshotForUser({
   return {
     snapshotId: snapshotDoc.id,
     ownerUserId: snapshotData.ownerUserId,
+    isOwnSnapshot: false,
     alreadyInstalled: false,
     createdCounts: {
       categories: createdCategoryCount,

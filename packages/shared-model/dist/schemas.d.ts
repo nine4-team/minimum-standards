@@ -39,10 +39,10 @@ export declare const activitySchema: z.ZodObject<{
     id: string;
     name: string;
     notes: string | null;
-    categoryId?: string | null | undefined;
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
+    categoryId?: string | null | undefined;
 }, {
     unit: string;
     id: string;
@@ -77,6 +77,91 @@ export declare const categorySchema: z.ZodObject<{
     deletedAtMs: number | null;
     order: number;
     isSystem?: boolean | undefined;
+}>;
+export declare const configEraSchema: z.ZodObject<{
+    effectiveFromMs: z.ZodEffects<z.ZodNumber, number, number>;
+    minimum: z.ZodNumber;
+    unit: z.ZodString;
+    cadence: z.ZodObject<{
+        interval: z.ZodNumber;
+        unit: z.ZodEnum<["day", "week", "month"]>;
+    }, "strip", z.ZodTypeAny, {
+        interval: number;
+        unit: "day" | "week" | "month";
+    }, {
+        interval: number;
+        unit: "day" | "week" | "month";
+    }>;
+    sessionConfig: z.ZodObject<{
+        sessionLabel: z.ZodString;
+        sessionsPerCadence: z.ZodNumber;
+        volumePerSession: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        sessionLabel: string;
+        sessionsPerCadence: number;
+        volumePerSession: number;
+    }, {
+        sessionLabel: string;
+        sessionsPerCadence: number;
+        volumePerSession: number;
+    }>;
+    summary: z.ZodString;
+    periodStartPreference: z.ZodOptional<z.ZodDiscriminatedUnion<"mode", [z.ZodObject<{
+        mode: z.ZodLiteral<"default">;
+    }, "strip", z.ZodTypeAny, {
+        mode: "default";
+    }, {
+        mode: "default";
+    }>, z.ZodObject<{
+        mode: z.ZodLiteral<"weekDay">;
+        weekStartDay: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        mode: "weekDay";
+        weekStartDay: number;
+    }, {
+        mode: "weekDay";
+        weekStartDay: number;
+    }>]>>;
+}, "strip", z.ZodTypeAny, {
+    unit: string;
+    minimum: number;
+    effectiveFromMs: number;
+    cadence: {
+        interval: number;
+        unit: "day" | "week" | "month";
+    };
+    sessionConfig: {
+        sessionLabel: string;
+        sessionsPerCadence: number;
+        volumePerSession: number;
+    };
+    summary: string;
+    periodStartPreference?: {
+        mode: "default";
+    } | {
+        mode: "weekDay";
+        weekStartDay: number;
+    } | undefined;
+}, {
+    unit: string;
+    minimum: number;
+    effectiveFromMs: number;
+    cadence: {
+        interval: number;
+        unit: "day" | "week" | "month";
+    };
+    sessionConfig: {
+        sessionLabel: string;
+        sessionsPerCadence: number;
+        volumePerSession: number;
+    };
+    summary: string;
+    periodStartPreference?: {
+        mode: "default";
+    } | {
+        mode: "weekDay";
+        weekStartDay: number;
+    } | undefined;
 }>;
 export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     id: z.ZodString;
@@ -126,6 +211,91 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         mode: "weekDay";
         weekStartDay: number;
     }>]>>;
+    configEras: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        effectiveFromMs: z.ZodEffects<z.ZodNumber, number, number>;
+        minimum: z.ZodNumber;
+        unit: z.ZodString;
+        cadence: z.ZodObject<{
+            interval: z.ZodNumber;
+            unit: z.ZodEnum<["day", "week", "month"]>;
+        }, "strip", z.ZodTypeAny, {
+            interval: number;
+            unit: "day" | "week" | "month";
+        }, {
+            interval: number;
+            unit: "day" | "week" | "month";
+        }>;
+        sessionConfig: z.ZodObject<{
+            sessionLabel: z.ZodString;
+            sessionsPerCadence: z.ZodNumber;
+            volumePerSession: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        }, {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        }>;
+        summary: z.ZodString;
+        periodStartPreference: z.ZodOptional<z.ZodDiscriminatedUnion<"mode", [z.ZodObject<{
+            mode: z.ZodLiteral<"default">;
+        }, "strip", z.ZodTypeAny, {
+            mode: "default";
+        }, {
+            mode: "default";
+        }>, z.ZodObject<{
+            mode: z.ZodLiteral<"weekDay">;
+            weekStartDay: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            mode: "weekDay";
+            weekStartDay: number;
+        }, {
+            mode: "weekDay";
+            weekStartDay: number;
+        }>]>>;
+    }, "strip", z.ZodTypeAny, {
+        unit: string;
+        minimum: number;
+        effectiveFromMs: number;
+        cadence: {
+            interval: number;
+            unit: "day" | "week" | "month";
+        };
+        sessionConfig: {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        };
+        summary: string;
+        periodStartPreference?: {
+            mode: "default";
+        } | {
+            mode: "weekDay";
+            weekStartDay: number;
+        } | undefined;
+    }, {
+        unit: string;
+        minimum: number;
+        effectiveFromMs: number;
+        cadence: {
+            interval: number;
+            unit: "day" | "week" | "month";
+        };
+        sessionConfig: {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        };
+        summary: string;
+        periodStartPreference?: {
+            mode: "default";
+        } | {
+            mode: "weekDay";
+            weekStartDay: number;
+        } | undefined;
+    }>, "many">>;
     categoryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
     updatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
@@ -137,20 +307,19 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
-    activityId: string;
     cadence: {
         interval: number;
         unit: "day" | "week" | "month";
     };
-    state: "active" | "archived";
-    summary: string;
-    archivedAtMs: number | null;
     sessionConfig: {
         sessionLabel: string;
         sessionsPerCadence: number;
         volumePerSession: number;
     };
-    quickAddValues?: number[] | undefined;
+    summary: string;
+    activityId: string;
+    state: "active" | "archived";
+    archivedAtMs: number | null;
     periodStartPreference?: {
         mode: "default";
     } | {
@@ -158,6 +327,28 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         weekStartDay: number;
     } | undefined;
     categoryId?: string | null | undefined;
+    quickAddValues?: number[] | undefined;
+    configEras?: {
+        unit: string;
+        minimum: number;
+        effectiveFromMs: number;
+        cadence: {
+            interval: number;
+            unit: "day" | "week" | "month";
+        };
+        sessionConfig: {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        };
+        summary: string;
+        periodStartPreference?: {
+            mode: "default";
+        } | {
+            mode: "weekDay";
+            weekStartDay: number;
+        } | undefined;
+    }[] | undefined;
 }, {
     unit: string;
     minimum: number;
@@ -165,20 +356,19 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
-    activityId: string;
     cadence: {
         interval: number;
         unit: "day" | "week" | "month";
     };
-    state: "active" | "archived";
-    summary: string;
-    archivedAtMs: number | null;
     sessionConfig: {
         sessionLabel: string;
         sessionsPerCadence: number;
         volumePerSession: number;
     };
-    quickAddValues?: number[] | undefined;
+    summary: string;
+    activityId: string;
+    state: "active" | "archived";
+    archivedAtMs: number | null;
     periodStartPreference?: {
         mode: "default";
     } | {
@@ -186,6 +376,28 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         weekStartDay: number;
     } | undefined;
     categoryId?: string | null | undefined;
+    quickAddValues?: number[] | undefined;
+    configEras?: {
+        unit: string;
+        minimum: number;
+        effectiveFromMs: number;
+        cadence: {
+            interval: number;
+            unit: "day" | "week" | "month";
+        };
+        sessionConfig: {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        };
+        summary: string;
+        periodStartPreference?: {
+            mode: "default";
+        } | {
+            mode: "weekDay";
+            weekStartDay: number;
+        } | undefined;
+    }[] | undefined;
 }>, {
     unit: string;
     minimum: number;
@@ -193,20 +405,19 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
-    activityId: string;
     cadence: {
         interval: number;
         unit: "day" | "week" | "month";
     };
-    state: "active" | "archived";
-    summary: string;
-    archivedAtMs: number | null;
     sessionConfig: {
         sessionLabel: string;
         sessionsPerCadence: number;
         volumePerSession: number;
     };
-    quickAddValues?: number[] | undefined;
+    summary: string;
+    activityId: string;
+    state: "active" | "archived";
+    archivedAtMs: number | null;
     periodStartPreference?: {
         mode: "default";
     } | {
@@ -214,6 +425,28 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         weekStartDay: number;
     } | undefined;
     categoryId?: string | null | undefined;
+    quickAddValues?: number[] | undefined;
+    configEras?: {
+        unit: string;
+        minimum: number;
+        effectiveFromMs: number;
+        cadence: {
+            interval: number;
+            unit: "day" | "week" | "month";
+        };
+        sessionConfig: {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        };
+        summary: string;
+        periodStartPreference?: {
+            mode: "default";
+        } | {
+            mode: "weekDay";
+            weekStartDay: number;
+        } | undefined;
+    }[] | undefined;
 }, {
     unit: string;
     minimum: number;
@@ -221,20 +454,19 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
-    activityId: string;
     cadence: {
         interval: number;
         unit: "day" | "week" | "month";
     };
-    state: "active" | "archived";
-    summary: string;
-    archivedAtMs: number | null;
     sessionConfig: {
         sessionLabel: string;
         sessionsPerCadence: number;
         volumePerSession: number;
     };
-    quickAddValues?: number[] | undefined;
+    summary: string;
+    activityId: string;
+    state: "active" | "archived";
+    archivedAtMs: number | null;
     periodStartPreference?: {
         mode: "default";
     } | {
@@ -242,6 +474,28 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         weekStartDay: number;
     } | undefined;
     categoryId?: string | null | undefined;
+    quickAddValues?: number[] | undefined;
+    configEras?: {
+        unit: string;
+        minimum: number;
+        effectiveFromMs: number;
+        cadence: {
+            interval: number;
+            unit: "day" | "week" | "month";
+        };
+        sessionConfig: {
+            sessionLabel: string;
+            sessionsPerCadence: number;
+            volumePerSession: number;
+        };
+        summary: string;
+        periodStartPreference?: {
+            mode: "default";
+        } | {
+            mode: "weekDay";
+            weekStartDay: number;
+        } | undefined;
+    }[] | undefined;
 }>;
 export declare const activityLogSchema: z.ZodObject<{
     id: z.ZodString;
@@ -292,7 +546,7 @@ export declare const dashboardPinsSchema: z.ZodObject<{
     updatedAtMs: number;
     pinnedStandardIds: string[];
 }>;
-export declare const activityHistorySourceSchema: z.ZodEnum<["boundary", "resume"]>;
+export declare const activityHistorySourceSchema: z.ZodEnum<["boundary", "resume", "log-edit"]>;
 export declare const activityHistoryStandardSnapshotSchema: z.ZodObject<{
     minimum: z.ZodNumber;
     unit: z.ZodString;
@@ -348,13 +602,13 @@ export declare const activityHistoryStandardSnapshotSchema: z.ZodObject<{
         sessionsPerCadence: number;
         volumePerSession: number;
     };
-    summary?: string | undefined;
     periodStartPreference?: {
         mode: "default";
     } | {
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
+    summary?: string | undefined;
 }, {
     unit: string;
     minimum: number;
@@ -367,13 +621,13 @@ export declare const activityHistoryStandardSnapshotSchema: z.ZodObject<{
         sessionsPerCadence: number;
         volumePerSession: number;
     };
-    summary?: string | undefined;
     periodStartPreference?: {
         mode: "default";
     } | {
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
+    summary?: string | undefined;
 }>;
 export declare const activityHistoryPeriodStatusSchema: z.ZodEnum<["Met", "In Progress", "Missed"]>;
 export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
@@ -436,13 +690,13 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
             sessionsPerCadence: number;
             volumePerSession: number;
         };
-        summary?: string | undefined;
         periodStartPreference?: {
             mode: "default";
         } | {
             mode: "weekDay";
             weekStartDay: number;
         } | undefined;
+        summary?: string | undefined;
     }, {
         unit: string;
         minimum: number;
@@ -455,13 +709,13 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
             sessionsPerCadence: number;
             volumePerSession: number;
         };
-        summary?: string | undefined;
         periodStartPreference?: {
             mode: "default";
         } | {
             mode: "weekDay";
             weekStartDay: number;
         } | undefined;
+        summary?: string | undefined;
     }>;
     total: z.ZodNumber;
     currentSessions: z.ZodNumber;
@@ -469,7 +723,8 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
     status: z.ZodEnum<["Met", "In Progress", "Missed"]>;
     progressPercent: z.ZodNumber;
     generatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
-    source: z.ZodEnum<["boundary", "resume"]>;
+    source: z.ZodEnum<["boundary", "resume", "log-edit"]>;
+    deletedAtMs: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodNumber, number, number>>>;
     periodStartMs: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
     periodEndMs: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
     periodLabel: z.ZodOptional<z.ZodString>;
@@ -492,20 +747,21 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
             sessionsPerCadence: number;
             volumePerSession: number;
         };
-        summary?: string | undefined;
         periodStartPreference?: {
             mode: "default";
         } | {
             mode: "weekDay";
             weekStartDay: number;
         } | undefined;
+        summary?: string | undefined;
     };
     total: number;
     currentSessions: number;
     targetSessions: number;
     progressPercent: number;
     generatedAtMs: number;
-    source: "boundary" | "resume";
+    source: "boundary" | "resume" | "log-edit";
+    deletedAtMs?: number | null | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;
@@ -528,20 +784,21 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
             sessionsPerCadence: number;
             volumePerSession: number;
         };
-        summary?: string | undefined;
         periodStartPreference?: {
             mode: "default";
         } | {
             mode: "weekDay";
             weekStartDay: number;
         } | undefined;
+        summary?: string | undefined;
     };
     total: number;
     currentSessions: number;
     targetSessions: number;
     progressPercent: number;
     generatedAtMs: number;
-    source: "boundary" | "resume";
+    source: "boundary" | "resume" | "log-edit";
+    deletedAtMs?: number | null | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;
@@ -564,20 +821,21 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
             sessionsPerCadence: number;
             volumePerSession: number;
         };
-        summary?: string | undefined;
         periodStartPreference?: {
             mode: "default";
         } | {
             mode: "weekDay";
             weekStartDay: number;
         } | undefined;
+        summary?: string | undefined;
     };
     total: number;
     currentSessions: number;
     targetSessions: number;
     progressPercent: number;
     generatedAtMs: number;
-    source: "boundary" | "resume";
+    source: "boundary" | "resume" | "log-edit";
+    deletedAtMs?: number | null | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;
@@ -600,20 +858,21 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
             sessionsPerCadence: number;
             volumePerSession: number;
         };
-        summary?: string | undefined;
         periodStartPreference?: {
             mode: "default";
         } | {
             mode: "weekDay";
             weekStartDay: number;
         } | undefined;
+        summary?: string | undefined;
     };
     total: number;
     currentSessions: number;
     targetSessions: number;
     progressPercent: number;
     generatedAtMs: number;
-    source: "boundary" | "resume";
+    source: "boundary" | "resume" | "log-edit";
+    deletedAtMs?: number | null | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;

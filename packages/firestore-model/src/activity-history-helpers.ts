@@ -274,13 +274,32 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
     const docId = buildActivityHistoryDocId(activityId, standardId, periodStartMs);
     const docRef = doc(collections.activityHistory, docId);
 
+    // Clean the standardSnapshot to only include fields allowed by Firestore rules.
+    // Old docs may have extra fields (e.g., state, quickAddValues) that fail hasOnly.
+    const { minimum, unit, cadence, sessionConfig, summary, periodStartPreference } =
+      existing.standardSnapshot;
+    const cleanSnapshot: ActivityHistoryDoc['standardSnapshot'] = {
+      minimum,
+      unit,
+      cadence,
+      sessionConfig,
+      ...(summary !== undefined ? { summary } : {}),
+      ...(periodStartPreference !== undefined ? { periodStartPreference } : {}),
+    };
+
     const payload: ActivityHistoryDoc = {
       ...existing,
+      standardSnapshot: cleanSnapshot,
       deletedAtMs: Date.now(),
       generatedAtMs: Date.now(),
     };
 
-    await setDoc(docRef, payload);
+    // Strip undefined values — Firestore rejects them
+    const cleanPayload = Object.fromEntries(
+      Object.entries(payload).filter(([, v]) => v !== undefined)
+    ) as ActivityHistoryDoc;
+
+    await setDoc(docRef, cleanPayload);
   }
 
   async function getLatestHistoryForStandard(

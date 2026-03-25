@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activityHistoryConverter = exports.dashboardPinsConverter = exports.activityLogConverter = exports.standardConverter = exports.activityConverter = void 0;
+exports.activityHistoryConverter = exports.dashboardPinsConverter = exports.activityLogConverter = exports.categoryConverter = exports.standardConverter = exports.activityConverter = void 0;
 const firestore_1 = require("firebase/firestore");
 const shared_model_1 = require("@minimum-standards/shared-model");
 const timestamps_1 = require("./timestamps");
@@ -35,6 +35,7 @@ exports.activityConverter = {
             name: model.name,
             unit: model.unit, // Already normalized via schema transform
             notes: model.notes,
+            categoryId: model.categoryId ?? null,
             createdAt: (0, firestore_1.serverTimestamp)(),
             updatedAt: (0, firestore_1.serverTimestamp)(),
             deletedAt: model.deletedAtMs == null ? null : (0, timestamps_1.msToTimestamp)(model.deletedAtMs)
@@ -47,6 +48,7 @@ exports.activityConverter = {
             name: data.name,
             unit: data.unit,
             notes: data.notes ?? null,
+            categoryId: data.categoryId ?? null,
             createdAtMs: (0, timestamps_1.timestampToMs)(data.createdAt),
             updatedAtMs: (0, timestamps_1.timestampToMs)(data.updatedAt),
             deletedAtMs: data.deletedAt == null ? null : (0, timestamps_1.timestampToMs)(data.deletedAt)
@@ -96,12 +98,37 @@ exports.standardConverter = {
             quickAddValues: Array.isArray(data.quickAddValues)
                 ? data.quickAddValues.filter((value) => typeof value === 'number' && Number.isFinite(value) && value > 0)
                 : undefined,
+            categoryId: data.categoryId ?? null,
             archivedAtMs: data.archivedAt == null ? null : (0, timestamps_1.timestampToMs)(data.archivedAt),
             createdAtMs: (0, timestamps_1.timestampToMs)(data.createdAt),
             updatedAtMs: (0, timestamps_1.timestampToMs)(data.updatedAt),
             deletedAtMs: data.deletedAt == null ? null : (0, timestamps_1.timestampToMs)(data.deletedAt)
         };
         return parseWith(shared_model_1.standardSchema, rawStandard);
+    }
+};
+exports.categoryConverter = {
+    toFirestore(model) {
+        return {
+            name: model.name,
+            order: model.order,
+            isSystem: model.isSystem ?? false,
+            createdAt: (0, firestore_1.serverTimestamp)(),
+            updatedAt: (0, firestore_1.serverTimestamp)(),
+            deletedAt: model.deletedAtMs == null ? null : (0, timestamps_1.msToTimestamp)(model.deletedAtMs)
+        };
+    },
+    fromFirestore(snapshot, options) {
+        const data = snapshot.data(options);
+        return parseWith(shared_model_1.categorySchema, {
+            id: snapshot.id,
+            name: data.name,
+            order: data.order,
+            isSystem: data.isSystem ?? false,
+            createdAtMs: (0, timestamps_1.timestampToMs)(data.createdAt),
+            updatedAtMs: (0, timestamps_1.timestampToMs)(data.updatedAt),
+            deletedAtMs: data.deletedAt == null ? null : (0, timestamps_1.timestampToMs)(data.deletedAt)
+        });
     }
 };
 exports.activityLogConverter = {
@@ -135,19 +162,17 @@ exports.activityLogConverter = {
 exports.dashboardPinsConverter = {
     toFirestore(model) {
         return {
-            orderedStandardIds: model.orderedStandardIds,
+            pinnedStandardIds: model.pinnedStandardIds,
             updatedAt: (0, firestore_1.serverTimestamp)()
         };
     },
     fromFirestore(snapshot, options) {
-        const data = snapshot.data(options); // Allow any for backward compatibility
+        const data = snapshot.data(options);
         return parseWith(shared_model_1.dashboardPinsSchema, {
             id: snapshot.id,
-            orderedStandardIds: Array.isArray(data.orderedStandardIds)
-                ? data.orderedStandardIds
-                : Array.isArray(data.pinnedStandardIds) // Backward compatibility
-                    ? data.pinnedStandardIds
-                    : [],
+            pinnedStandardIds: Array.isArray(data.pinnedStandardIds)
+                ? data.pinnedStandardIds
+                : [],
             updatedAtMs: data.updatedAt == null ? Date.now() : (0, timestamps_1.timestampToMs)(data.updatedAt)
         });
     }

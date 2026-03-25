@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activityHistoryDocSchema = exports.activityHistoryPeriodStatusSchema = exports.activityHistoryStandardSnapshotSchema = exports.activityHistorySourceSchema = exports.dashboardPinsSchema = exports.activityLogSchema = exports.standardSchema = exports.categorySchema = exports.activitySchema = exports.standardSessionConfigSchema = exports.standardStateSchema = exports.legacyStandardCadenceSchema = exports.standardCadenceSchema = exports.cadenceUnitSchema = void 0;
+exports.activityHistoryDocSchema = exports.activityHistoryPeriodStatusSchema = exports.activityHistoryStandardSnapshotSchema = exports.activityHistorySourceSchema = exports.dashboardPinsSchema = exports.activityLogSchema = exports.standardSchema = exports.configEraSchema = exports.categorySchema = exports.activitySchema = exports.standardSessionConfigSchema = exports.standardStateSchema = exports.legacyStandardCadenceSchema = exports.standardCadenceSchema = exports.cadenceUnitSchema = void 0;
 const zod_1 = require("zod");
 const unit_normalization_1 = require("./unit-normalization");
 const timestampMsSchema = zod_1.z
@@ -71,6 +71,15 @@ exports.categorySchema = zod_1.z.object({
     updatedAtMs: timestampMsSchema,
     deletedAtMs: timestampMsSchema.nullable()
 });
+exports.configEraSchema = zod_1.z.object({
+    effectiveFromMs: timestampMsSchema,
+    minimum: zod_1.z.number().min(0),
+    unit: zod_1.z.string().min(1).max(40),
+    cadence: exports.standardCadenceSchema,
+    sessionConfig: exports.standardSessionConfigSchema,
+    summary: zod_1.z.string().min(1).max(200),
+    periodStartPreference: periodStartPreferenceSchema.optional(),
+});
 exports.standardSchema = zod_1.z.object({
     id: zod_1.z.string().min(1),
     activityId: zod_1.z.string().min(1),
@@ -101,6 +110,7 @@ exports.standardSchema = zod_1.z.object({
     quickAddValues: zod_1.z.array(zod_1.z.number().positive()).max(5).optional(),
     sessionConfig: exports.standardSessionConfigSchema, // Required: session-based configuration
     periodStartPreference: periodStartPreferenceSchema.optional(),
+    configEras: zod_1.z.array(exports.configEraSchema).optional(),
     categoryId: zod_1.z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
     createdAtMs: timestampMsSchema,
     updatedAtMs: timestampMsSchema,
@@ -125,7 +135,7 @@ exports.dashboardPinsSchema = zod_1.z.object({
     pinnedStandardIds: zod_1.z.array(zod_1.z.string().min(1)),
     updatedAtMs: timestampMsSchema
 });
-exports.activityHistorySourceSchema = zod_1.z.enum(['boundary', 'resume']);
+exports.activityHistorySourceSchema = zod_1.z.enum(['boundary', 'resume', 'log-edit']);
 exports.activityHistoryStandardSnapshotSchema = zod_1.z.object({
     minimum: zod_1.z.number().min(0),
     unit: zod_1.z.string().min(1).max(40),
@@ -149,6 +159,7 @@ exports.activityHistoryDocSchema = zod_1.z
     progressPercent: zod_1.z.number().min(0).max(100),
     generatedAtMs: timestampMsSchema,
     source: exports.activityHistorySourceSchema,
+    deletedAtMs: timestampMsSchema.nullable().optional(),
     periodStartMs: timestampMsSchema.optional(),
     periodEndMs: timestampMsSchema.optional(),
     periodLabel: zod_1.z.string().min(1).max(200).optional(),
