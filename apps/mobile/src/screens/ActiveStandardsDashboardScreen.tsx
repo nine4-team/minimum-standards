@@ -135,7 +135,7 @@ export function StandardsScreen({
     }
 
     if (!hasInitializedCategoryFilter.current) {
-      setFocusedCategoryId(customCategories[0].id);
+      setFocusedCategoryId(null);
       hasInitializedCategoryFilter.current = true;
       return;
     }
@@ -149,7 +149,7 @@ export function StandardsScreen({
       UNCATEGORIZED_CATEGORY_ID,
     ]);
     if (!allowed.has(focusedCategoryId)) {
-      setFocusedCategoryId(customCategories[0].id);
+      setFocusedCategoryId(null);
     }
   }, [customCategories, focusedCategoryId, hasCustomCategories, setFocusedCategoryId]);
 
@@ -355,6 +355,13 @@ export function StandardsScreen({
       accessibilityLabel: string;
     }> = [];
 
+    tabs.push({
+      key: '__all__',
+      categoryId: null,
+      label: `All (${categoryCounts.total})`,
+      accessibilityLabel: `All standards, ${categoryCounts.total} total`,
+    });
+
     customCategories.forEach((category) => {
       const count = categoryCounts.counts.get(category.id) ?? 0;
       tabs.push({
@@ -371,13 +378,6 @@ export function StandardsScreen({
       categoryId: UNCATEGORIZED_CATEGORY_ID,
       label: `Uncategorized (${uncategorizedCount})`,
       accessibilityLabel: `Uncategorized, ${uncategorizedCount} standards`,
-    });
-
-    tabs.push({
-      key: '__all__',
-      categoryId: null,
-      label: `All (${categoryCounts.total})`,
-      accessibilityLabel: `All standards, ${categoryCounts.total} total`,
     });
 
     return tabs;
