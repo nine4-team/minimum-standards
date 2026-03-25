@@ -250,6 +250,7 @@ export function StandardPeriodActivityLogsScreen() {
             const act = activities.find(a => a.id === activityId);
             return act?.name;
           }}
+          resolveActivity={(activityId) => activities.find((a) => a.id === activityId)}
           currentPeriodStartMs={periodInfo?.startMs}
           currentPeriodEndMs={periodInfo?.endMs}
         />

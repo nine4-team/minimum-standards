@@ -692,6 +692,39 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
               </TouchableOpacity>
             </View>
           )}
+
+          {selectedActivity && (
+            <View style={[styles.activityNotesSection, { borderTopColor: theme.border.secondary }]}>
+              <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Notes (Optional)</Text>
+              <TextInput
+                style={[
+                  styles.activityNotesInput,
+                  {
+                    backgroundColor: theme.input.background,
+                    borderColor: theme.input.border,
+                    color: theme.input.text,
+                  },
+                ]}
+                value={selectedActivity.notes ?? ''}
+                onChangeText={(text) => {
+                  setSelectedActivity({ ...selectedActivity, notes: text || null });
+                }}
+                onBlur={() => {
+                  const trimmed = (selectedActivity.notes ?? '').trim() || null;
+                  if (trimmed !== (activities.find((a) => a.id === selectedActivity.id)?.notes ?? null)) {
+                    updateActivity(selectedActivity.id, { notes: trimmed });
+                    setSelectedActivity({ ...selectedActivity, notes: trimmed });
+                  }
+                }}
+                placeholder="Add notes about this activity..."
+                placeholderTextColor={theme.input.placeholder}
+                multiline
+                numberOfLines={3}
+                maxLength={1000}
+                accessibilityLabel="Activity notes"
+              />
+            </View>
+          )}
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.background.card, shadowColor: theme.shadow }]}>
@@ -1383,6 +1416,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  activityNotesSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    gap: 6,
+  },
+  activityNotesInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    minHeight: 60,
+    textAlignVertical: 'top',
   },
   dropdownBackdrop: {
     position: 'absolute',

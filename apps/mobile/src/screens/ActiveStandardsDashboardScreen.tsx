@@ -771,6 +771,7 @@ export function StandardsScreen({
         onClose={handleLogModalClose}
         onSave={handleLogSave}
         resolveActivityName={(activityId) => activityNameMap.get(activityId)}
+        resolveActivity={(activityId) => activities.find((a) => a.id === activityId)}
         onDeleteLogEntry={async (logEntryId, standardId, occurredAtMs) => {
           await deleteLogEntry({ logEntryId, standardId, occurredAtMs });
         }}

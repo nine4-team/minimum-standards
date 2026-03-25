@@ -21,7 +21,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import type { Standard } from '@minimum-standards/shared-model';
+import type { Standard, Activity } from '@minimum-standards/shared-model';
 import { calculatePeriodWindow } from '@minimum-standards/shared-model';
 import { useStandards } from '../hooks/useStandards';
 import { useTheme } from '../theme/useTheme';
@@ -47,6 +47,7 @@ export interface LogEntryModalProps {
   onSave: (standardId: string, value: number, occurredAtMs: number, note?: string | null, logEntryId?: string) => Promise<void>;
   onCreateStandard?: () => void; // Callback to create a new standard from empty state
   resolveActivityName?: (activityId: string) => string | undefined;
+  resolveActivity?: (activityId: string) => Activity | undefined;
   currentPeriodStartMs?: number;
   currentPeriodEndMs?: number;
   onDeleteLogEntry?: (logEntryId: string, standardId: string, occurredAtMs: number) => Promise<void>;
@@ -60,6 +61,7 @@ export function LogEntryModal({
   onSave,
   onCreateStandard,
   resolveActivityName,
+  resolveActivity,
   currentPeriodStartMs,
   currentPeriodEndMs,
   onDeleteLogEntry,
@@ -83,6 +85,7 @@ export function LogEntryModal({
   const [footerHeight, setFooterHeight] = useState(0);
   const valueInputRef = useRef<TextInput>(null);
   const [logMode, setLogMode] = useState<'manual' | 'stopwatch'>('manual');
+  const [activityNotes, setActivityNotes] = useState('');
 
   // Stopwatch state
   const [stopwatchRunning, setStopwatchRunning] = useState(false);
@@ -299,6 +302,7 @@ export function LogEntryModal({
       setShowWhen(false);
       setSelectedDate(new Date());
       setSaveError(null);
+      setActivityNotes('');
       return;
     }
 
@@ -319,6 +323,12 @@ export function LogEntryModal({
       setShowWhen(false);
       setSelectedDate(new Date());
       setSelectedStandard(standard ?? null);
+    }
+
+    // Initialize activity notes from the resolved activity
+    if (standard && resolveActivity) {
+      const activity = resolveActivity(standard.activityId);
+      setActivityNotes(activity?.notes ?? '');
     }
     setSaveError(null);
   }, [visible, standard, logEntry]);
@@ -367,6 +377,10 @@ export function LogEntryModal({
 
   const handleStandardSelect = (selected: Standard) => {
     setSelectedStandard(selected);
+    if (resolveActivity) {
+      const activity = resolveActivity(selected.activityId);
+      setActivityNotes(activity?.notes ?? '');
+    }
   };
 
   const handleSave = async () => {
@@ -1165,6 +1179,12 @@ export function LogEntryModal({
                         {new Date(currentPeriodEndMs - 1).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
                       </Text>
                     )}
+                    {activityNotes ? (
+                      <>
+                        <Text style={[styles.activityNotesLabel, { color: theme.text.tertiary }]}>Activity Notes</Text>
+                        <Text style={[styles.activityNotesText, { color: theme.text.secondary }]}>{activityNotes}</Text>
+                      </>
+                    ) : null}
                   </>
                 )}
               </View>
@@ -1285,6 +1305,17 @@ const styles = StyleSheet.create({
   },
   periodDateRange: {
     fontSize: 12,
+    marginTop: 2,
+  },
+  activityNotesLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 6,
+  },
+  activityNotesText: {
+    fontSize: 13,
     marginTop: 2,
   },
   closeButton: {
