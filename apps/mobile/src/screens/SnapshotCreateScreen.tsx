@@ -16,7 +16,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import { getScreenContainerStyle } from '@nine4/ui-kit';
 import { useStandards } from '../hooks/useStandards';
-import { useActivities } from '../hooks/useActivities';
 import { useCategories } from '../hooks/useCategories';
 import { useSnapshots } from '../hooks/useSnapshots';
 import { buildSnapshotPayload } from '../utils/snapshotImport';
@@ -29,7 +28,7 @@ export function SnapshotCreateScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { standards } = useStandards();
-  const { activities } = useActivities();
+
   const { categories } = useCategories();
   const { createSnapshot } = useSnapshots();
 
@@ -50,24 +49,15 @@ export function SnapshotCreateScreen() {
     return mode === 'everything' ? activeStandardIds : Array.from(selectedStandards);
   }, [mode, activeStandardIds, selectedStandards]);
 
-  const activityNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    activities.forEach((activity) => {
-      map.set(activity.id, activity.name);
-    });
-    return map;
-  }, [activities]);
-
   const payload = useMemo(() => {
     return buildSnapshotPayload({
       standards,
-      activities,
       categories,
       selectedStandardIds,
     });
-  }, [standards, activities, categories, selectedStandardIds]);
+  }, [standards, categories, selectedStandardIds]);
 
-  const countsLabel = `${payload.standards.length} standards · ${payload.activities.length} activities · ${payload.categories.length} categories`;
+  const countsLabel = `${payload.standards.length} standards · ${payload.categories.length} categories`;
 
   const toggleStandard = (standardId: string) => {
     setSelectedStandards((prev) => {
@@ -176,8 +166,8 @@ export function SnapshotCreateScreen() {
           </View>
           <Text style={[styles.helperText, { color: theme.text.secondary }]}>
             {mode === 'custom'
-              ? 'Pick standards and we will include required activities and categories.'
-              : 'Includes all active standards plus their activities and categories.'}
+              ? 'Pick standards and we will include required categories.'
+              : 'Includes all active standards and their categories.'}
           </Text>
           <Text style={[styles.countsText, { color: theme.text.primary }]}>{countsLabel}</Text>
         </View>
@@ -189,7 +179,7 @@ export function SnapshotCreateScreen() {
               <Text style={[styles.emptyText, { color: theme.text.secondary }]}>No standards yet.</Text>
             ) : (
               standards.map((standard, index) => {
-                const activityName = activityNameMap.get(standard.activityId) ?? 'Activity';
+                const standardName = standard.name;
                 const isSelected = selectedStandards.has(standard.id);
                 return (
                   <TouchableOpacity
@@ -204,7 +194,7 @@ export function SnapshotCreateScreen() {
                     onPress={() => toggleStandard(standard.id)}
                   >
                     <View style={styles.standardInfo}>
-                      <Text style={[styles.standardTitle, { color: theme.text.primary }]}>{activityName}</Text>
+                      <Text style={[styles.standardTitle, { color: theme.text.primary }]}>{standardName}</Text>
                       <Text style={[styles.standardSubtitle, { color: theme.text.secondary }]}>
                         {standard.summary}
                       </Text>

@@ -34,7 +34,7 @@ type FirestoreActivity = Omit<Activity, 'id' | 'createdAtMs' | 'updatedAtMs' | '
   deletedAt: Timestamp | null;
 };
 
-type FirestoreStandard = Omit<Standard, 'id' | 'createdAtMs' | 'updatedAtMs' | 'deletedAtMs' | 'archivedAtMs'> & {
+type FirestoreStandard = Omit<Standard, 'id' | 'createdAtMs' | 'updatedAtMs' | 'deletedAtMs' | 'archivedAtMs' | 'activityId'> & {
   sessionConfig: Standard['sessionConfig'];
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -42,6 +42,7 @@ type FirestoreStandard = Omit<Standard, 'id' | 'createdAtMs' | 'updatedAtMs' | '
   archivedAt: Timestamp | null;
   periodStartPreference?: Standard['periodStartPreference'];
   categoryId?: string | null;
+  activityId?: string; // Deprecated: kept for migration reads
 };
 
 type FirestoreCategory = Omit<Category, 'id' | 'createdAtMs' | 'updatedAtMs' | 'deletedAtMs'> & {
@@ -142,21 +143,23 @@ export const standardConverter: FirestoreDataConverter<Standard> = {
   toFirestore(model: Standard) {
     // Ensure summary is regenerated if cadence/minimum/unit/sessionConfig changed
     const summary = formatStandardSummary(model.minimum, model.unit, model.cadence, model.sessionConfig);
-    
+
     return {
-      activityId: model.activityId,
+      name: model.name,
       minimum: model.minimum,
       unit: model.unit,
       cadence: model.cadence,
       state: model.state,
       summary: summary,
       sessionConfig: model.sessionConfig,
+      notes: model.notes ?? null,
       ...(model.periodStartPreference && model.periodStartPreference.mode !== 'default'
         ? { periodStartPreference: model.periodStartPreference }
         : {}),
       ...(Array.isArray(model.quickAddValues) && model.quickAddValues.length > 0
         ? { quickAddValues: model.quickAddValues }
         : {}),
+      ...(model.categoryId != null ? { categoryId: model.categoryId } : {}),
       archivedAt: model.archivedAtMs == null ? null : msToTimestamp(model.archivedAtMs),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -168,13 +171,14 @@ export const standardConverter: FirestoreDataConverter<Standard> = {
 
     const rawStandard: Record<string, unknown> = {
       id: snapshot.id,
-      activityId: data.activityId,
+      name: (data as any).name ?? '', // May be empty for pre-migration docs
       minimum: data.minimum,
       unit: data.unit,
       cadence: data.cadence,
       state: data.state,
       summary: data.summary,
       sessionConfig: data.sessionConfig,
+      notes: (data as any).notes ?? null,
       periodStartPreference: coercePeriodStartPreference(data.periodStartPreference),
       quickAddValues: Array.isArray((data as any).quickAddValues)
         ? ((data as any).quickAddValues as unknown[]).filter(
@@ -182,6 +186,8 @@ export const standardConverter: FirestoreDataConverter<Standard> = {
           )
         : undefined,
       categoryId: (data as any).categoryId ?? null,
+      // Preserve activityId if present (migration compat)
+      ...(data.activityId ? { activityId: data.activityId } : {}),
       archivedAtMs: data.archivedAt == null ? null : timestampToMs(data.archivedAt),
       createdAtMs: timestampToMs(data.createdAt),
       updatedAtMs: timestampToMs(data.updatedAt),
@@ -275,7 +281,6 @@ export const activityHistoryConverter: FirestoreDataConverter<ActivityHistoryDoc
   toFirestore(model: ActivityHistoryDoc) {
     // Note: All timestamps are stored as numbers (ms) per spec
     return {
-      activityId: model.activityId,
       standardId: model.standardId,
       referenceTimestampMs: model.referenceTimestampMs,
       standardSnapshot: model.standardSnapshot,
@@ -308,8 +313,9 @@ export const activityHistoryConverter: FirestoreDataConverter<ActivityHistoryDoc
 
     const rawHistoryDoc: Record<string, unknown> = {
       id: snapshot.id,
-      activityId: data.activityId,
       standardId: data.standardId,
+      // Preserve activityId if present (legacy docs)
+      ...(data.activityId ? { activityId: data.activityId } : {}),
       referenceTimestampMs,
       periodStartMs: data.periodStartMs,
       periodEndMs: data.periodEndMs,

@@ -19,6 +19,7 @@ export type SnapshotActivity = {
   categoryId: string | null;
 };
 
+/** v1 standard (references activityId) */
 export type SnapshotStandard = {
   id: string;
   activityId: string;
@@ -29,11 +30,34 @@ export type SnapshotStandard = {
   periodStartPreference?: PeriodStartPreference;
 };
 
+/** v2 standard (name/notes/categoryId inline, no activityId) */
+export type SnapshotStandardV2 = {
+  id: string;
+  name: string;
+  notes: string | null;
+  categoryId: string | null;
+  minimum: number;
+  unit: string;
+  cadence: StandardCadence;
+  sessionConfig: StandardSessionConfig;
+  periodStartPreference?: PeriodStartPreference;
+};
+
+/** v1 payload (with activities[]) */
 export type SnapshotPayload = {
   categories: SnapshotCategory[];
   activities: SnapshotActivity[];
   standards: SnapshotStandard[];
 };
+
+/** v2 payload (no activities[], standards have name/notes/categoryId inline) */
+export type SnapshotPayloadV2 = {
+  version: 2;
+  categories: SnapshotCategory[];
+  standards: SnapshotStandardV2[];
+};
+
+export type AnySnapshotPayload = SnapshotPayload | SnapshotPayloadV2;
 
 export type SnapshotRecord = {
   id: string;
@@ -42,7 +66,7 @@ export type SnapshotRecord = {
   description: string | null;
   version: number;
   isEnabled: boolean;
-  payload: SnapshotPayload;
+  payload: AnySnapshotPayload;
   createdAtMs: number;
   updatedAtMs: number;
   deletedAtMs: number | null;

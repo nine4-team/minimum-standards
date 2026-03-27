@@ -79,16 +79,6 @@ export function SettingsScreen() {
             <MaterialIcons name="chevron-right" size={24} color={theme.text.secondary} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.optionRow, { borderBottomColor: theme.border.secondary }]}
-            onPress={() => navigation.navigate('Activities')}
-          >
-            <View style={styles.optionLabelContainer}>
-              <MaterialIcons name="fitness-center" size={22} color={theme.text.primary} style={styles.optionIcon} />
-              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Activities</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={theme.text.secondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
             style={styles.optionRow}
             onPress={() => navigation.navigate('StandardsLibrary')}
           >

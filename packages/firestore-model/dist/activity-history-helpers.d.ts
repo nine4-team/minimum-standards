@@ -2,13 +2,12 @@ import { ActivityHistoryDoc, ActivityHistoryStandardSnapshot, ActivityHistorySou
 import { CollectionBindings } from './collection-layout';
 /**
  * Builds a deterministic document ID for activityHistory documents.
- * Format: activityId__standardId__periodStartMs
+ * Format: standardId__periodStartMs
  */
-export declare function buildActivityHistoryDocId(activityId: string, standardId: string, periodStartMs: number): string;
+export declare function buildActivityHistoryDocId(standardId: string, periodStartMs: number): string;
 export interface WriteActivityHistoryPeriodParams {
     firestore: unknown;
     userId: string;
-    activityId: string;
     standardId: string;
     window: PeriodWindow;
     standardSnapshot: ActivityHistoryStandardSnapshot;
@@ -29,21 +28,19 @@ export interface GetLatestHistoryForStandardParams {
 export interface GetActivityHistoryDocParams {
     firestore: unknown;
     userId: string;
-    activityId: string;
     standardId: string;
     periodStartMs: number;
 }
 export interface SoftDeleteActivityHistoryDocParams {
     firestore: unknown;
     userId: string;
-    activityId: string;
     standardId: string;
     periodStartMs: number;
 }
-export interface ListenActivityHistoryForActivityParams {
+export interface ListenActivityHistoryForStandardParams {
     firestore: unknown;
     userId: string;
-    activityId: string;
+    standardId: string;
     onNext: (docs: ActivityHistoryDoc[]) => void;
     onError?: (error: Error) => void;
 }
@@ -81,6 +78,6 @@ export declare function createActivityHistoryHelpers(bindings: ActivityHistoryFi
     getActivityHistoryDoc: (params: GetActivityHistoryDocParams) => Promise<ActivityHistoryDoc | null>;
     softDeleteActivityHistoryDoc: (params: SoftDeleteActivityHistoryDocParams) => Promise<void>;
     getLatestHistoryForStandard: (params: GetLatestHistoryForStandardParams) => Promise<ActivityHistoryDoc | null>;
-    listenActivityHistoryForActivity: (params: ListenActivityHistoryForActivityParams) => Unsubscribe;
+    listenActivityHistoryForStandard: (params: ListenActivityHistoryForStandardParams) => Unsubscribe;
 };
 export {};

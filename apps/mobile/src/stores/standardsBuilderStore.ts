@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import {
-  Activity,
   Standard,
   PeriodStartPreference,
   StandardCadence,
@@ -9,9 +8,15 @@ import {
 } from '@minimum-standards/shared-model';
 
 export interface StandardsBuilderState {
-  // Activity selection
-  selectedActivity: Activity | null;
-  setSelectedActivity: (activity: Activity | null) => void;
+  // Standard identity fields (formerly on Activity)
+  name: string;
+  setName: (name: string) => void;
+  unit: string;
+  setUnit: (unit: string) => void;
+  notes: string | null;
+  setNotes: (notes: string | null) => void;
+  categoryId: string | null;
+  setCategoryId: (categoryId: string | null) => void;
 
   // Cadence configuration
   cadence: StandardCadence | null;
@@ -20,7 +25,7 @@ export interface StandardsBuilderState {
   // Goal: Total per period (what user enters)
   goalTotal: number | null;
   setGoalTotal: (goalTotal: number | null) => void;
-  unitOverride: string | null; // Override for unit (null means use Activity's unit)
+  unitOverride: string | null; // Override for unit (null means use the entered unit)
   setUnitOverride: (unit: string | null) => void;
 
   // Breakdown configuration (session-based mode)
@@ -44,9 +49,9 @@ export interface StandardsBuilderState {
   reset: () => void;
 
   // Load from existing standard (for Edit mode)
-  loadFromStandard: (standard: Standard, activity: Activity) => void;
+  loadFromStandard: (standard: Standard) => void;
 
-  // Get the effective unit (Activity's unit or override)
+  // Get the effective unit (entered unit or override)
   getEffectiveUnit: () => string | null;
 
   // Get summary preview (computed)
@@ -54,13 +59,15 @@ export interface StandardsBuilderState {
 
   // Generate payload for Firestore
   generatePayload: () => {
-    activityId: string;
+    name: string;
+    notes: string | null;
+    categoryId: string | null;
     minimum: number;
     unit: string;
     cadence: StandardCadence;
     summary: string;
     sessionConfig: StandardSessionConfig;
-    periodStartPreference?: PeriodStartPreference | null;
+    periodStartPreference?: PeriodStartPreference;
   } | null;
 }
 
@@ -70,7 +77,10 @@ const defaultWeeklyCadence: StandardCadence = {
 };
 
 const initialState = {
-  selectedActivity: null,
+  name: '',
+  unit: '',
+  notes: null as string | null,
+  categoryId: null as string | null,
   cadence: defaultWeeklyCadence,
   goalTotal: null,
   unitOverride: null,
@@ -120,12 +130,20 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
       set({ periodStartPreference: preference });
     },
 
-  setSelectedActivity: (activity) => {
-    set({ selectedActivity: activity });
-    // Reset unit override when activity changes (will use Activity's unit)
-    if (activity) {
-      set({ unitOverride: null });
-    }
+  setName: (name) => {
+    set({ name });
+  },
+
+  setUnit: (unit) => {
+    set({ unit, unitOverride: null });
+  },
+
+  setNotes: (notes) => {
+    set({ notes });
+  },
+
+  setCategoryId: (categoryId) => {
+    set({ categoryId });
   },
 
   setCadence: (cadence) => {
@@ -164,7 +182,7 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
     if (state.unitOverride) {
       return state.unitOverride;
     }
-    return state.selectedActivity?.unit ?? null;
+    return state.unit || null;
   },
 
   getSummaryPreview: () => {
@@ -207,7 +225,7 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
     const effectiveUnit = state.getEffectiveUnit();
 
     if (
-      !state.selectedActivity ||
+      !state.name.trim() ||
       !effectiveUnit ||
       !state.cadence
     ) {
@@ -257,14 +275,15 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
     const preference = state.periodStartPreference;
 
     return {
-      activityId: state.selectedActivity.id,
+      name: state.name.trim(),
+      notes: state.notes,
+      categoryId: state.categoryId,
       minimum,
       unit: effectiveUnit,
       cadence: state.cadence,
       summary,
       sessionConfig,
-      periodStartPreference: preference,
-      // categoryId is legacy - standards inherit category from Activity
+      periodStartPreference: preference ?? undefined,
     };
   },
 
@@ -272,17 +291,18 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
       set(initialState);
     },
 
-    loadFromStandard: (standard: Standard, activity: Activity) => {
+    loadFromStandard: (standard: Standard) => {
       const hasSessionBreakdown =
         standard.sessionConfig.sessionsPerCadence > 1;
-      const unitDiffers =
-        standard.unit.toLowerCase() !== activity.unit.toLowerCase();
 
       set({
-        selectedActivity: activity,
+        name: standard.name,
+        unit: standard.unit,
+        notes: standard.notes,
+        categoryId: standard.categoryId ?? null,
         cadence: standard.cadence,
         goalTotal: standard.minimum,
-        unitOverride: unitDiffers ? standard.unit : null,
+        unitOverride: null,
         breakdownEnabled: hasSessionBreakdown,
         sessionLabel: standard.sessionConfig.sessionLabel,
         sessionsPerCadence: standard.sessionConfig.sessionsPerCadence,

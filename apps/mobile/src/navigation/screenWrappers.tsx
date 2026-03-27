@@ -14,7 +14,6 @@ import { StandardsScreen } from '../screens/ActiveStandardsDashboardScreen';
 import { StandardDetailScreen } from '../screens/StandardDetailScreen';
 import { StandardsLibraryScreen } from '../screens/StandardsLibraryScreen';
 import { useStandards } from '../hooks/useStandards';
-import { useActivities } from '../hooks/useActivities';
 import { useStandardsBuilderStore } from '../stores/standardsBuilderStore';
 
 type StandardsNavigationProp = NativeStackNavigationProp<StandardsStackParamList>;
@@ -26,8 +25,8 @@ export function ScorecardSummaryScreenWrapper() {
 
   return (
     <ScorecardSummaryScreen
-      onNavigateToDetail={(activityId) => {
-        navigation.navigate('ScorecardDetail', { activityId });
+      onNavigateToDetail={(standardId) => {
+        navigation.navigate('ScorecardDetail', { standardId });
       }}
     />
   );
@@ -36,11 +35,11 @@ export function ScorecardSummaryScreenWrapper() {
 export function ScorecardDetailScreenWrapper() {
   const navigation = useNavigation<ScorecardNavigationProp>();
   const route = useRoute();
-  const activityId = (route.params as { activityId: string }).activityId;
+  const standardId = (route.params as { standardId: string }).standardId;
 
   return (
     <ActivityHistoryScreen
-      activityId={activityId}
+      standardId={standardId}
       onBack={() => navigation.goBack()}
     />
   );
@@ -80,7 +79,6 @@ export function StandardsScreenWrapper() {
 export function StandardsLibraryScreenSettingsWrapper() {
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { standards } = useStandards();
-  const { activities } = useActivities();
 
   return (
     <StandardsLibraryScreen
@@ -92,9 +90,7 @@ export function StandardsLibraryScreenSettingsWrapper() {
       onEditStandard={(standardId) => {
         const standard = standards.find((s) => s.id === standardId);
         if (!standard) return;
-        const activity = activities.find((a) => a.id === standard.activityId);
-        if (!activity) return;
-        useStandardsBuilderStore.getState().loadFromStandard(standard, activity);
+        useStandardsBuilderStore.getState().loadFromStandard(standard);
         (navigation as any).navigate('CreateStandardFlow');
       }}
     />

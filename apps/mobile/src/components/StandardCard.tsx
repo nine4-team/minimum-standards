@@ -22,7 +22,7 @@ export function StandardCard({
   onActivate?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
-  activityNameMap?: Map<string, string>;
+  activityNameMap?: Map<string, string>; // deprecated - no longer used
   onSelectStandard?: (standard: Standard) => void;
   showActions?: boolean;
 }) {
@@ -32,7 +32,7 @@ export function StandardCard({
   const menuButtonRef = useRef<View>(null);
   const isActive = standard.state === 'active' && standard.archivedAtMs === null;
 
-  const activityName = activityNameMap?.get(standard.activityId) ?? standard.activityId;
+  const activityName = standard.name;
 
   // Format volume/period: "1800 minutes / week" (derive from standard data)
   const { interval, unit: cadenceUnit } = standard.cadence;

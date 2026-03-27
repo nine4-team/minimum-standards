@@ -193,7 +193,7 @@ export function SetPeriodStep() {
     setSubmitting(true);
     try {
       const newStandard = await createStandard(payload);
-      trackStandardEvent('standard_create', { activityId: payload.activityId });
+      trackStandardEvent('standard_create', { standardName: payload.name });
       // Tell the dashboard to scroll to the newly created standard's card
       setPendingScrollToStandardId(newStandard.id);
       // Dismiss the entire CreateStandardFlow modal via the parent (MainStack) navigator.

@@ -6,17 +6,14 @@ import {
   where,
 } from '@react-native-firebase/firestore';
 import {
-  Activity,
   Category,
   Standard,
   formatStandardSummary,
   normalizeUnitToPlural,
 } from '@minimum-standards/shared-model';
 import { firebaseFirestore } from '../firebase/firebaseApp';
-import { findMatchingStandard } from './standardsFilter';
-import { toFirestoreActivity } from './activityConverter';
 import { toFirestoreCategory } from './categoryConverter';
-import type { SnapshotPayload } from '../types/snapshots';
+import type { SnapshotPayload, SnapshotPayloadV2 } from '../types/snapshots';
 
 type SnapshotImportErrorCode =
   | 'share-link-not-found'
@@ -41,21 +38,9 @@ function normalizeName(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function activityKey(name: string, unit: string, categoryId: string | null): string {
-  const normalizedUnit = normalizeUnitToPlural(unit).toLowerCase();
-  return `${normalizeName(name)}|${normalizedUnit}|${categoryId ?? 'uncategorized'}`;
-}
 
-function isSnapshotPayload(value: unknown): value is SnapshotPayload {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-  const payload = value as SnapshotPayload;
-  if (!Array.isArray(payload.categories) || !Array.isArray(payload.activities) || !Array.isArray(payload.standards)) {
-    return false;
-  }
-
-  const categoryValid = payload.categories.every((category) => {
+function isValidCategories(categories: unknown[]): boolean {
+  return categories.every((category: any) => {
     return (
       category
       && typeof category.id === 'string'
@@ -64,11 +49,46 @@ function isSnapshotPayload(value: unknown): value is SnapshotPayload {
       && (category.isSystem == null || typeof category.isSystem === 'boolean')
     );
   });
-  if (!categoryValid) {
-    return false;
-  }
+}
 
-  const activityValid = payload.activities.every((activity) => {
+function isValidStandardBase(standard: any): boolean {
+  return (
+    standard
+    && typeof standard.id === 'string'
+    && typeof standard.minimum === 'number'
+    && typeof standard.unit === 'string'
+    && typeof standard.cadence === 'object'
+    && standard.cadence != null
+    && typeof standard.cadence.interval === 'number'
+    && typeof standard.cadence.unit === 'string'
+    && typeof standard.sessionConfig === 'object'
+    && standard.sessionConfig != null
+    && typeof standard.sessionConfig.sessionLabel === 'string'
+    && typeof standard.sessionConfig.sessionsPerCadence === 'number'
+    && typeof standard.sessionConfig.volumePerSession === 'number'
+  );
+}
+
+/** Detects whether this is a v2 payload (standards have name inline, no activities array required). */
+function isSnapshotPayloadV2(value: unknown): value is SnapshotPayloadV2 {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as any;
+  if (payload.version !== 2) return false;
+  if (!Array.isArray(payload.categories) || !Array.isArray(payload.standards)) return false;
+  if (!isValidCategories(payload.categories)) return false;
+  return payload.standards.every((standard: any) => {
+    return isValidStandardBase(standard) && typeof standard.name === 'string';
+  });
+}
+
+/** Detects whether this is a v1 payload (standards reference activityId, activities array present). */
+function isSnapshotPayloadV1(value: unknown): value is SnapshotPayload {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as any;
+  if (!Array.isArray(payload.categories) || !Array.isArray(payload.activities) || !Array.isArray(payload.standards)) return false;
+  if (!isValidCategories(payload.categories)) return false;
+
+  const activityValid = payload.activities.every((activity: any) => {
     return (
       activity
       && typeof activity.id === 'string'
@@ -78,74 +98,82 @@ function isSnapshotPayload(value: unknown): value is SnapshotPayload {
       && (activity.categoryId == null || typeof activity.categoryId === 'string')
     );
   });
-  if (!activityValid) {
-    return false;
-  }
+  if (!activityValid) return false;
 
-  const standardsValid = payload.standards.every((standard) => {
-    return (
-      standard
-      && typeof standard.id === 'string'
-      && typeof standard.activityId === 'string'
-      && typeof standard.minimum === 'number'
-      && typeof standard.unit === 'string'
-      && typeof standard.cadence === 'object'
-      && standard.cadence != null
-      && typeof standard.cadence.interval === 'number'
-      && typeof standard.cadence.unit === 'string'
-      && typeof standard.sessionConfig === 'object'
-      && standard.sessionConfig != null
-      && typeof standard.sessionConfig.sessionLabel === 'string'
-      && typeof standard.sessionConfig.sessionsPerCadence === 'number'
-      && typeof standard.sessionConfig.volumePerSession === 'number'
-    );
+  return payload.standards.every((standard: any) => {
+    return isValidStandardBase(standard) && typeof standard.activityId === 'string';
   });
-  if (!standardsValid) {
-    return false;
-  }
+}
 
-  return true;
+/** Convert a v1 payload to v2 by inlining activity fields into standards. */
+function convertV1toV2(payload: SnapshotPayload): SnapshotPayloadV2 {
+  const activityMap = new Map(payload.activities.map((a) => [a.id, a]));
+  return {
+    version: 2,
+    categories: payload.categories,
+    standards: payload.standards.map((standard) => {
+      const activity = activityMap.get(standard.activityId);
+      return {
+        id: standard.id,
+        name: activity?.name ?? 'Unknown',
+        notes: activity?.notes ?? null,
+        categoryId: activity?.categoryId ?? null,
+        minimum: standard.minimum,
+        unit: standard.unit,
+        cadence: standard.cadence,
+        sessionConfig: standard.sessionConfig,
+        ...(standard.periodStartPreference
+          ? { periodStartPreference: standard.periodStartPreference }
+          : {}),
+      };
+    }),
+  };
+}
+
+function isSnapshotPayload(value: unknown): value is SnapshotPayloadV2 {
+  if (isSnapshotPayloadV2(value)) return true;
+  if (isSnapshotPayloadV1(value)) return true;
+  return false;
+}
+
+/** Normalize any version to V2. */
+function normalizePayload(value: unknown): SnapshotPayloadV2 | null {
+  if (isSnapshotPayloadV2(value)) return value;
+  if (isSnapshotPayloadV1(value)) return convertV1toV2(value);
+  return null;
 }
 
 export function buildSnapshotPayload({
   standards,
-  activities,
   categories,
   selectedStandardIds,
 }: {
   standards: Standard[];
-  activities: Activity[];
   categories: Category[];
   selectedStandardIds: string[];
-}): SnapshotPayload {
+}): SnapshotPayloadV2 {
   const selectedSet = new Set(selectedStandardIds);
   const selectedStandards = standards.filter((standard) => selectedSet.has(standard.id));
-  const activityIds = new Set(selectedStandards.map((standard) => standard.activityId));
-  const selectedActivities = activities.filter((activity) => activityIds.has(activity.id));
   const categoryIds = new Set(
-    selectedActivities
-      .map((activity) => activity.categoryId)
+    selectedStandards
+      .map((standard) => standard.categoryId)
       .filter((categoryId): categoryId is string => Boolean(categoryId))
   );
   const selectedCategories = categories.filter((category) => categoryIds.has(category.id));
 
   return {
+    version: 2,
     categories: selectedCategories.map((category) => ({
       id: category.id,
       name: category.name,
       order: category.order,
       isSystem: category.isSystem ?? false,
     })),
-    activities: selectedActivities.map((activity) => ({
-      id: activity.id,
-      name: activity.name,
-      unit: activity.unit,
-      notes: activity.notes ?? null,
-      categoryId: activity.categoryId ?? null,
-    })),
     standards: selectedStandards.map((standard) => ({
       id: standard.id,
-      activityId: standard.activityId,
+      name: standard.name,
+      notes: standard.notes ?? null,
+      categoryId: standard.categoryId ?? null,
       minimum: standard.minimum,
       unit: standard.unit,
       cadence: standard.cadence,
@@ -219,7 +247,11 @@ export async function importSnapshotForUser({
   if (!isSnapshotPayload(snapshotData.payload)) {
     throw new SnapshotImportError('payload-invalid', 'Snapshot payload is invalid');
   }
-  if (snapshotData.payload.standards.length === 0) {
+  const normalizedPayload = normalizePayload(snapshotData.payload);
+  if (!normalizedPayload) {
+    throw new SnapshotImportError('payload-invalid', 'Snapshot payload could not be normalized');
+  }
+  if (normalizedPayload.standards.length === 0) {
     throw new SnapshotImportError('payload-empty', 'Snapshot has no standards to import');
   }
 
@@ -252,26 +284,17 @@ export async function importSnapshotForUser({
     collection(doc(firebaseFirestore, 'users', userId), 'categories'),
     where('deletedAt', '==', null)
   );
-  const activitiesQuery = query(
-    collection(doc(firebaseFirestore, 'users', userId), 'activities'),
-    where('deletedAt', '==', null)
-  );
   const standardsQuery = query(
     collection(doc(firebaseFirestore, 'users', userId), 'standards'),
     where('deletedAt', '==', null)
   );
 
-  const [categoriesSnapshot, activitiesSnapshot, standardsSnapshot] = await Promise.all([
+  const [categoriesSnapshot, standardsSnapshot] = await Promise.all([
     categoriesQuery.get(),
-    activitiesQuery.get(),
     standardsQuery.get(),
   ]);
 
   const existingCategories = categoriesSnapshot.docs.map((item) => ({
-    id: item.id,
-    ...(item.data() as any),
-  }));
-  const existingActivities = activitiesSnapshot.docs.map((item) => ({
     id: item.id,
     ...(item.data() as any),
   }));
@@ -281,7 +304,7 @@ export async function importSnapshotForUser({
     existingStandardDocs.set(item.id, { ref: item.ref, data });
     return {
       id: item.id,
-      activityId: data.activityId,
+      name: data.name,
       cadence: data.cadence,
       minimum: data.minimum,
       unit: data.unit,
@@ -300,7 +323,7 @@ export async function importSnapshotForUser({
   let createdCategoryCount = 0;
   const batch = firebaseFirestore.batch();
 
-  snapshotData.payload.categories.forEach((category) => {
+  normalizedPayload.categories.forEach((category) => {
     const normalized = normalizeName(category.name);
     const existingId = categoryNameMap.get(normalized);
     if (existingId) {
@@ -321,58 +344,30 @@ export async function importSnapshotForUser({
     createdCategoryCount += 1;
   });
 
-  const existingActivityKeyMap = new Map<string, string>();
-  existingActivities.forEach((activity) => {
-    if (typeof activity.name !== 'string' || typeof activity.unit !== 'string') {
-      return;
-    }
-    const key = activityKey(activity.name, activity.unit, activity.categoryId ?? null);
-    existingActivityKeyMap.set(key, activity.id);
-  });
-
-  const activityIdMap = new Map<string, string>();
-  let createdActivityCount = 0;
-
-  snapshotData.payload.activities.forEach((activity) => {
-    const mappedCategoryId = activity.categoryId
-      ? categoryIdMap.get(activity.categoryId) ?? null
-      : null;
-    const key = activityKey(activity.name, activity.unit, mappedCategoryId);
-    const existingId = existingActivityKeyMap.get(key);
-    if (existingId) {
-      activityIdMap.set(activity.id, existingId);
-      return;
-    }
-
-    const activityRef = doc(
-      collection(doc(firebaseFirestore, 'users', userId), 'activities')
-    );
-    batch.set(activityRef, toFirestoreActivity({
-      name: activity.name,
-      unit: activity.unit,
-      notes: activity.notes ?? null,
-      categoryId: mappedCategoryId,
-    }));
-    activityIdMap.set(activity.id, activityRef.id);
-    existingActivityKeyMap.set(key, activityRef.id);
-    createdActivityCount += 1;
-  });
-
   let createdStandardCount = 0;
   const updatedStandardIds = new Set<string>();
 
-  snapshotData.payload.standards.forEach((standard) => {
-    const mappedActivityId = activityIdMap.get(standard.activityId);
-    if (!mappedActivityId) {
-      return;
-    }
-    const existing = findMatchingStandard(
-      existingStandards,
-      mappedActivityId,
-      standard.cadence,
-      standard.minimum,
-      standard.unit
-    );
+  // Build a key for matching existing standards by name + cadence + minimum + unit
+  function standardKey(name: string, cadence: any, minimum: number, unit: string): string {
+    const normalizedUnit = normalizeUnitToPlural(unit).toLowerCase();
+    return `${normalizeName(name)}|${cadence.interval}|${cadence.unit}|${minimum}|${normalizedUnit}`;
+  }
+
+  const existingStandardKeyMap = new Map<string, Standard>();
+  for (const std of existingStandards) {
+    const key = standardKey(std.name, std.cadence, std.minimum, std.unit);
+    existingStandardKeyMap.set(key, std);
+  }
+
+  normalizedPayload.standards.forEach((standard) => {
+    const mappedCategoryId = standard.categoryId
+      ? categoryIdMap.get(standard.categoryId) ?? standard.categoryId
+      : null;
+
+    // Try to find an existing standard with matching name/cadence/minimum/unit
+    const key = standardKey(standard.name, standard.cadence, standard.minimum, standard.unit);
+    const existing = existingStandardKeyMap.get(key);
+
     if (existing) {
       const match = existingStandardDocs.get(existing.id);
       const isArchived = match?.data?.archivedAt != null || match?.data?.state === 'archived';
@@ -391,7 +386,9 @@ export async function importSnapshotForUser({
       collection(doc(firebaseFirestore, 'users', userId), 'standards')
     );
     batch.set(standardRef, {
-      activityId: mappedActivityId,
+      name: standard.name,
+      notes: standard.notes ?? null,
+      categoryId: mappedCategoryId,
       minimum: standard.minimum,
       unit: standard.unit,
       cadence: standard.cadence,
@@ -429,7 +426,7 @@ export async function importSnapshotForUser({
     alreadyInstalled: false,
     createdCounts: {
       categories: createdCategoryCount,
-      activities: createdActivityCount,
+      activities: 0,
       standards: createdStandardCount,
     },
   };

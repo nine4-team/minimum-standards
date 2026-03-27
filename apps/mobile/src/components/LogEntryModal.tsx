@@ -21,7 +21,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import type { Standard, Activity } from '@minimum-standards/shared-model';
+import type { Standard } from '@minimum-standards/shared-model';
 import { calculatePeriodWindow } from '@minimum-standards/shared-model';
 import { useStandards } from '../hooks/useStandards';
 import { useTheme } from '../theme/useTheme';
@@ -46,8 +46,8 @@ export interface LogEntryModalProps {
   onClose: () => void;
   onSave: (standardId: string, value: number, occurredAtMs: number, note?: string | null, logEntryId?: string) => Promise<void>;
   onCreateStandard?: () => void; // Callback to create a new standard from empty state
-  resolveActivityName?: (activityId: string) => string | undefined;
-  resolveActivity?: (activityId: string) => Activity | undefined;
+  resolveActivityName?: (activityId: string) => string | undefined; // deprecated
+  resolveActivity?: (activityId: string) => any | undefined; // deprecated
   currentPeriodStartMs?: number;
   currentPeriodEndMs?: number;
   onDeleteLogEntry?: (logEntryId: string, standardId: string, occurredAtMs: number) => Promise<void>;
@@ -123,9 +123,8 @@ export function LogEntryModal({
     if (!selectedStandard || showPicker) {
       return null;
     }
-    const resolved = resolveActivityName?.(selectedStandard.activityId);
-    return resolved ?? selectedStandard.activityId;
-  }, [resolveActivityName, selectedStandard, showPicker]);
+    return selectedStandard.name;
+  }, [selectedStandard, showPicker]);
 
   const getAffirmationMessage = useCallback(() => {
     if (affirmationMessages.length === 0) {
@@ -325,10 +324,9 @@ export function LogEntryModal({
       setSelectedStandard(standard ?? null);
     }
 
-    // Initialize activity notes from the resolved activity
-    if (standard && resolveActivity) {
-      const activity = resolveActivity(standard.activityId);
-      setActivityNotes(activity?.notes ?? '');
+    // Initialize notes from the standard
+    if (standard) {
+      setActivityNotes(standard.notes ?? '');
     }
     setSaveError(null);
   }, [visible, standard, logEntry]);
@@ -377,10 +375,7 @@ export function LogEntryModal({
 
   const handleStandardSelect = (selected: Standard) => {
     setSelectedStandard(selected);
-    if (resolveActivity) {
-      const activity = resolveActivity(selected.activityId);
-      setActivityNotes(activity?.notes ?? '');
-    }
+    setActivityNotes(selected.notes ?? '');
   };
 
   const handleSave = async () => {
@@ -585,7 +580,6 @@ export function LogEntryModal({
           <StandardCard
             standard={item}
             onSelect={() => handleStandardSelect(item)}
-            activityNameMap={new Map([[item.activityId, resolveActivityName?.(item.activityId) ?? item.activityId]])}
             showActions={false}
           />
         )}

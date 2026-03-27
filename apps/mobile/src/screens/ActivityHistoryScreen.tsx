@@ -18,7 +18,6 @@ import { useActivityHistory } from '../hooks/useActivityHistory';
 import { useActivityLogs } from '../hooks/useActivityLogs';
 import { useActivityRangeLogs, ActivityLogSlice } from '../hooks/useActivityRangeLogs';
 import { useStandards } from '../hooks/useStandards';
-import { useActivities } from '../hooks/useActivities';
 import { PeriodProgressCard } from '../components/PeriodProgressCard';
 import { ActivityHistoryStatsPanel } from '../components/ActivityHistoryStatsPanel';
 import { ActivityVolumeCharts } from '../components/ActivityVolumeCharts';
@@ -40,7 +39,7 @@ import { softDeleteActivityHistoryDoc } from '../utils/activityHistoryFirestore'
 import { firebaseAuth } from '../firebase/firebaseApp';
 
 export interface ActivityHistoryScreenProps {
-  activityId?: string;
+  standardId?: string;
   onBack: () => void;
 }
 
@@ -52,7 +51,7 @@ const TIME_RANGE_DAYS: Record<TimeRange, number | null> = {
 };
 
 export function ActivityHistoryScreen({
-  activityId,
+  standardId,
   onBack,
 }: ActivityHistoryScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -66,12 +65,11 @@ export function ActivityHistoryScreen({
   const timeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
   const setTimeRange = useUIPreferencesStore((s) => s.setScorecardTimeRange);
   const [isRangeDrawerVisible, setIsRangeDrawerVisible] = useState(false);
-  const selectedActivityId = activityId ?? null;
+  const selectedStandardId = standardId ?? null;
 
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const { standards } = useStandards();
-  const { activities, loading: activitiesLoading, error: activitiesError } = useActivities();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -90,20 +88,20 @@ export function ActivityHistoryScreen({
     };
   }, []);
 
-  const { rows: persistedRows, loading: historyLoading, error: historyError } = useActivityHistory(selectedActivityId);
+  const { rows: persistedRows, loading: historyLoading, error: historyError } = useActivityHistory(selectedStandardId);
 
-  // Get activity name
-  const activity = useMemo(
-    () => activities.find((a) => a.id === selectedActivityId) ?? null,
-    [activities, selectedActivityId]
+  // Get the standard
+  const selectedStandard = useMemo(
+    () => standards.find((s) => s.id === selectedStandardId) ?? null,
+    [standards, selectedStandardId]
   );
-  const activityName = activity?.name ?? '';
-  const unit = activity?.unit ?? '';
+  const activityName = selectedStandard?.name ?? '';
+  const unit = selectedStandard?.unit ?? '';
 
-  // Get all standards (active and inactive) that reference this activity
+  // This standard is the only relevant one now
   const relevantStandards = useMemo(
-    () => (selectedActivityId ? standards.filter((s) => s.activityId === selectedActivityId) : []),
-    [standards, selectedActivityId]
+    () => (selectedStandard ? [selectedStandard] : []),
+    [selectedStandard]
   );
 
   const relevantStandardIds = useMemo(
@@ -119,7 +117,7 @@ export function ActivityHistoryScreen({
 
   // Fetch logs for active standards
   const { logs: currentPeriodLogs, loading: logsLoading, error: logsError } = useActivityLogs(
-    selectedActivityId,
+    selectedStandardId,
     relevantStandards,
     timezone
   );
@@ -140,12 +138,11 @@ export function ActivityHistoryScreen({
     }
     return computeSyntheticCurrentRows({
       standards: activeStandards,
-      activityId: selectedActivityId ?? '',
       logs: currentPeriodLogs,
       timezone,
       nowMs,
     });
-  }, [activeStandards, selectedActivityId, currentPeriodLogs, timezone, nowMs]);
+  }, [activeStandards, currentPeriodLogs, timezone, nowMs]);
 
   // Merge persisted and synthetic rows — show ALL historical periods regardless
   // of whether the originating standard still exists (fixes deleted-standard hiding)
@@ -375,8 +372,8 @@ export function ActivityHistoryScreen({
     };
   }, [filteredRowsForList, rangeLogs, effectiveRangeStartMs, nowMs, timezone]);
 
-  const loading = activitiesLoading || historyLoading || logsLoading || (rangeLogsLoading && mergedRows.length === 0);
-  const error = historyError || logsError || rangeLogsError || activitiesError;
+  const loading = historyLoading || logsLoading || (rangeLogsLoading && mergedRows.length === 0);
+  const error = historyError || logsError || rangeLogsError;
 
   useEffect(() => {
     if (rangeLogsError) {
@@ -386,7 +383,7 @@ export function ActivityHistoryScreen({
 
   const handleDeletePeriod = useCallback((row: MergedActivityHistoryRow) => {
     const userId = firebaseAuth.currentUser?.uid;
-    if (!userId || !selectedActivityId) {
+    if (!userId || !selectedStandardId) {
       return;
     }
     Alert.alert(
@@ -400,7 +397,6 @@ export function ActivityHistoryScreen({
           onPress: () => {
             softDeleteActivityHistoryDoc({
               userId,
-              activityId: selectedActivityId,
               standardId: row.standardId,
               periodStartMs: row.periodStartMs,
             }).catch((err: unknown) => {
@@ -410,13 +406,12 @@ export function ActivityHistoryScreen({
         },
       ]
     );
-  }, [selectedActivityId]);
+  }, [selectedStandardId]);
 
   // Handle period card press - navigate to period activity logs
   const handlePeriodPress = (row: MergedActivityHistoryRow) => {
     navigation.navigate('StandardPeriodActivityLogs', {
-      standardId: row.standardId,
-      activityId: selectedActivityId ?? undefined,
+      standardId: selectedStandardId ?? row.standardId,
       periodStartMs: row.periodStartMs,
       periodEndMs: row.periodEndMs,
       periodStandardSnapshot: row.standardSnapshot,
@@ -430,7 +425,7 @@ export function ActivityHistoryScreen({
     }
   };
 
-  const hasActivities = activities.length > 0;
+  const hasStandard = selectedStandard != null;
 
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
@@ -466,10 +461,10 @@ export function ActivityHistoryScreen({
 
       <ErrorBanner error={error} />
 
-      {!hasActivities && !activitiesLoading ? (
+      {!hasStandard ? (
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: theme.text.secondary }]}>
-            No activities yet. Create one in Standards to get started.
+            Standard not found.
           </Text>
         </View>
       ) : loading && mergedRows.length === 0 ? (

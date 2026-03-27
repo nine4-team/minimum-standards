@@ -30,24 +30,8 @@
       "collectionGroup": "activityHistory",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "activityId", "order": "ASCENDING" },
-        { "fieldPath": "referenceTimestampMs", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "activityHistory",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "standardId", "order": "ASCENDING" },
         { "fieldPath": "referenceTimestampMs", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "activities",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "deletedAt", "order": "ASCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     }
   ],

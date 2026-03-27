@@ -15,7 +15,7 @@ import {
   ActivityHistoryFirestoreBindings,
   GetActivityHistoryDocParams,
   GetLatestHistoryForStandardParams,
-  ListenActivityHistoryForActivityParams,
+  ListenActivityHistoryForStandardParams,
   SoftDeleteActivityHistoryDocParams,
   WriteActivityHistoryPeriodParams,
   createActivityHistoryHelpers,
@@ -44,7 +44,7 @@ const {
   getActivityHistoryDoc: getActivityHistoryDocInternal,
   softDeleteActivityHistoryDoc: softDeleteActivityHistoryDocInternal,
   getLatestHistoryForStandard: getLatestHistoryForStandardInternal,
-  listenActivityHistoryForActivity: listenActivityHistoryForActivityInternal,
+  listenActivityHistoryForStandard: listenActivityHistoryForStandardInternal,
 } = createActivityHistoryHelpers(reactNativeBindings);
 
 export function writeActivityHistoryPeriod(
@@ -107,10 +107,10 @@ export function getLatestHistoryForStandard(
   });
 }
 
-export function listenActivityHistoryForActivity(
-  params: Omit<ListenActivityHistoryForActivityParams, 'firestore'>
+export function listenActivityHistoryForStandard(
+  params: Omit<ListenActivityHistoryForStandardParams, 'firestore'>
 ) {
-  return listenActivityHistoryForActivityInternal({
+  return listenActivityHistoryForStandardInternal({
     ...params,
     firestore: firebaseFirestore,
   });

@@ -89,7 +89,7 @@ export const configEraSchema = z.object({
 
 export const standardSchema = z.object({
   id: z.string().min(1),
-  activityId: z.string().min(1),
+  name: z.string().max(120).default(''), // Allow empty for pre-migration docs
   minimum: z.number().min(0),
   unit: z
     .string()
@@ -118,6 +118,8 @@ export const standardSchema = z.object({
   periodStartPreference: periodStartPreferenceSchema.optional(),
   configEras: z.array(configEraSchema).optional(),
   categoryId: z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
+  notes: z.string().max(1000).nullable().default(null),
+  activityId: z.string().min(1).optional(), // Deprecated: kept for migration
   createdAtMs: timestampMsSchema,
   updatedAtMs: timestampMsSchema,
   deletedAtMs: timestampMsSchema.nullable()
@@ -169,8 +171,8 @@ export const activityHistoryPeriodStatusSchema = z.enum(['Met', 'In Progress', '
 export const activityHistoryDocSchema = z
   .object({
     id: z.string().min(1),
-    activityId: z.string().min(1),
     standardId: z.string().min(1),
+    activityId: z.string().min(1).optional(), // Deprecated: kept for migration
     referenceTimestampMs: timestampMsSchema,
     standardSnapshot: activityHistoryStandardSnapshotSchema,
     total: z.number().min(0),

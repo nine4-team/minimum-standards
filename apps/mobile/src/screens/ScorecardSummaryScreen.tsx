@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/useTheme';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useScorecardSummary } from '../hooks/useScorecardSummary';
-import { ActivitySummaryCard } from '../components/ActivitySummaryCard';
+import { StandardSummaryCard } from '../components/ActivitySummaryCard';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { RangeFilterDrawer } from '../components/RangeFilterDrawer';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -21,10 +21,10 @@ import {
   SCREEN_PADDING,
   getScreenContainerStyle,
 } from '@nine4/ui-kit';
-import type { ActivitySummaryCard as ActivitySummaryCardData } from '../utils/scorecardSummary';
+import type { StandardSummaryCard as StandardSummaryCardData } from '../utils/scorecardSummary';
 
 export interface ScorecardSummaryScreenProps {
-  onNavigateToDetail: (activityId: string) => void;
+  onNavigateToDetail: (standardId: string) => void;
 }
 
 export function ScorecardSummaryScreen({
@@ -43,10 +43,10 @@ export function ScorecardSummaryScreen({
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [rangeDrawerVisible, setRangeDrawerVisible] = useState(false);
 
-  const renderCard = ({ item }: { item: ActivitySummaryCardData }) => (
-    <ActivitySummaryCard
+  const renderCard = ({ item }: { item: StandardSummaryCardData }) => (
+    <StandardSummaryCard
       card={item}
-      onPress={() => onNavigateToDetail(item.activityId)}
+      onPress={() => onNavigateToDetail(item.standardId)}
     />
   );
 
@@ -98,7 +98,7 @@ export function ScorecardSummaryScreen({
       ) : (
         <FlatList
           data={cards}
-          keyExtractor={(item) => item.activityId}
+          keyExtractor={(item) => item.standardId}
           renderItem={renderCard}
           contentContainerStyle={[
             styles.listContent,

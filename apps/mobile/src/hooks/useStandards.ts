@@ -28,13 +28,14 @@ import { emitActivityLogMutation } from '../utils/activityLogEvents';
 import { recomputeActivityHistoryPeriod } from '../utils/activityHistoryRecompute';
 
 export interface CreateStandardInput {
-  activityId: string;
+  name: string;
+  notes: string | null;
+  categoryId: string | null;
   minimum: number;
   unit: string;
   cadence: StandardCadence;
   sessionConfig: StandardSessionConfig;
   periodStartPreference?: PeriodStartPreference;
-  // categoryId is legacy - categories belong to Activities
 }
 
 
@@ -67,14 +68,15 @@ export interface RestoreLogInput {
 
 export interface UpdateStandardInput {
   standardId: string;
-  activityId: string;
+  name: string;
+  notes: string | null;
+  categoryId: string | null;
   minimum: number;
   unit: string;
   cadence: StandardCadence;
   sessionConfig: StandardSessionConfig;
   periodStartPreference?: PeriodStartPreference;
   clearPeriodStartPreference?: boolean;
-  // categoryId is legacy - categories belong to Activities
 }
 
 export interface UseStandardsResult {
@@ -191,7 +193,9 @@ export function useStandards(): UseStandardsResult {
       const docRef = doc(standardsCollection);
 
       const payload = {
-        activityId: input.activityId,
+        name: input.name,
+        notes: input.notes ?? null,
+        categoryId: input.categoryId ?? null,
         minimum: input.minimum,
         unit: input.unit,
         cadence: input.cadence,
@@ -206,7 +210,6 @@ export function useStandards(): UseStandardsResult {
         ...(input.periodStartPreference
           ? { periodStartPreference: input.periodStartPreference }
           : {}),
-        // categoryId is legacy - no longer written. Categories belong to Activities.
         archivedAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -259,7 +262,9 @@ export function useStandards(): UseStandardsResult {
         : false;
 
       const payload: Record<string, unknown> = {
-        activityId: input.activityId,
+        name: input.name,
+        notes: input.notes ?? null,
+        categoryId: input.categoryId ?? null,
         minimum: input.minimum,
         unit: input.unit,
         cadence: input.cadence,
@@ -280,8 +285,6 @@ export function useStandards(): UseStandardsResult {
       if (input.clearPeriodStartPreference) {
         payload.periodStartPreference = deleteField();
       }
-
-      // categoryId is legacy - no longer written. Categories belong to Activities.
 
       // When config changes, append a new era so historical periods retain the old config
       if (configChanging && previousStandard) {

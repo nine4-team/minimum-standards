@@ -2,7 +2,7 @@ import { FirebaseFirestoreTypes, serverTimestamp, Timestamp } from '@react-nativ
 import { Standard, ConfigEra, standardSchema } from '@minimum-standards/shared-model';
 
 export type FirestoreStandardData = {
-  activityId: string;
+  name: string;
   minimum: number;
   unit: string;
   cadence: Standard['cadence'];
@@ -11,6 +11,9 @@ export type FirestoreStandardData = {
   sessionConfig: Standard['sessionConfig'];
   quickAddValues?: number[];
   categoryId?: string | null;
+  notes?: string | null;
+  /** @deprecated Kept for migration compatibility */
+  activityId?: string;
   archivedAt: FirebaseFirestoreTypes.Timestamp | null;
   createdAt: FirebaseFirestoreTypes.Timestamp | null;
   updatedAt: FirebaseFirestoreTypes.Timestamp | null;
@@ -33,7 +36,9 @@ export function fromFirestoreStandard(
 
   return standardSchema.parse({
     id: docId,
-    activityId: data.activityId,
+    name: data.name,
+    notes: data.notes ?? null,
+    ...(data.activityId ? { activityId: data.activityId } : {}),
     minimum: data.minimum,
     unit: data.unit,
     cadence: data.cadence,
@@ -52,7 +57,7 @@ export function fromFirestoreStandard(
     createdAtMs: data.createdAt?.toMillis() ?? Date.now(),
     updatedAtMs: data.updatedAt?.toMillis() ?? Date.now(),
     deletedAtMs: data.deletedAt?.toMillis() ?? null,
-  });
+  }) as Standard;
 }
 
 /**

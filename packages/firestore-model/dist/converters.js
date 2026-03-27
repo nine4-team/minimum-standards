@@ -64,19 +64,21 @@ exports.standardConverter = {
         // Ensure summary is regenerated if cadence/minimum/unit/sessionConfig changed
         const summary = (0, shared_model_1.formatStandardSummary)(model.minimum, model.unit, model.cadence, model.sessionConfig);
         return {
-            activityId: model.activityId,
+            name: model.name,
             minimum: model.minimum,
             unit: model.unit,
             cadence: model.cadence,
             state: model.state,
             summary: summary,
             sessionConfig: model.sessionConfig,
+            notes: model.notes ?? null,
             ...(model.periodStartPreference && model.periodStartPreference.mode !== 'default'
                 ? { periodStartPreference: model.periodStartPreference }
                 : {}),
             ...(Array.isArray(model.quickAddValues) && model.quickAddValues.length > 0
                 ? { quickAddValues: model.quickAddValues }
                 : {}),
+            ...(model.categoryId != null ? { categoryId: model.categoryId } : {}),
             archivedAt: model.archivedAtMs == null ? null : (0, timestamps_1.msToTimestamp)(model.archivedAtMs),
             createdAt: (0, firestore_1.serverTimestamp)(),
             updatedAt: (0, firestore_1.serverTimestamp)(),
@@ -87,18 +89,21 @@ exports.standardConverter = {
         const data = snapshot.data(options);
         const rawStandard = {
             id: snapshot.id,
-            activityId: data.activityId,
+            name: data.name ?? '', // May be empty for pre-migration docs
             minimum: data.minimum,
             unit: data.unit,
             cadence: data.cadence,
             state: data.state,
             summary: data.summary,
             sessionConfig: data.sessionConfig,
+            notes: data.notes ?? null,
             periodStartPreference: coercePeriodStartPreference(data.periodStartPreference),
             quickAddValues: Array.isArray(data.quickAddValues)
                 ? data.quickAddValues.filter((value) => typeof value === 'number' && Number.isFinite(value) && value > 0)
                 : undefined,
             categoryId: data.categoryId ?? null,
+            // Preserve activityId if present (migration compat)
+            ...(data.activityId ? { activityId: data.activityId } : {}),
             archivedAtMs: data.archivedAt == null ? null : (0, timestamps_1.timestampToMs)(data.archivedAt),
             createdAtMs: (0, timestamps_1.timestampToMs)(data.createdAt),
             updatedAtMs: (0, timestamps_1.timestampToMs)(data.updatedAt),
@@ -181,7 +186,6 @@ exports.activityHistoryConverter = {
     toFirestore(model) {
         // Note: All timestamps are stored as numbers (ms) per spec
         return {
-            activityId: model.activityId,
             standardId: model.standardId,
             referenceTimestampMs: model.referenceTimestampMs,
             standardSnapshot: model.standardSnapshot,
@@ -208,8 +212,9 @@ exports.activityHistoryConverter = {
         };
         const rawHistoryDoc = {
             id: snapshot.id,
-            activityId: data.activityId,
             standardId: data.standardId,
+            // Preserve activityId if present (legacy docs)
+            ...(data.activityId ? { activityId: data.activityId } : {}),
             referenceTimestampMs,
             periodStartMs: data.periodStartMs,
             periodEndMs: data.periodEndMs,

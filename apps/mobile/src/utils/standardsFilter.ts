@@ -57,18 +57,19 @@ function cadencesEqual(a: StandardCadence, b: StandardCadence): boolean {
 
 /**
  * Checks if form values match an existing Standard.
- * Match criteria: same activityId, cadence, minimum, and unit.
+ * Match criteria: same name (case-insensitive), cadence, minimum, and unit.
  */
 export function findMatchingStandard(
   standards: Standard[],
-  activityId: string,
+  name: string,
   cadence: StandardCadence,
   minimum: number,
   unit: string
 ): Standard | undefined {
+  const normalizedName = name.toLowerCase();
   return standards.find(
     (standard) =>
-      standard.activityId === activityId &&
+      standard.name.toLowerCase() === normalizedName &&
       cadencesEqual(standard.cadence, cadence) &&
       standard.minimum === minimum &&
       standard.unit === unit

@@ -8,7 +8,7 @@ import {
 } from '@react-native-firebase/firestore';
 import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
 import { generateShareCode } from '../utils/snapshotLinks';
-import type { ShareLinkRecord, SnapshotPayload, SnapshotRecord } from '../types/snapshots';
+import type { ShareLinkRecord, AnySnapshotPayload, SnapshotRecord } from '../types/snapshots';
 
 type FirestoreTimestamp = { toMillis: () => number } | null;
 
@@ -18,7 +18,7 @@ type FirestoreSnapshotData = {
   description?: string | null;
   version: number;
   isEnabled?: boolean;
-  payload: SnapshotPayload;
+  payload: AnySnapshotPayload;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
   deletedAt?: FirestoreTimestamp;
@@ -41,12 +41,12 @@ export type UseSnapshotsResult = {
   snapshots: SnapshotRecord[];
   loading: boolean;
   error: Error | null;
-  createSnapshot: (input: { title: string; payload: SnapshotPayload }) => Promise<SnapshotRecord>;
+  createSnapshot: (input: { title: string; payload: AnySnapshotPayload }) => Promise<SnapshotRecord>;
   toggleSnapshotEnabled: (snapshotId: string, isEnabled: boolean) => Promise<void>;
   updateSnapshotTitle: (snapshotId: string, title: string) => Promise<void>;
   updateSnapshotPayload: (input: {
     snapshotId: string;
-    payload: SnapshotPayload;
+    payload: AnySnapshotPayload;
     nextVersion: number;
   }) => Promise<void>;
   deleteSnapshot: (snapshotId: string) => Promise<void>;
@@ -107,7 +107,7 @@ export function useSnapshots(): UseSnapshotsResult {
   }, [userId]);
 
   const createSnapshot = useCallback(
-    async ({ title, payload }: { title: string; payload: SnapshotPayload }) => {
+    async ({ title, payload }: { title: string; payload: AnySnapshotPayload }) => {
       if (!userId) {
         throw new Error('User not authenticated');
       }
@@ -177,7 +177,7 @@ export function useSnapshots(): UseSnapshotsResult {
       nextVersion,
     }: {
       snapshotId: string;
-      payload: SnapshotPayload;
+      payload: AnySnapshotPayload;
       nextVersion: number;
     }) => {
       if (!userId) {

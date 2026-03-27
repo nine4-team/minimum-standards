@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,11 +19,9 @@ import { SETTINGS_STACK_ROOT_SCREEN_NAME, type SettingsStackParamList } from '..
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useCategories } from '../hooks/useCategories';
 import { useStandards } from '../hooks/useStandards';
-import { useActivities } from '../hooks/useActivities';
 import { useTheme } from '../theme/useTheme';
-import { UNCATEGORIZED_CATEGORY_ID, Activity } from '@minimum-standards/shared-model';
+import { UNCATEGORIZED_CATEGORY_ID } from '@minimum-standards/shared-model';
 import { getScreenContainerStyle } from '@nine4/ui-kit';
-import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { BottomSheetConfirmation } from '../components/BottomSheetConfirmation';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 
@@ -42,20 +40,17 @@ export function CategorySettingsScreen() {
     deleteCategory,
     reorderCategories,
   } = useCategories();
-  const { standards, loading: standardsLoading } = useStandards();
-  const { activities, updateActivity, loading: activitiesLoading } = useActivities();
-  const { activityCategoryMigrationCompletedAtMs, setActivityCategoryMigrationCompletedAtMs, activityCategoryMigrationConflictActivityIds, setActivityCategoryMigrationConflictActivityIds } = useUIPreferencesStore();
+  const { standards, loading: standardsLoading, updateStandard } = useStandards();
   
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [addActivitiesModalVisible, setAddActivitiesModalVisible] = useState(false);
+  const [addStandardsModalVisible, setAddStandardsModalVisible] = useState(false);
   const [selectedCategoryForAdd, setSelectedCategoryForAdd] = useState<string | null>(null);
-  const [selectedActivitiesForBulk, setSelectedActivitiesForBulk] = useState<Set<string>>(new Set());
+  const [selectedStandardsForBulk, setSelectedStandardsForBulk] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
-  const [migrationRunning, setMigrationRunning] = useState(false);
 
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
@@ -63,148 +58,33 @@ export function CategorySettingsScreen() {
   const [deleteCategoryCount, setDeleteCategoryCount] = useState(0);
 
   const [assignMenuVisible, setAssignMenuVisible] = useState(false);
-  const [assignActivityId, setAssignActivityId] = useState<string | null>(null);
-  const [assignActivityName, setAssignActivityName] = useState('');
+  const [assignStandardId, setAssignStandardId] = useState<string | null>(null);
+  const [assignStandardName, setAssignStandardName] = useState('');
   const [assignExcludeCategoryId, setAssignExcludeCategoryId] = useState<string | null>(null);
 
-  // Calculate counts per category
+  // Calculate counts per category based on standards
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    activities.forEach((activity) => {
-      const categoryId = activity.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
+    standards.forEach((standard) => {
+      if (standard.archivedAtMs !== null) return; // skip archived
+      const categoryId = standard.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
       counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1);
     });
     return counts;
-  }, [activities]);
-
-  // Force re-render when activities change to ensure UI updates
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    setTick(t => t + 1);
-  }, [activities]);
-
-  const activeActivityIds = useMemo(() => {
-    const ids = new Set<string>();
-    standards.forEach((standard) => {
-      if (standard.archivedAtMs === null && standard.state === 'active') {
-        ids.add(standard.activityId);
-      }
-    });
-    return ids;
   }, [standards]);
 
-  // Only show uncategorized activities in the add picker with active standards.
-  const availableActivitiesForCategory = useMemo(() => {
+  // Active standards (non-archived)
+  const activeStandards = useMemo(() => {
+    return standards.filter((s) => s.archivedAtMs === null && s.state === 'active');
+  }, [standards]);
+
+  // Only show uncategorized standards in the add picker.
+  const availableStandardsForCategory = useMemo(() => {
     if (!selectedCategoryForAdd) return [];
-    return activities.filter(
-      (activity) =>
-        (activity.categoryId == null || activity.categoryId === '') && activeActivityIds.has(activity.id)
+    return activeStandards.filter(
+      (standard) => standard.categoryId == null || standard.categoryId === ''
     );
-  }, [activities, activeActivityIds, selectedCategoryForAdd]);
-
-  // Deterministic migration runner
-  const runMigration = useCallback(async () => {
-    if (
-      activityCategoryMigrationCompletedAtMs !== null ||
-      migrationRunning ||
-      categoriesLoading ||
-      standardsLoading ||
-      activitiesLoading
-    ) {
-      return;
-    }
-
-    setMigrationRunning(true);
-    try {
-      const conflictActivityIds: string[] = [];
-      let migratedCount = 0;
-      let alreadySetCount = 0;
-
-      // Group standards by activityId
-      const standardsByActivityId = new Map<string, typeof standards>();
-      standards.forEach((standard) => {
-        if (!standardsByActivityId.has(standard.activityId)) {
-          standardsByActivityId.set(standard.activityId, []);
-        }
-        standardsByActivityId.get(standard.activityId)!.push(standard);
-      });
-
-      // Process each activity
-      for (const activity of activities) {
-        // Skip if already has a category assigned (manual assignment)
-        if (activity.categoryId !== null && activity.categoryId !== undefined) {
-          alreadySetCount++;
-          continue;
-        }
-
-        const activityStandards = standardsByActivityId.get(activity.id) ?? [];
-        
-        // Get distinct non-null legacy categoryIds
-        const legacyCategoryIds = new Set<string>();
-        activityStandards.forEach((standard) => {
-          if (standard.categoryId !== null && standard.categoryId !== undefined && standard.categoryId !== '') {
-            legacyCategoryIds.add(standard.categoryId);
-          }
-        });
-
-        // If exactly one legacy category, assign it
-        if (legacyCategoryIds.size === 1) {
-          const categoryId = Array.from(legacyCategoryIds)[0];
-          await updateActivity(activity.id, { categoryId });
-          migratedCount++;
-        } else if (legacyCategoryIds.size > 1) {
-          // Multiple conflicting categories - mark for review
-          conflictActivityIds.push(activity.id);
-        }
-        // If 0 categories, leave as Uncategorized (no action needed)
-      }
-
-      // Persist migration completion and conflicts
-      setActivityCategoryMigrationCompletedAtMs(Date.now());
-      setActivityCategoryMigrationConflictActivityIds(conflictActivityIds);
-
-      console.log(`[Migration] Completed: ${migratedCount} migrated, ${conflictActivityIds.length} conflicts, ${alreadySetCount} already set`);
-    } catch (error) {
-      console.error('[Migration] Failed:', error);
-      Alert.alert('Migration Error', 'Failed to run migration. Please try again.');
-    } finally {
-      setMigrationRunning(false);
-    }
-  }, [
-    activities,
-    standards,
-    activityCategoryMigrationCompletedAtMs,
-    migrationRunning,
-    categoriesLoading,
-    standardsLoading,
-    activitiesLoading,
-    updateActivity,
-    setActivityCategoryMigrationCompletedAtMs,
-    setActivityCategoryMigrationConflictActivityIds,
-  ]);
-
-  // Run migration on mount if needed
-  useEffect(() => {
-    if (
-      activityCategoryMigrationCompletedAtMs === null &&
-      !categoriesLoading &&
-      !standardsLoading &&
-      !activitiesLoading &&
-      !migrationRunning
-    ) {
-      runMigration();
-    }
-  }, [activityCategoryMigrationCompletedAtMs, categoriesLoading, standardsLoading, activitiesLoading, migrationRunning, runMigration]);
-
-  const resolveMigrationConflict = useCallback((activityId: string) => {
-    if (!activityCategoryMigrationConflictActivityIds.length) {
-      return;
-    }
-    const next = activityCategoryMigrationConflictActivityIds.filter((id) => id !== activityId);
-    if (next.length !== activityCategoryMigrationConflictActivityIds.length) {
-      setActivityCategoryMigrationConflictActivityIds(next);
-    }
-  }, [activityCategoryMigrationConflictActivityIds, setActivityCategoryMigrationConflictActivityIds]);
+  }, [activeStandards, selectedCategoryForAdd]);
 
   const toggleCategoryExpanded = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => {
@@ -302,12 +182,22 @@ export function CategorySettingsScreen() {
     const count = deleteCategoryCount;
     try {
       if (count > 0) {
-        const affectedActivities = activities.filter(
-          (a) => (a.categoryId ?? UNCATEGORIZED_CATEGORY_ID) === deleteCategoryId
+        const affectedStandards = standards.filter(
+          (s) => (s.categoryId ?? UNCATEGORIZED_CATEGORY_ID) === deleteCategoryId
         );
         await Promise.all(
-          affectedActivities.map((activity) =>
-            updateActivity(activity.id, { categoryId: null })
+          affectedStandards.map((s) =>
+            updateStandard({
+              standardId: s.id,
+              name: s.name,
+              notes: s.notes ?? null,
+              categoryId: null,
+              minimum: s.minimum,
+              unit: s.unit,
+              cadence: s.cadence,
+              sessionConfig: s.sessionConfig,
+              periodStartPreference: s.periodStartPreference ?? undefined,
+            })
           )
         );
       }
@@ -317,7 +207,7 @@ export function CategorySettingsScreen() {
     }
     setDeleteConfirmVisible(false);
     setDeleteCategoryId(null);
-  }, [deleteCategoryId, deleteCategoryCount, activities, deleteCategory, updateActivity]);
+  }, [deleteCategoryId, deleteCategoryCount, standards, deleteCategory, updateStandard]);
 
   const handleMoveUp = useCallback(
     async (categoryId: string) => {
@@ -351,106 +241,110 @@ export function CategorySettingsScreen() {
     [orderedCategories, reorderCategories]
   );
 
-  const handleMoveActivityToCategory = useCallback(
-    async (activityId: string, targetCategoryId: string) => {
-      const activity = activities.find((a) => a.id === activityId);
-      if (!activity) return;
-
+  const handleMoveStandardToCategory = useCallback(
+    async (stdId: string, targetCategoryId: string) => {
+      const s = standards.find((x) => x.id === stdId);
+      if (!s) return;
       try {
-        await updateActivity(activityId, {
+        await updateStandard({
+          standardId: s.id,
+          name: s.name,
+          notes: s.notes ?? null,
           categoryId: targetCategoryId === UNCATEGORIZED_CATEGORY_ID ? null : targetCategoryId,
+          minimum: s.minimum,
+          unit: s.unit,
+          cadence: s.cadence,
+          sessionConfig: s.sessionConfig,
+          periodStartPreference: s.periodStartPreference ?? undefined,
         });
-        resolveMigrationConflict(activityId);
       } catch (error) {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to move activity');
+        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to move standard');
       }
     },
-    [activities, updateActivity, resolveMigrationConflict]
+    [standards, updateStandard]
   );
 
-  const handleOpenAddActivitiesModal = useCallback((categoryId: string) => {
+  const handleOpenAddStandardsModal = useCallback((categoryId: string) => {
     setSelectedCategoryForAdd(categoryId);
-    setSelectedActivitiesForBulk(new Set());
+    setSelectedStandardsForBulk(new Set());
     setBulkMode(false);
-    setAddActivitiesModalVisible(true);
+    setAddStandardsModalVisible(true);
   }, []);
 
-  const handleCloseAddActivitiesModal = useCallback(() => {
-    setAddActivitiesModalVisible(false);
+  const handleCloseAddStandardsModal = useCallback(() => {
+    setAddStandardsModalVisible(false);
     setSelectedCategoryForAdd(null);
-    setSelectedActivitiesForBulk(new Set());
+    setSelectedStandardsForBulk(new Set());
     setBulkMode(false);
   }, []);
 
-  const handleToggleActivitySelection = useCallback((activityId: string) => {
-    setSelectedActivitiesForBulk((prev) => {
+  const handleToggleStandardSelection = useCallback((standardId: string) => {
+    setSelectedStandardsForBulk((prev) => {
       const next = new Set(prev);
-      if (next.has(activityId)) {
-        next.delete(activityId);
+      if (next.has(standardId)) {
+        next.delete(standardId);
       } else {
-        next.add(activityId);
+        next.add(standardId);
       }
       return next;
     });
   }, []);
 
-  const handleAddActivityToCategory = useCallback(
-    async (activityId: string) => {
+  const handleAddStandardToCategory = useCallback(
+    async (stdId: string) => {
       if (!selectedCategoryForAdd) return;
-
-      const activity = activities.find((a) => a.id === activityId);
-      if (!activity) return;
-
-    try {
-      await updateActivity(activityId, {
-        categoryId: selectedCategoryForAdd === UNCATEGORIZED_CATEGORY_ID ? null : selectedCategoryForAdd,
-      });
-      resolveMigrationConflict(activityId);
-    } catch (error) {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to add activity to category');
-      }
-    },
-    [activities, selectedCategoryForAdd, updateActivity, resolveMigrationConflict]
-  );
-
-  const handleBulkAddActivitiesToCategory = useCallback(
-    async () => {
-      if (!selectedCategoryForAdd || selectedActivitiesForBulk.size === 0) return;
-
-      const categoryId = selectedCategoryForAdd === UNCATEGORIZED_CATEGORY_ID ? null : selectedCategoryForAdd;
-      const activitiesToUpdate = activities.filter((a) => selectedActivitiesForBulk.has(a.id));
+      const s = standards.find((x) => x.id === stdId);
+      if (!s) return;
 
       try {
-        // Update all selected activities
-        await Promise.all(
-          activitiesToUpdate.map((activity) =>
-            updateActivity(activity.id, { categoryId })
-          )
-        );
-        if (activityCategoryMigrationConflictActivityIds.length > 0) {
-          const next = activityCategoryMigrationConflictActivityIds.filter(
-            (id) => !selectedActivitiesForBulk.has(id)
-          );
-          setActivityCategoryMigrationConflictActivityIds(next);
-        }
-        handleCloseAddActivitiesModal();
+        await updateStandard({
+          standardId: s.id,
+          name: s.name,
+          notes: s.notes ?? null,
+          categoryId: selectedCategoryForAdd === UNCATEGORIZED_CATEGORY_ID ? null : selectedCategoryForAdd,
+          minimum: s.minimum,
+          unit: s.unit,
+          cadence: s.cadence,
+          sessionConfig: s.sessionConfig,
+          periodStartPreference: s.periodStartPreference ?? undefined,
+        });
       } catch (error) {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to add activities to category');
+        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to add standard to category');
       }
     },
-    [selectedCategoryForAdd, selectedActivitiesForBulk, activities, updateActivity, handleCloseAddActivitiesModal, activityCategoryMigrationConflictActivityIds, setActivityCategoryMigrationConflictActivityIds]
+    [selectedCategoryForAdd, standards, updateStandard]
   );
 
-  const conflictActivities = useMemo(() => {
-    if (!activityCategoryMigrationConflictActivityIds || activityCategoryMigrationConflictActivityIds.length === 0) {
-      return [];
-    }
-    return activities.filter(
-      (a) =>
-        activityCategoryMigrationConflictActivityIds.includes(a.id) &&
-        (a.categoryId === null || a.categoryId === undefined)
-    );
-  }, [activities, activityCategoryMigrationConflictActivityIds]);
+  const handleBulkAddStandardsToCategory = useCallback(
+    async () => {
+      if (!selectedCategoryForAdd || selectedStandardsForBulk.size === 0) return;
+
+      const categoryId = selectedCategoryForAdd === UNCATEGORIZED_CATEGORY_ID ? null : selectedCategoryForAdd;
+      const standardsToUpdate = standards.filter((s) => selectedStandardsForBulk.has(s.id));
+
+      try {
+        await Promise.all(
+          standardsToUpdate.map((s) =>
+            updateStandard({
+              standardId: s.id,
+              name: s.name,
+              notes: s.notes ?? null,
+              categoryId,
+              minimum: s.minimum,
+              unit: s.unit,
+              cadence: s.cadence,
+              sessionConfig: s.sessionConfig,
+              periodStartPreference: s.periodStartPreference ?? undefined,
+            })
+          )
+        );
+        handleCloseAddStandardsModal();
+      } catch (error) {
+        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to add standards to category');
+      }
+    },
+    [selectedCategoryForAdd, selectedStandardsForBulk, standards, updateStandard, handleCloseAddStandardsModal]
+  );
 
   if (categoriesLoading) {
     return (
@@ -484,32 +378,6 @@ export function CategorySettingsScreen() {
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Migration Status / Needs Review */}
-        {conflictActivities.length > 0 && (
-          <View style={[styles.section, { backgroundColor: theme.background.card, borderColor: theme.input.borderError }]}>
-            <Text style={[styles.sectionTitle, { color: theme.input.borderError }]}>Needs Review</Text>
-            <Text style={[styles.helperText, { color: theme.text.secondary }]}>
-              {conflictActivities.length} activit{conflictActivities.length === 1 ? 'y' : 'ies'} had conflicting legacy categories and need manual assignment.
-            </Text>
-            {conflictActivities.map((activity) => (
-              <View key={activity.id} style={[styles.activityRow, { borderBottomColor: theme.border.secondary }]}>
-                <Text style={[styles.activityName, { color: theme.text.primary }]}>{activity.name}</Text>
-                <TouchableOpacity
-                  style={styles.activityActionButton}
-                  onPress={() => {
-                    setAssignActivityId(activity.id);
-                    setAssignActivityName(activity.name);
-                    setAssignExcludeCategoryId(null);
-                    setAssignMenuVisible(true);
-                  }}
-                >
-                  <MaterialIcons name="drive-file-move" size={20} color={theme.button.primary.background} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-
         {/* Create New Category */}
         <View style={[styles.section, { backgroundColor: theme.background.surface, borderColor: theme.border.secondary }]}>
           <Text style={[styles.sectionTitle, { color: theme.text.secondary }]}>Create Category</Text>
@@ -609,7 +477,7 @@ export function CategorySettingsScreen() {
                       >
                         <Text style={[styles.categoryName, { color: theme.text.primary }]}>{category.name}</Text>
                         <Text style={[styles.categoryCount, { color: theme.text.secondary }]}>
-                          {count} activit{count === 1 ? 'y' : 'ies'}
+                          {count} standard{count === 1 ? '' : 's'}
                         </Text>
                       </TouchableOpacity>
                       <View style={styles.categoryActions}>
@@ -659,23 +527,24 @@ export function CategorySettingsScreen() {
                     {expandedCategories.has(category.id) && (
                       <View style={styles.activitiesList}>
                         {(() => {
-                          const categoryActivities = activities
-                            .filter(a => {
-                              const activityCategoryId = a.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
-                              return activityCategoryId === category.id;
+                          const categoryStandards = standards
+                            .filter(s => {
+                              if (s.archivedAtMs !== null) return false;
+                              const stdCategoryId = s.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
+                              return stdCategoryId === category.id;
                             })
                             .sort((a, b) => a.name.localeCompare(b.name));
-                          
+
                           return (
                             <>
-                              {categoryActivities.length === 0 ? (
+                              {categoryStandards.length === 0 ? (
                                 <Text style={[styles.emptyText, { color: theme.text.tertiary }]}>
-                                  No activities in this category
+                                  No standards in this category
                                 </Text>
                               ) : (
-                                categoryActivities.map((activity) => (
+                                categoryStandards.map((std) => (
                                   <View
-                                    key={activity.id}
+                                    key={std.id}
                                     style={[
                                       styles.activityRow,
                                       { borderBottomColor: theme.border.secondary },
@@ -683,18 +552,18 @@ export function CategorySettingsScreen() {
                                   >
                                     <View style={styles.activityInfo}>
                                       <Text style={[styles.activityName, { color: theme.text.primary }]}>
-                                        {activity.name}
+                                        {std.name}
                                       </Text>
                                       <Text style={[styles.activityUnit, { color: theme.text.secondary }]}>
-                                        {activity.unit}
+                                        {std.unit}
                                       </Text>
                                     </View>
                                     <View style={styles.activityActions}>
                                       <TouchableOpacity
                                         style={styles.activityActionButton}
                                         onPress={() => {
-                                          setAssignActivityId(activity.id);
-                                          setAssignActivityName(activity.name);
+                                          setAssignStandardId(std.id);
+                                          setAssignStandardName(std.name);
                                           setAssignExcludeCategoryId(category.id);
                                           setAssignMenuVisible(true);
                                         }}
@@ -707,11 +576,11 @@ export function CategorySettingsScreen() {
                               )}
                               <TouchableOpacity
                                 style={[styles.addActivityButton, { borderColor: theme.border.secondary }]}
-                                onPress={() => handleOpenAddActivitiesModal(category.id)}
+                                onPress={() => handleOpenAddStandardsModal(category.id)}
                               >
                                 <MaterialIcons name="add" size={20} color={theme.button.primary.background} />
                                 <Text style={[styles.addActivityButtonText, { color: theme.button.primary.background }]}>
-                                  Add Activities
+                                  Add Standards
                                 </Text>
                               </TouchableOpacity>
                             </>
@@ -735,34 +604,34 @@ export function CategorySettingsScreen() {
         )}
       </ScrollView>
 
-      {/* Add Activities Modal */}
+      {/* Add Standards Modal */}
       <Modal
-        visible={addActivitiesModalVisible}
+        visible={addStandardsModalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={handleCloseAddActivitiesModal}
+        onRequestClose={handleCloseAddStandardsModal}
       >
         <View style={[styles.modalContainer, { backgroundColor: theme.background.screen }]}>
           <View style={[styles.modalHeader, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
-            <TouchableOpacity onPress={handleCloseAddActivitiesModal} style={styles.modalHeaderButton}>
+            <TouchableOpacity onPress={handleCloseAddStandardsModal} style={styles.modalHeaderButton}>
               <MaterialIcons name="close" size={24} color={theme.text.primary} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: theme.text.primary }]}>
               {bulkMode
-                ? `Bulk Add Activities${selectedCategoryForAdd ? ` to ${orderedCategories.find((c) => c.id === selectedCategoryForAdd)?.name ?? 'Category'}` : ''}`
-                : `Add Activities${selectedCategoryForAdd ? ` to ${orderedCategories.find((c) => c.id === selectedCategoryForAdd)?.name ?? 'Category'}` : ''}`}
+                ? `Bulk Add Standards${selectedCategoryForAdd ? ` to ${orderedCategories.find((c) => c.id === selectedCategoryForAdd)?.name ?? 'Category'}` : ''}`
+                : `Add Standards${selectedCategoryForAdd ? ` to ${orderedCategories.find((c) => c.id === selectedCategoryForAdd)?.name ?? 'Category'}` : ''}`}
             </Text>
-            {availableActivitiesForCategory.length > 0 ? (
+            {availableStandardsForCategory.length > 0 ? (
               <TouchableOpacity
                 style={styles.modalHeaderButton}
                 onPress={() => {
                   if (bulkMode) {
-                    handleBulkAddActivitiesToCategory();
+                    handleBulkAddStandardsToCategory();
                   } else {
                     setBulkMode(true);
                   }
                 }}
-                disabled={bulkMode && selectedActivitiesForBulk.size === 0}
+                disabled={bulkMode && selectedStandardsForBulk.size === 0}
               >
                 {bulkMode ? (
                   <Text
@@ -770,13 +639,13 @@ export function CategorySettingsScreen() {
                       styles.modalActionText,
                       {
                         color:
-                          selectedActivitiesForBulk.size === 0
+                          selectedStandardsForBulk.size === 0
                             ? theme.text.tertiary
                             : theme.button.primary.background,
                       },
                     ]}
                   >
-                    Add ({selectedActivitiesForBulk.size})
+                    Add ({selectedStandardsForBulk.size})
                   </Text>
                 ) : (
                   <Text style={[styles.modalActionText, { color: theme.button.primary.background }]}>
@@ -790,21 +659,21 @@ export function CategorySettingsScreen() {
           </View>
 
           <Text style={[styles.modalNoticeText, { color: theme.text.secondary }]}>
-            Only activities with active standards are available for categorization.
+            Only uncategorized active standards are shown here.
           </Text>
 
-          {availableActivitiesForCategory.length === 0 ? (
+          {availableStandardsForCategory.length === 0 ? (
             <View style={styles.modalEmptyContainer}>
               <Text style={[styles.modalEmptyText, { color: theme.text.secondary }]}>
-                No activities available to add
+                No standards available to add
               </Text>
             </View>
           ) : (
             <FlatList
-              data={availableActivitiesForCategory}
+              data={availableStandardsForCategory}
               keyExtractor={(item) => item.id}
-              renderItem={({ item: activity }) => {
-                const isSelected = selectedActivitiesForBulk.has(activity.id);
+              renderItem={({ item: std }) => {
+                const isSelected = selectedStandardsForBulk.has(std.id);
 
                 if (bulkMode) {
                   return (
@@ -814,14 +683,14 @@ export function CategorySettingsScreen() {
                         { backgroundColor: theme.background.surface, borderBottomColor: theme.border.secondary },
                         isSelected && { backgroundColor: theme.button.primary.background + '20' },
                       ]}
-                      onPress={() => handleToggleActivitySelection(activity.id)}
+                      onPress={() => handleToggleStandardSelection(std.id)}
                     >
                       <View style={styles.modalActivityInfo}>
                         <Text style={[styles.modalActivityName, { color: theme.text.primary }]}>
-                          {activity.name}
+                          {std.name}
                         </Text>
                         <Text style={[styles.modalActivityUnit, { color: theme.text.secondary }]}>
-                          {activity.unit}
+                          {std.unit}
                         </Text>
                       </View>
                       {isSelected && (
@@ -836,14 +705,14 @@ export function CategorySettingsScreen() {
                         styles.modalActivityRow,
                         { backgroundColor: theme.background.surface, borderBottomColor: theme.border.secondary },
                       ]}
-                      onPress={() => handleAddActivityToCategory(activity.id)}
+                      onPress={() => handleAddStandardToCategory(std.id)}
                     >
                       <View style={styles.modalActivityInfo}>
                         <Text style={[styles.modalActivityName, { color: theme.text.primary }]}>
-                          {activity.name}
+                          {std.name}
                         </Text>
                         <Text style={[styles.modalActivityUnit, { color: theme.text.secondary }]}>
-                          {activity.unit}
+                          {std.unit}
                         </Text>
                       </View>
                       <MaterialIcons name="add" size={24} color={theme.button.primary.background} />
@@ -866,7 +735,7 @@ export function CategorySettingsScreen() {
         title="Delete Category"
         message={
           deleteCategoryCount > 0
-            ? `"${deleteCategoryName}" has ${deleteCategoryCount} activit${deleteCategoryCount === 1 ? 'y' : 'ies'}. Move them to Uncategorized?`
+            ? `"${deleteCategoryName}" has ${deleteCategoryCount} standard${deleteCategoryCount === 1 ? '' : 's'}. Move them to Uncategorized?`
             : `Are you sure you want to delete "${deleteCategoryName}"?`
         }
         confirmLabel={deleteCategoryCount > 0 ? 'Move to Uncategorized' : 'Delete'}
@@ -878,9 +747,9 @@ export function CategorySettingsScreen() {
         visible={assignMenuVisible}
         onRequestClose={() => {
           setAssignMenuVisible(false);
-          setAssignActivityId(null);
+          setAssignStandardId(null);
         }}
-        title={assignActivityName ? `Assign "${assignActivityName}"` : 'Assign Category'}
+        title={assignStandardName ? `Assign "${assignStandardName}"` : 'Assign Category'}
         items={[
           ...orderedCategories
             .filter((c) => c.id !== UNCATEGORIZED_CATEGORY_ID && c.id !== assignExcludeCategoryId)
@@ -888,8 +757,8 @@ export function CategorySettingsScreen() {
               key: c.id,
               label: c.name,
               onPress: () => {
-                if (assignActivityId) {
-                  handleMoveActivityToCategory(assignActivityId, c.id);
+                if (assignStandardId) {
+                  handleMoveStandardToCategory(assignStandardId, c.id);
                 }
               },
             })),
@@ -897,8 +766,8 @@ export function CategorySettingsScreen() {
             key: UNCATEGORIZED_CATEGORY_ID,
             label: 'Uncategorized',
             onPress: () => {
-              if (assignActivityId) {
-                handleMoveActivityToCategory(assignActivityId, UNCATEGORIZED_CATEGORY_ID);
+              if (assignStandardId) {
+                handleMoveStandardToCategory(assignStandardId, UNCATEGORIZED_CATEGORY_ID);
               }
             },
           },

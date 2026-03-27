@@ -3,14 +3,21 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import { getCardBaseStyle, getCardBorderStyle } from '@nine4/ui-kit';
-import type { ActivitySummaryCard as ActivitySummaryCardData } from '../utils/scorecardSummary';
+import type { StandardSummaryCard as StandardSummaryCardData } from '../utils/scorecardSummary';
 
-export interface ActivitySummaryCardProps {
-  card: ActivitySummaryCardData;
+export interface StandardSummaryCardProps {
+  card: StandardSummaryCardData;
   onPress: () => void;
 }
 
-export function ActivitySummaryCard({ card, onPress }: ActivitySummaryCardProps) {
+/**
+ * @deprecated Renamed export kept for backwards compatibility.
+ * Use StandardSummaryCard instead.
+ */
+export const ActivitySummaryCard = StandardSummaryCard;
+export type ActivitySummaryCardProps = StandardSummaryCardProps;
+
+export function StandardSummaryCard({ card, onPress }: StandardSummaryCardProps) {
   const theme = useTheme();
   const metColor = card.percentMet >= 90 ? theme.status.met.barComplete : theme.status.met.text;
 
@@ -25,14 +32,14 @@ export function ActivitySummaryCard({ card, onPress }: ActivitySummaryCardProps)
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`View ${card.activityName} scorecard`}
+      accessibilityLabel={`View ${card.standardName} scorecard`}
     >
       <View style={styles.titleRow}>
         <Text
-          style={[styles.activityName, { color: theme.text.primary }]}
+          style={[styles.standardName, { color: theme.text.primary }]}
           numberOfLines={1}
         >
-          {card.activityName}
+          {card.standardName}
         </Text>
         <MaterialIcon name="chevron-right" size={20} color={theme.text.tertiary} />
       </View>
@@ -77,7 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  activityName: {
+  standardName: {
     fontSize: 16,
     fontWeight: '600',
     flex: 1,

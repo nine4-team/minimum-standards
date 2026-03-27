@@ -18,10 +18,8 @@ import type { Standard } from '@minimum-standards/shared-model';
 import { UNCATEGORIZED_CATEGORY_ID } from '@minimum-standards/shared-model';
 import { useActiveStandardsDashboard } from '../hooks/useActiveStandardsDashboard';
 import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
-import { useActivities } from '../hooks/useActivities';
 import { useCategories } from '../hooks/useCategories';
 import { useStandards } from '../hooks/useStandards';
-import type { Activity } from '@minimum-standards/shared-model';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { trackStandardEvent } from '../utils/analytics';
 import { LogEntryModal } from '../components/LogEntryModal';
@@ -74,9 +72,8 @@ export function StandardsScreen({
     nowMs,
   } = useActiveStandardsDashboard();
 
-  const { activities, updateActivity } = useActivities();
   const { orderedCategories } = useCategories();
-  const { archivedStandards, unarchiveStandard, deleteStandard, deleteLogEntry } = useStandards();
+  const { archivedStandards, unarchiveStandard, deleteStandard, deleteLogEntry, updateStandard } = useStandards();
 
   // State for inactive standard action menu
   const [inactiveMenuStandard, setInactiveMenuStandard] = useState<Standard | null>(null);
@@ -92,26 +89,9 @@ export function StandardsScreen({
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
 
-  // Create activity lookup map for category resolution
-  const activityMap = useMemo(() => {
-    const map = new Map<string, Activity>();
-    activities.forEach((activity) => {
-      map.set(activity.id, activity);
-    });
-    return map;
-  }, [activities]);
   const { focusedCategoryId, setFocusedCategoryId, showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
-
-  // Create activity lookup map for efficient name resolution
-  const activityNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    activities.forEach((activity) => {
-      map.set(activity.id, activity.name);
-    });
-    return map;
-  }, [activities]);
 
   const customCategories = useMemo(() => {
     return orderedCategories.filter(
@@ -155,18 +135,15 @@ export function StandardsScreen({
 
   const getEffectiveCategoryId = useCallback(
     (entry: DashboardStandard): string => {
-      const activity = activityMap.get(entry.standard.activityId);
-      const effectiveCategoryId = activity?.categoryId ?? entry.standard.categoryId ?? null;
-      return effectiveCategoryId ?? UNCATEGORIZED_CATEGORY_ID;
+      return entry.standard.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
     },
-    [activityMap]
+    []
   );
 
   const handleLogPress = useCallback(
     (entry: DashboardStandard) => {
       trackStandardEvent('dashboard_log_tap', {
         standardId: entry.standard.id,
-        activityId: entry.standard.activityId,
       });
 
       if (onOpenLogModal) {
@@ -290,21 +267,30 @@ export function StandardsScreen({
 
   const activeMenuCategoryId = useMemo(() => {
     if (!activeMenuStandard) return null;
-    const activity = activityMap.get(activeMenuStandard.activityId);
-    return activity?.categoryId ?? null;
-  }, [activeMenuStandard, activityMap]);
+    return activeMenuStandard.categoryId ?? null;
+  }, [activeMenuStandard]);
 
   const handleActiveAssignCategory = useCallback(async (categoryId: string | null) => {
     if (!activeMenuStandard) return;
     try {
-      await updateActivity(activeMenuStandard.activityId, { categoryId });
+      await updateStandard({
+        standardId: activeMenuStandard.id,
+        name: activeMenuStandard.name,
+        notes: activeMenuStandard.notes ?? null,
+        categoryId,
+        minimum: activeMenuStandard.minimum,
+        unit: activeMenuStandard.unit,
+        cadence: activeMenuStandard.cadence,
+        sessionConfig: activeMenuStandard.sessionConfig,
+        periodStartPreference: activeMenuStandard.periodStartPreference ?? undefined,
+      });
     } catch (err) {
       Alert.alert('Error', 'Failed to assign category');
       console.error('Failed to assign category:', err);
     }
     setCategoryPickerVisible(false);
     setActiveMenuStandard(null);
-  }, [activeMenuStandard, updateActivity]);
+  }, [activeMenuStandard, updateStandard]);
 
   const categoryPickerItems = useMemo(() => {
     if (!activeMenuStandard) return [];
@@ -408,7 +394,6 @@ export function StandardsScreen({
       if (!hasCustomCategories) {
         trackStandardEvent('dashboard_categorize_missing_categories', {
           standardId: entry.standard.id,
-          activityId: entry.standard.activityId,
         });
         handleCategorizePress();
         return;
@@ -422,22 +407,29 @@ export function StandardsScreen({
 
   const handleAssignCategory = useCallback(
     async (entry: DashboardStandard, categoryId: string) => {
-      const activityName = activityNameMap.get(entry.standard.activityId) ?? entry.standard.activityId;
+      const s = entry.standard;
       try {
         trackStandardEvent('dashboard_categorize_assign', {
-          standardId: entry.standard.id,
-          activityId: entry.standard.activityId,
+          standardId: s.id,
           categoryId,
         });
-        await updateActivity(entry.standard.activityId, {
+        await updateStandard({
+          standardId: s.id,
+          name: s.name,
+          notes: s.notes ?? null,
           categoryId: categoryId === UNCATEGORIZED_CATEGORY_ID ? null : categoryId,
+          minimum: s.minimum,
+          unit: s.unit,
+          cadence: s.cadence,
+          sessionConfig: s.sessionConfig,
+          periodStartPreference: s.periodStartPreference ?? undefined,
         });
       } catch (err) {
-        Alert.alert('Error', `Failed to assign "${activityName}" to a category`);
+        Alert.alert('Error', `Failed to assign "${s.name}" to a category`);
         console.error('Failed to assign category:', err);
       }
     },
-    [activityNameMap, updateActivity]
+    [updateStandard]
   );
 
   const renderCard = useCallback(
@@ -451,7 +443,6 @@ export function StandardsScreen({
           onLogPress={() => handleLogPress(item)}
           onCardPress={() => handleLogPress(item)}
           onMenuPress={() => handleActiveMenuOpen(item.standard)}
-          activityNameMap={activityNameMap}
           nowMs={nowMs}
           showTimeBar={effectiveShowTimeBar}
           onToggleTimeBar={() => toggleTimeBarForStandard(standardId)}
@@ -462,7 +453,6 @@ export function StandardsScreen({
     [
       handleActiveMenuOpen,
       handleLogPress,
-      activityNameMap,
       nowMs,
       showTimeBar,
       hiddenTimeBarStandardIds,
@@ -478,8 +468,8 @@ export function StandardsScreen({
         const bProgress = b.progress?.progressPercent ?? 0;
         return aProgress - bProgress;
       }
-      const aName = activityNameMap.get(a.standard.activityId) ?? a.standard.activityId;
-      const bName = activityNameMap.get(b.standard.activityId) ?? b.standard.activityId;
+      const aName = a.standard.name;
+      const bName = b.standard.name;
       return aName.localeCompare(bName);
     };
 
@@ -489,7 +479,7 @@ export function StandardsScreen({
         ? base
         : base.filter((entry) => getEffectiveCategoryId(entry) === focusedCategoryId);
     return [...filtered].sort(sortStandards);
-  }, [activityNameMap, dashboardStandards, focusedCategoryId, getEffectiveCategoryId, sortOption]);
+  }, [dashboardStandards, focusedCategoryId, getEffectiveCategoryId, sortOption]);
 
   // Scroll to a newly created standard's card when it appears in the list
   useEffect(() => {
@@ -610,7 +600,7 @@ export function StandardsScreen({
                 Inactive Standards
               </Text>
               {archivedStandards.map((standard) => {
-                const activityName = activityNameMap.get(standard.activityId) ?? standard.activityId;
+                const activityName = standard.name;
                 const { interval, unit: cadenceUnit } = standard.cadence;
                 const cadenceStr = interval === 1 ? cadenceUnit : `${interval} ${cadenceUnit}s`;
                 const volumeText = `${standard.minimum} ${standard.unit} / ${cadenceStr}`;
@@ -658,7 +648,6 @@ export function StandardsScreen({
       />
     );
   }, [
-    activityNameMap,
     archivedStandards,
     dashboardStandards,
     handleInactiveMenuOpen,
@@ -770,8 +759,6 @@ export function StandardsScreen({
         standard={selectedStandard}
         onClose={handleLogModalClose}
         onSave={handleLogSave}
-        resolveActivityName={(activityId) => activityNameMap.get(activityId)}
-        resolveActivity={(activityId) => activities.find((a) => a.id === activityId)}
         onDeleteLogEntry={async (logEntryId, standardId, occurredAtMs) => {
           await deleteLogEntry({ logEntryId, standardId, occurredAtMs });
         }}
@@ -780,7 +767,7 @@ export function StandardsScreen({
       <BottomSheetMenu
         visible={inactiveMenuVisible}
         onRequestClose={() => setInactiveMenuVisible(false)}
-        title={inactiveMenuStandard ? (activityNameMap.get(inactiveMenuStandard.activityId) ?? inactiveMenuStandard.activityId) : ''}
+        title={inactiveMenuStandard ? inactiveMenuStandard.name : ''}
         items={inactiveMenuStandard ? [
           {
             key: 'reactivate',
@@ -881,13 +868,23 @@ export function StandardsScreen({
             label: category.name,
             icon: getEffectiveCategoryId(categorizeMenuEntry) === category.id ? 'check' : undefined,
             onPress: async () => {
+              const s = categorizeMenuEntry.standard;
               try {
                 trackStandardEvent('dashboard_categorize_assign', {
-                  standardId: categorizeMenuEntry.standard.id,
-                  activityId: categorizeMenuEntry.standard.activityId,
+                  standardId: s.id,
                   categoryId: category.id,
                 });
-                await updateActivity(categorizeMenuEntry.standard.activityId, { categoryId: category.id });
+                await updateStandard({
+                  standardId: s.id,
+                  name: s.name,
+                  notes: s.notes ?? null,
+                  categoryId: category.id,
+                  minimum: s.minimum,
+                  unit: s.unit,
+                  cadence: s.cadence,
+                  sessionConfig: s.sessionConfig,
+                  periodStartPreference: s.periodStartPreference ?? undefined,
+                });
               } catch (err) {
                 Alert.alert('Error', 'Failed to assign category');
                 console.error('Failed to assign category:', err);
@@ -899,13 +896,23 @@ export function StandardsScreen({
             label: 'Uncategorized',
             icon: getEffectiveCategoryId(categorizeMenuEntry) === UNCATEGORIZED_CATEGORY_ID ? 'check' : undefined,
             onPress: async () => {
+              const s = categorizeMenuEntry.standard;
               try {
                 trackStandardEvent('dashboard_categorize_assign', {
-                  standardId: categorizeMenuEntry.standard.id,
-                  activityId: categorizeMenuEntry.standard.activityId,
+                  standardId: s.id,
                   categoryId: UNCATEGORIZED_CATEGORY_ID,
                 });
-                await updateActivity(categorizeMenuEntry.standard.activityId, { categoryId: null });
+                await updateStandard({
+                  standardId: s.id,
+                  name: s.name,
+                  notes: s.notes ?? null,
+                  categoryId: null,
+                  minimum: s.minimum,
+                  unit: s.unit,
+                  cadence: s.cadence,
+                  sessionConfig: s.sessionConfig,
+                  periodStartPreference: s.periodStartPreference ?? undefined,
+                });
               } catch (err) {
                 Alert.alert('Error', 'Failed to assign category');
                 console.error('Failed to assign category:', err);
@@ -919,7 +926,7 @@ export function StandardsScreen({
       <BottomSheetMenu
         visible={activeMenuVisible}
         onRequestClose={() => setActiveMenuVisible(false)}
-        title={activeMenuStandard ? (activityNameMap.get(activeMenuStandard.activityId) ?? activeMenuStandard.activityId) : ''}
+        title={activeMenuStandard ? activeMenuStandard.name : ''}
         items={activeMenuStandard ? [
           {
             key: 'edit',
@@ -1006,7 +1013,6 @@ function StandardCard({
   onLogPress,
   onCardPress,
   onMenuPress,
-  activityNameMap,
   nowMs,
   showTimeBar,
   onToggleTimeBar,
@@ -1016,16 +1022,15 @@ function StandardCard({
   onLogPress: () => void;
   onCardPress?: () => void;
   onMenuPress?: () => void;
-  activityNameMap: Map<string, string>;
   nowMs: number;
   showTimeBar?: boolean;
   onToggleTimeBar?: () => void;
   highlighted?: boolean;
 }) {
   const { standard, progress } = entry;
-  
-  // Get activity name from map, fallback to activityId if not found
-  const activityName = activityNameMap.get(standard.activityId) ?? standard.activityId;
+
+  // Use standard.name directly
+  const activityName = standard.name;
   
   // Use period label from progress (computed with windowReferenceMs for auto-advance)
   // Fallback to empty string if progress is null (shouldn't happen in normal flow)

@@ -5,7 +5,6 @@ import {
 } from './types';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { CategorySettingsScreen } from '../screens/CategorySettingsScreen';
-import { ActivitySettingsScreen } from '../screens/ActivitySettingsScreen';
 import { SnapshotsScreen } from '../screens/SnapshotsScreen';
 import { SnapshotCreateScreen } from '../screens/SnapshotCreateScreen';
 import { SnapshotDetailScreen } from '../screens/SnapshotDetailScreen';
@@ -28,8 +27,7 @@ export function SettingsStack() {
     >
       <Stack.Screen name={SETTINGS_STACK_ROOT_SCREEN_NAME} component={SettingsScreen} />
       <Stack.Screen name="Categories" component={CategorySettingsScreen} />
-      <Stack.Screen name="Activities" component={ActivitySettingsScreen} />
-      <Stack.Screen name="StandardsLibrary" component={StandardsLibraryScreenSettingsWrapper} />
+<Stack.Screen name="StandardsLibrary" component={StandardsLibraryScreenSettingsWrapper} />
       <Stack.Screen name="Snapshots" component={SnapshotsScreen} />
       <Stack.Screen name="SnapshotCreate" component={SnapshotCreateScreen} />
       <Stack.Screen name="SnapshotDetail" component={SnapshotDetailScreen} />

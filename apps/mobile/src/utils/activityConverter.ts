@@ -2,6 +2,9 @@ import { Activity, activitySchema } from '@minimum-standards/shared-model';
 import { FirebaseFirestoreTypes, serverTimestamp, Timestamp } from '@react-native-firebase/firestore';
 
 /**
+ * @deprecated Activity entity is being removed. Standards now have name/notes/categoryId directly.
+ * Kept for migration compatibility with existing Activity documents in Firestore.
+ *
  * Converts a React Native Firebase Firestore document to an Activity model.
  */
 export function fromFirestoreActivity(

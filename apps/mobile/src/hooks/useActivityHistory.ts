@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityHistoryDoc } from '@minimum-standards/shared-model';
 import { firebaseAuth } from '../firebase/firebaseApp';
-import { listenActivityHistoryForActivity } from '../utils/activityHistoryFirestore';
+import { listenActivityHistoryForStandard } from '../utils/activityHistoryFirestore';
 
 export type ActivityHistoryRow = ActivityHistoryDoc;
 
@@ -12,17 +12,17 @@ export interface UseActivityHistoryResult {
 }
 
 /**
- * Hook to fetch persisted activityHistory rows for a given activityId.
- * Queries activityHistory where activityId == X orderBy periodEndMs desc.
+ * Hook to fetch persisted activityHistory rows for a given standardId.
+ * Queries activityHistory where standardId == X orderBy referenceTimestampMs desc.
  */
-export function useActivityHistory(activityId: string | null): UseActivityHistoryResult {
+export function useActivityHistory(standardId: string | null): UseActivityHistoryResult {
   const [rows, setRows] = useState<ActivityHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const userId = firebaseAuth.currentUser?.uid;
 
   useEffect(() => {
-    if (!userId || !activityId) {
+    if (!userId || !standardId) {
       setLoading(false);
       setRows([]);
       return;
@@ -31,21 +31,21 @@ export function useActivityHistory(activityId: string | null): UseActivityHistor
     setLoading(true);
     setError(null);
 
-    const unsubscribe = listenActivityHistoryForActivity({
+    const unsubscribe = listenActivityHistoryForStandard({
       userId,
-      activityId,
-      onNext: (docs) => {
+      standardId,
+      onNext: (docs: ActivityHistoryDoc[]) => {
         setRows(docs);
         setLoading(false);
       },
-      onError: (err) => {
+      onError: (err: Error) => {
         setError(err);
         setLoading(false);
       },
     });
 
     return () => unsubscribe();
-  }, [userId, activityId]);
+  }, [userId, standardId]);
 
   return {
     rows,
@@ -53,4 +53,3 @@ export function useActivityHistory(activityId: string | null): UseActivityHistor
     error,
   };
 }
-

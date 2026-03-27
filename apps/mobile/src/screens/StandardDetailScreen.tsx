@@ -10,13 +10,11 @@ import {
   AppStateStatus,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Standard, Activity } from '@minimum-standards/shared-model';
+import type { Standard } from '@minimum-standards/shared-model';
 import { calculatePeriodWindow } from '@minimum-standards/shared-model';
 import { useStandardHistory } from '../hooks/useStandardHistory';
 import { useStandards } from '../hooks/useStandards';
-import { useActivities } from '../hooks/useActivities';
 import { LogEntryModal } from '../components/LogEntryModal';
-import { ActivityModal } from '../components/ActivityModal';
 import { StandardProgressCard } from '../components/StandardProgressCard';
 import type { PeriodHistoryEntry } from '../utils/standardHistory';
 import { trackStandardEvent } from '../utils/analytics';
@@ -41,8 +39,6 @@ export function StandardDetailScreen({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [logModalVisible, setLogModalVisible] = useState(false);
-  const [activityModalVisible, setActivityModalVisible] = useState(false);
-  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const {
@@ -58,21 +54,6 @@ export function StandardDetailScreen({
   );
 
   const { history, loading, error, refresh } = useStandardHistory(standardId);
-  const { activities, updateActivity, deleteActivity } = useActivities();
-
-  // Create activity lookup map for efficient name resolution
-  const activityNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    activities.forEach((activity) => {
-      map.set(activity.id, activity.name);
-    });
-    return map;
-  }, [activities]);
-
-  const activity = useMemo(
-    () => activities.find((item) => item.id === standard?.activityId) ?? null,
-    [activities, standard?.activityId]
-  );
 
   // Track screen view on mount
   useEffect(() => {
@@ -80,7 +61,6 @@ export function StandardDetailScreen({
       try {
         trackStandardEvent('standard_detail_view', {
           standardId: standard.id,
-          activityId: standard.activityId,
         });
       } catch (err) {
         // Fail silently - analytics should not crash the app
@@ -88,7 +68,7 @@ export function StandardDetailScreen({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [standard?.id, standard?.activityId]);
+  }, [standard?.id]);
 
   // Update nowMs every 60 seconds and on app resume
   useEffect(() => {
@@ -152,7 +132,6 @@ export function StandardDetailScreen({
       try {
         trackStandardEvent('standard_detail_log_tap', {
           standardId: standard.id,
-          activityId: standard.activityId,
         });
       } catch (err) {
         // Fail silently - analytics should not crash the app
@@ -186,7 +165,6 @@ export function StandardDetailScreen({
       try {
         trackStandardEvent('standard_detail_edit_tap', {
           standardId: standard.id,
-          activityId: standard.activityId,
         });
       } catch (err) {
         // Fail silently - analytics should not crash the app
@@ -202,7 +180,6 @@ export function StandardDetailScreen({
     try {
       trackStandardEvent('standard_detail_archive_tap', {
         standardId: standard.id,
-        activityId: standard.activityId,
         action,
       });
     } catch (err) {
@@ -216,29 +193,6 @@ export function StandardDetailScreen({
     }
     onArchive(standardId);
   }, [standard, standardId, archiveStandard, unarchiveStandard, onArchive]);
-
-  const handleActivityEditPress = useCallback(() => {
-    if (!activity) {
-      return;
-    }
-    setEditingActivity(activity);
-    setActivityModalVisible(true);
-  }, [activity]);
-
-  const handleActivitySave = useCallback(
-    async (activityData: Omit<Activity, 'id' | 'createdAtMs' | 'updatedAtMs' | 'deletedAtMs'>) => {
-      if (!activity) {
-        throw new Error('Activity not found');
-      }
-      await updateActivity(activity.id, activityData);
-      return {
-        ...activity,
-        ...activityData,
-        updatedAtMs: Date.now(),
-      } as Activity;
-    },
-    [activity, updateActivity]
-  );
 
   const handleRetry = useCallback(() => {
     refresh();
@@ -282,7 +236,7 @@ export function StandardDetailScreen({
     );
   }
 
-  const activityName = activityNameMap.get(standard.activityId) ?? standard.activityId;
+  const activityName = standard.name;
 
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
@@ -382,14 +336,6 @@ export function StandardDetailScreen({
             <MaterialIcons name="edit" size={24} color={theme.button.icon.icon} />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={handleActivityEditPress}
-            style={[styles.actionButton, { backgroundColor: theme.button.icon.background }]}
-            accessibilityRole="button"
-            accessibilityLabel="Edit activity"
-          >
-            <MaterialIcons name="edit-note" size={24} color={theme.button.icon.icon} />
-          </TouchableOpacity>
-          <TouchableOpacity
             onPress={handleArchivePress}
             style={[styles.actionButton, { backgroundColor: theme.button.icon.background }]}
             accessibilityRole="button"
@@ -411,21 +357,8 @@ export function StandardDetailScreen({
         standard={standard}
         onClose={handleLogModalClose}
         onSave={handleLogSave}
-        resolveActivityName={(activityId) => activityNameMap.get(activityId)}
-        resolveActivity={(activityId) => activities.find((a) => a.id === activityId)}
         currentPeriodStartMs={currentPeriodWindow?.startMs}
         currentPeriodEndMs={currentPeriodWindow?.endMs}
-      />
-
-      <ActivityModal
-        visible={activityModalVisible}
-        activity={editingActivity}
-        onClose={() => {
-          setActivityModalVisible(false);
-          setEditingActivity(null);
-        }}
-        onSave={handleActivitySave}
-        onDelete={deleteActivity}
       />
     </View>
   );

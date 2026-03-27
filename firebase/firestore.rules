@@ -217,7 +217,7 @@ service cloud.firestore {
 
     function validStandard() {
       return hasOnlyKeys([
-        'activityId',
+        'name',
         'minimum',
         'unit',
         'cadence',
@@ -227,6 +227,8 @@ service cloud.firestore {
         'periodStartPreference',
         'quickAddValues',
         'categoryId',
+        'notes',
+        'activityId',
         'archivedAt',
         'createdAt',
         'updatedAt',
@@ -234,8 +236,10 @@ service cloud.firestore {
         'configEras'
       ])
       && ('deletedAt' in request.resource.data)
-      && request.resource.data.activityId is string
-      && request.resource.data.activityId.size() >= 1
+      && (
+        !('name' in request.resource.data)
+        || (request.resource.data.name is string && request.resource.data.name.size() <= 120)
+      )
       && request.resource.data.minimum is number
       && request.resource.data.minimum >= 0
       && request.resource.data.unit is string
@@ -271,6 +275,11 @@ service cloud.firestore {
         !('categoryId' in request.resource.data)
         || request.resource.data.categoryId == null
         || (request.resource.data.categoryId is string && request.resource.data.categoryId.size() >= 1)
+      )
+      && (
+        !('notes' in request.resource.data)
+        || request.resource.data.notes == null
+        || (request.resource.data.notes is string && request.resource.data.notes.size() <= 1000)
       )
       && (
         !('configEras' in request.resource.data)
@@ -427,7 +436,6 @@ service cloud.firestore {
       let data = request.resource.data;
       return hasOnlyKeys([
         'id',
-        'activityId',
         'standardId',
         'referenceTimestampMs',
         'periodStartMs',
@@ -446,8 +454,6 @@ service cloud.firestore {
       ])
       && data.id is string
       && data.id.size() >= 1
-      && data.activityId is string
-      && data.activityId.size() >= 1
       && data.standardId is string
       && data.standardId.size() >= 1
       && ('referenceTimestampMs' in data)
@@ -502,10 +508,13 @@ service cloud.firestore {
 
     function validSnapshotPayload(payload) {
       return payload is map
-        && payload.keys().hasOnly(['categories', 'activities', 'standards'])
+        && payload.keys().hasOnly(['version', 'categories', 'activities', 'standards'])
         && payload.categories is list
-        && payload.activities is list
-        && payload.standards is list;
+        && payload.standards is list
+        && (
+          !('activities' in payload)
+          || payload.activities is list
+        );
     }
 
     function validSnapshotCreate() {
@@ -673,16 +682,20 @@ service cloud.firestore {
           isOwner(uid)
           && validActivityHistoryDoc()
           && request.resource.data.id == historyId;
-        allow delete: if false;
+        allow delete: if isOwner(uid); // Allowed for migration (old ID format cleanup)
       }
 
       match /preferences/{preferenceId} {
-        // Only allow dashboardPins document in preferences collection
-        allow read: if isOwner(uid) && preferenceId == 'dashboardPins';
-        // Allow create and update (set with merge handles both)
-        allow create: if isOwner(uid) && preferenceId == 'dashboardPins' && validDashboardPinsCreate();
-        allow update: if isOwner(uid) && preferenceId == 'dashboardPins' && validDashboardPinsUpdate();
-        allow delete: if false; // Prevent deletion, use empty array instead
+        allow read: if isOwner(uid) && preferenceId in ['dashboardPins', 'migrations'];
+        allow create: if isOwner(uid) && (
+          (preferenceId == 'dashboardPins' && validDashboardPinsCreate())
+          || (preferenceId == 'migrations')
+        );
+        allow update: if isOwner(uid) && (
+          (preferenceId == 'dashboardPins' && validDashboardPinsUpdate())
+          || (preferenceId == 'migrations')
+        );
+        allow delete: if false;
       }
 
       match /snapshotInstalls/{installId} {

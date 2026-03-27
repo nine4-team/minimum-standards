@@ -1,6 +1,9 @@
 import { Activity, Standard } from '@minimum-standards/shared-model';
 
 /**
+ * @deprecated Activity entity is being removed. Standards now have name/notes/categoryId directly.
+ * This file is no longer used and can be safely deleted.
+ *
  * Filters Activities by tab (Active or Inactive).
  * Active: activities that are referenced by at least one active standard
  * Inactive: activities that are not referenced by any active standard

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
-  Activity,
   CadenceUnit,
   StandardCadence,
   Weekday,
@@ -16,10 +15,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import type { View as RNView, TextStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StandardsLibraryModal } from '../components/StandardsLibraryModal';
-import { ActivityModal } from '../components/ActivityModal';
 import { useStandardsBuilderStore } from '../stores/standardsBuilderStore';
 import {
   CADENCE_PRESETS,
@@ -29,9 +27,6 @@ import {
   isPresetCadence,
 } from '../utils/cadenceUtils';
 import { useStandards } from '../hooks/useStandards';
-import { useActivities } from '../hooks/useActivities';
-import { useCategories } from '../hooks/useCategories';
-import { findMatchingStandard } from '../utils/standardsFilter';
 import { trackStandardEvent } from '../utils/analytics';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { Standard } from '@minimum-standards/shared-model';
@@ -60,8 +55,14 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const {
-    selectedActivity,
-    setSelectedActivity,
+    name: standardName,
+    setName: setStandardName,
+    unit: standardUnit,
+    setUnit: setStandardUnit,
+    notes: standardNotes,
+    setNotes: setStandardNotes,
+    categoryId: standardCategoryId,
+    setCategoryId: setStandardCategoryId,
     cadence,
     setCadence,
     goalTotal,
@@ -84,12 +85,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
   } = useStandardsBuilderStore();
 
   const { createStandard, updateStandard, standards, unarchiveStandard } = useStandards();
-  const { activities, createActivity, updateActivity, deleteActivity } = useActivities();
-  const { orderedCategories } = useCategories();
   const [standardsLibraryVisible, setStandardsLibraryVisible] = useState(false);
-  const [activityModalVisible, setActivityModalVisible] = useState(false);
-  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [activityDropdownVisible, setActivityDropdownVisible] = useState(false);
   const [activePreset, setActivePreset] = useState<CadencePreset | null>('weekly');
   const [customIntervalInput, setCustomIntervalInput] = useState('1');
   const [customUnit, setCustomUnit] = useState<CadenceUnit>('week');
@@ -98,8 +94,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
   const [sessionConfigError, setSessionConfigError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [dropdownButtonLayout, setDropdownButtonLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const dropdownButtonRef = useRef<RNView>(null);
 
   const summaryPreview = getSummaryPreview();
   const isEditMode = !!standardId;
@@ -125,15 +119,12 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
       return;
     }
 
-    // Find the activity by activityId
-    const activity = activities.find((a) => a.id === standardToEdit.activityId);
-    if (!activity) {
-      return;
-    }
-
-    setSelectedActivity(activity);
+    setStandardName(standardToEdit.name);
+    setStandardUnit(standardToEdit.unit);
+    setStandardNotes(standardToEdit.notes ?? null);
+    setStandardCategoryId(standardToEdit.categoryId ?? null);
     setCadence(standardToEdit.cadence);
-    setUnitOverride(standardToEdit.unit ? standardToEdit.unit.toLowerCase() : null);
+    setUnitOverride(null);
     
     // Set cadence preset if it matches
     let matchedPreset: CadencePreset | null = null;
@@ -172,16 +163,16 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     }
 
     setPeriodStartPreference(standardToEdit.periodStartPreference ?? null);
-    // categoryId is legacy - standards inherit category from Activity
-
     hasPrefilledRef.current = standardId;
   }, [
-    activities,
     isEditMode,
     setBreakdownEnabled,
     setCadence,
     setGoalTotal,
-    setSelectedActivity,
+    setStandardName,
+    setStandardUnit,
+    setStandardNotes,
+    setStandardCategoryId,
     setSessionLabel,
     setSessionsPerCadence,
     setUnitOverride,
@@ -190,8 +181,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     standardId,
     standardToEdit,
   ]);
-
-  // Standards inherit category from Activity - no inference needed
 
   useEffect(() => {
     if (goalTotal !== null && goalTotal > 0 && goalTotalError) {
@@ -206,41 +195,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     }
   }, [showWeekdayPicker, periodStartPreference, setPeriodStartPreference]);
 
-  const handleActivitySelect = (activity: Activity) => {
-    setSelectedActivity(activity);
-    setActivityDropdownVisible(false);
-  };
-
-  const handleActivityCreate = (activity: Activity) => {
-    setSelectedActivity(activity);
-    setActivityModalVisible(false);
-    setEditingActivity(null);
-  };
-
-  const handleActivitySave = async (
-    activityData: Omit<Activity, 'id' | 'createdAtMs' | 'updatedAtMs' | 'deletedAtMs'>
-  ): Promise<Activity> => {
-    if (editingActivity) {
-      await updateActivity(editingActivity.id, activityData);
-      const updatedActivity = {
-        ...editingActivity,
-        ...activityData,
-        updatedAtMs: Date.now(),
-      } as Activity;
-      setSelectedActivity(updatedActivity);
-      return updatedActivity;
-    }
-    return await createActivity(activityData);
-  };
-
-  const handleActivityEdit = () => {
-    if (!selectedActivity) {
-      return;
-    }
-    setEditingActivity(selectedActivity);
-    setActivityModalVisible(true);
-  };
-
   const handleWeekdaySelect = useCallback(
     (day: Weekday) => {
       setPeriodStartPreference({ mode: 'weekDay', weekStartDay: day });
@@ -249,13 +203,12 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
   );
 
   const handleStandardSelect = (standard: Standard) => {
-    // Find the activity by activityId
-    const activity = activities.find((a) => a.id === standard.activityId);
-    if (activity) {
-      setSelectedActivity(activity);
-    }
+    setStandardName(standard.name);
+    setStandardUnit(standard.unit);
+    setStandardNotes(standard.notes ?? null);
+    setStandardCategoryId(standard.categoryId ?? null);
     setCadence(standard.cadence);
-    setUnitOverride(standard.unit ? standard.unit.toLowerCase() : null);
+    setUnitOverride(null);
     
     // Populate session config
     const sessionConfig = standard.sessionConfig;
@@ -275,7 +228,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     
     setStandardsLibraryVisible(false);
     setPeriodStartPreference(standard.periodStartPreference ?? null);
-    // categoryId is legacy - standards inherit category from Activity
   };
 
   const handlePresetPress = useCallback(
@@ -395,8 +347,8 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
 
   const handleSave = async () => {
     setSaveError(null);
-    if (!selectedActivity) {
-      setSaveError('Select an activity first');
+    if (!standardName.trim()) {
+      setSaveError('Enter a name for your standard');
       return;
     }
     if (!goalTotal || goalTotal <= 0) {
@@ -443,23 +395,23 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
           ...standardPayload,
           periodStartPreference: preference,
           clearPeriodStartPreference: shouldClearPeriodPreference,
-          // categoryId is legacy - standards inherit category from Activity
         });
         trackStandardEvent('standard_edit', {
           standardId,
-          activityId: payload.activityId,
+          standardName: payload.name,
           cadence: payload.cadence,
         });
         Alert.alert('Standard updated', 'Your Standard has been updated successfully.');
         shouldCloseAfterSave = true;
       } else {
-        // Check for duplicate Standard when creating
-        const matchingStandard = findMatchingStandard(
-          standards,
-          payload.activityId,
-          payload.cadence,
-          payload.minimum,
-          payload.unit
+        // Check for duplicate Standard when creating (match by name + cadence + minimum + unit)
+        const matchingStandard = standards.find(
+          (s) =>
+            s.name.toLowerCase() === payload.name.toLowerCase() &&
+            s.cadence.interval === payload.cadence.interval &&
+            s.cadence.unit === payload.cadence.unit &&
+            s.minimum === payload.minimum &&
+            s.unit === payload.unit
         );
 
         if (matchingStandard) {
@@ -487,7 +439,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
             periodStartPreference: preference,
           });
           trackStandardEvent('standard_create', {
-            activityId: payload.activityId,
+            standardName: payload.name,
             archived: false,
             cadence: payload.cadence,
           });
@@ -600,131 +552,71 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
         <View style={[styles.section, { backgroundColor: theme.background.card, shadowColor: theme.shadow }]}>
           <View style={styles.stepHeader}>
             <Text style={[styles.sectionLabel, { color: theme.text.tertiary }]}>Step 1</Text>
-            <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Select or create an activity</Text>
-          </View>
-          
-          <View style={styles.activitySelectorRow}>
-            <View style={styles.dropdownContainer}>
-              <TouchableOpacity
-                ref={dropdownButtonRef}
-                style={[
-                  styles.activityDropdown,
-                  {
-                    backgroundColor: theme.input.background,
-                    borderColor: theme.input.border,
-                  },
-                ]}
-                onLayout={() => {
-                  // Measure button position relative to window
-                  dropdownButtonRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-                    setDropdownButtonLayout({ x, y, width, height });
-                  });
-                }}
-                onPress={() => {
-                  // Measure position when opening dropdown
-                  dropdownButtonRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-                    setDropdownButtonLayout({ x, y, width, height });
-                  });
-                  setActivityDropdownVisible(!activityDropdownVisible);
-                }}
-              >
-                <View style={styles.activityDropdownContent}>
-                  {selectedActivity ? (
-                    <View style={styles.selectedActivityContent}>
-                      <Text style={[styles.selectedActivityName, { color: theme.text.primary }]}>
-                        {selectedActivity.name}
-                      </Text>
-                      <Text style={[styles.selectedActivityUnit, { color: theme.text.secondary }]}>
-                        {selectedActivity.unit}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text style={[styles.dropdownPlaceholder, { color: theme.input.placeholder }]}>
-                      Select an activity...
-                    </Text>
-                  )}
-                </View>
-                <MaterialIcons
-                  name="keyboard-arrow-down"
-                  size={24}
-                  color={theme.text.secondary}
-                  style={[
-                    styles.dropdownChevron,
-                    activityDropdownVisible && styles.dropdownChevronOpen,
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity
-              style={[styles.createActivityButton, { backgroundColor: theme.button.primary.background }]}
-              onPress={() => {
-                setEditingActivity(null);
-                setActivityModalVisible(true);
-              }}
-            >
-              <Text style={[styles.createActivityButtonText, { fontSize: typography.button.primary.fontSize, fontWeight: typography.button.primary.fontWeight, color: theme.button.primary.text }]}>
-                Create
-              </Text>
-            </TouchableOpacity>
+            <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Name your standard</Text>
           </View>
 
-          {selectedActivity && (
-            <View style={[styles.selectedActivityCard, { borderTopColor: theme.border.secondary }]}>
-              <View style={styles.selectedActivityDetails}>
-                <Text style={[styles.selectedActivityTitle, { color: theme.text.primary }]}>
-                  {selectedActivity.name}
-                </Text>
-                <Text style={[styles.selectedActivitySubtitle, { color: theme.text.secondary }]}>
-                  Unit: {selectedActivity.unit}
-                </Text>
-                <Text style={[styles.selectedActivitySubtitle, { color: theme.text.secondary }]}>
-                  Category: {orderedCategories.find((c) => c.id === selectedActivity.categoryId)?.name ?? 'Uncategorized'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={handleActivityEdit}
-                style={[styles.activityEditButton, { backgroundColor: theme.button.icon.background }]}
-                accessibilityRole="button"
-                accessibilityLabel="Edit activity"
-              >
-                <MaterialIcons name="edit" size={18} color={theme.button.icon.icon} />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {selectedActivity && (
-            <View style={[styles.activityNotesSection, { borderTopColor: theme.border.secondary }]}>
-              <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Notes (Optional)</Text>
+          <View style={styles.nameUnitRow}>
+            <View style={styles.nameField}>
+              <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Name</Text>
               <TextInput
                 style={[
-                  styles.activityNotesInput,
+                  styles.input,
                   {
                     backgroundColor: theme.input.background,
                     borderColor: theme.input.border,
                     color: theme.input.text,
                   },
                 ]}
-                value={selectedActivity.notes ?? ''}
-                onChangeText={(text) => {
-                  setSelectedActivity({ ...selectedActivity, notes: text || null });
-                }}
-                onBlur={() => {
-                  const trimmed = (selectedActivity.notes ?? '').trim() || null;
-                  if (trimmed !== (activities.find((a) => a.id === selectedActivity.id)?.notes ?? null)) {
-                    updateActivity(selectedActivity.id, { notes: trimmed });
-                    setSelectedActivity({ ...selectedActivity, notes: trimmed });
-                  }
-                }}
-                placeholder="Add notes about this activity..."
                 placeholderTextColor={theme.input.placeholder}
-                multiline
-                numberOfLines={3}
-                maxLength={1000}
-                accessibilityLabel="Activity notes"
+                placeholder="e.g. Running"
+                value={standardName}
+                onChangeText={setStandardName}
+                maxLength={120}
+                accessibilityLabel="Standard name"
               />
             </View>
-          )}
+            <View style={styles.unitField}>
+              <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Default Unit</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.input.background,
+                    borderColor: theme.input.border,
+                    color: theme.input.text,
+                  },
+                ]}
+                placeholderTextColor={theme.input.placeholder}
+                placeholder="e.g. minutes"
+                value={standardUnit}
+                onChangeText={setStandardUnit}
+                autoCorrect={false}
+                accessibilityLabel="Standard unit"
+              />
+            </View>
+          </View>
+
+          <View style={[styles.notesSection, { borderTopColor: theme.border.secondary }]}>
+            <Text style={[styles.inputLabel, { color: theme.text.secondary }]}>Notes (Optional)</Text>
+            <TextInput
+              style={[
+                styles.activityNotesInput,
+                {
+                  backgroundColor: theme.input.background,
+                  borderColor: theme.input.border,
+                  color: theme.input.text,
+                },
+              ]}
+              value={standardNotes ?? ''}
+              onChangeText={(text) => setStandardNotes(text || null)}
+              placeholder="Add notes about this standard..."
+              placeholderTextColor={theme.input.placeholder}
+              multiline
+              numberOfLines={3}
+              maxLength={1000}
+              accessibilityLabel="Standard notes"
+            />
+          </View>
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.background.card, shadowColor: theme.shadow }]}>
@@ -875,8 +767,8 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
                     ]}
                     placeholderTextColor={theme.input.placeholder}
                     placeholder={
-                      selectedActivity
-                        ? `Default: ${selectedActivity.unit}`
+                      standardUnit
+                        ? `Default: ${standardUnit}`
                         : 'Unit'
                     }
                     value={unitOverride ?? ''}
@@ -992,8 +884,8 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
                     ]}
                     placeholderTextColor={theme.input.placeholder}
                     placeholder={
-                      selectedActivity
-                        ? `Default: ${selectedActivity.unit}`
+                      standardUnit
+                        ? `Default: ${standardUnit}`
                         : 'Unit'
                     }
                     value={unitOverride ?? ''}
@@ -1039,81 +931,10 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
         </View>
       </View>
 
-      {activityDropdownVisible && (
-        <>
-          <TouchableOpacity
-            style={styles.dropdownBackdrop}
-            activeOpacity={1}
-            onPress={() => setActivityDropdownVisible(false)}
-          />
-          {dropdownButtonLayout && (
-            <View
-              style={[
-                styles.dropdownContent,
-                {
-                  backgroundColor: theme.background.modal,
-                  borderColor: theme.border.primary,
-                  shadowColor: theme.shadow,
-                  top: dropdownButtonLayout.y + dropdownButtonLayout.height + 4,
-                  left: dropdownButtonLayout.x,
-                  width: dropdownButtonLayout.width,
-                },
-              ]}
-            >
-              {activities.length === 0 ? (
-                <View style={styles.dropdownEmpty}>
-                  <Text style={[styles.dropdownEmptyText, { color: theme.text.secondary }]}>
-                    No activities
-                  </Text>
-                </View>
-              ) : (
-                <ScrollView
-                  style={styles.dropdownList}
-                  contentContainerStyle={styles.dropdownListContent}
-                  keyboardShouldPersistTaps="handled"
-                  nestedScrollEnabled
-                >
-                  {activities.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.activityDropdownItem,
-                        {
-                          backgroundColor: selectedActivity?.id === item.id ? theme.background.tertiary : 'transparent',
-                          borderBottomColor: theme.border.secondary,
-                        },
-                      ]}
-                      onPress={() => handleActivitySelect(item)}
-                    >
-                      <View style={styles.activityDropdownItemContent}>
-                        <Text style={[styles.activityDropdownItemName, { color: theme.text.primary }]}>
-                          {item.name}
-                        </Text>
-                        <Text style={[styles.activityDropdownItemUnit, { color: theme.text.secondary }]}>
-                          {item.unit}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-          )}
-        </>
-      )}
-
       <StandardsLibraryModal
         visible={standardsLibraryVisible}
         onClose={() => setStandardsLibraryVisible(false)}
         onSelectStandard={handleStandardSelect}
-      />
-      <ActivityModal
-        visible={activityModalVisible}
-        activity={editingActivity}
-        onClose={() => setActivityModalVisible(false)}
-        onSave={handleActivitySave}
-        onSelect={handleActivityCreate}
-        onDelete={deleteActivity}
       />
     </KeyboardAvoidingView>
   );
@@ -1336,6 +1157,23 @@ const styles = StyleSheet.create({
   minimumUnitField: {
     flex: 1,
     gap: 6,
+  },
+  nameUnitRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  nameField: {
+    flex: 2,
+    gap: 6,
+  },
+  unitField: {
+    flex: 1,
+    gap: 6,
+  },
+  notesSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
   },
   activitySelectorRow: {
     flexDirection: 'row',

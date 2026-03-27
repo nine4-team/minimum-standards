@@ -135,7 +135,7 @@ export function useActivityHistoryEngine() {
 
       try {
         for (const standard of orderedActiveStandards) {
-          console.log(`[useActivityHistoryEngine] Processing standard ${standard.id} (${standard.activityId})`);
+          console.log(`[useActivityHistoryEngine] Processing standard ${standard.id}`);
 
           // Only process active standards
           if (standard.state !== 'active') {
@@ -238,7 +238,6 @@ export function useActivityHistoryEngine() {
               // Check-before-write: skip if a doc already exists to preserve its snapshot
               const existingDoc = await getActivityHistoryDoc({
                 userId,
-                activityId: standard.activityId,
                 standardId: standard.id,
                 periodStartMs: window.startMs,
               });
@@ -267,7 +266,6 @@ export function useActivityHistoryEngine() {
               console.log(`[useActivityHistoryEngine] Writing history document for ${standard.id}`);
               await writeActivityHistoryPeriod({
                 userId,
-                activityId: standard.activityId,
                 standardId: standard.id,
                 window,
                 standardSnapshot,

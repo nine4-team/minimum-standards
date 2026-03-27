@@ -25,6 +25,7 @@ export type AuditTimestamps = {
     createdAtMs: TimestampMs;
     updatedAtMs: TimestampMs;
 };
+/** @deprecated Activities have been merged into Standards. Kept for migration only. */
 export type Activity = SoftDelete & AuditTimestamps & {
     id: string;
     name: string;
@@ -41,7 +42,7 @@ export type Category = SoftDelete & AuditTimestamps & {
 };
 export type Standard = SoftDelete & AuditTimestamps & {
     id: string;
-    activityId: string;
+    name: string;
     minimum: number;
     unit: string;
     cadence: StandardCadence;
@@ -52,8 +53,10 @@ export type Standard = SoftDelete & AuditTimestamps & {
     sessionConfig: StandardSessionConfig;
     periodStartPreference?: PeriodStartPreference;
     configEras?: ConfigEra[];
-    /** @deprecated Legacy field - READ-ONLY. Categories now belong to Activities. Use Activity.categoryId instead. */
     categoryId: string | null;
+    notes: string | null;
+    /** @deprecated Kept for migration compatibility. Will be removed in a future release. */
+    activityId?: string;
 };
 export type ActivityLog = SoftDelete & AuditTimestamps & {
     id: string;
@@ -89,8 +92,9 @@ export type ActivityHistoryStandardSnapshot = {
 export type ActivityHistoryPeriodStatus = 'Met' | 'In Progress' | 'Missed';
 export type ActivityHistoryDoc = {
     id: string;
-    activityId: string;
     standardId: string;
+    /** @deprecated Kept for migration compatibility. */
+    activityId?: string;
     referenceTimestampMs: TimestampMs;
     standardSnapshot: ActivityHistoryStandardSnapshot;
     total: number;

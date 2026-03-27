@@ -165,7 +165,7 @@ export declare const configEraSchema: z.ZodObject<{
 }>;
 export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     id: z.ZodString;
-    activityId: z.ZodString;
+    name: z.ZodDefault<z.ZodString>;
     minimum: z.ZodNumber;
     unit: z.ZodEffects<z.ZodString, string, string>;
     cadence: z.ZodObject<{
@@ -297,6 +297,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }>, "many">>;
     categoryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    notes: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    activityId: z.ZodOptional<z.ZodString>;
     createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
     updatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
     deletedAtMs: z.ZodNullable<z.ZodEffects<z.ZodNumber, number, number>>;
@@ -304,6 +306,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     unit: string;
     minimum: number;
     id: string;
+    name: string;
+    notes: string | null;
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
@@ -317,7 +321,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         volumePerSession: number;
     };
     summary: string;
-    activityId: string;
     state: "active" | "archived";
     archivedAtMs: number | null;
     periodStartPreference?: {
@@ -349,6 +352,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    activityId?: string | undefined;
 }, {
     unit: string;
     minimum: number;
@@ -366,7 +370,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         volumePerSession: number;
     };
     summary: string;
-    activityId: string;
     state: "active" | "archived";
     archivedAtMs: number | null;
     periodStartPreference?: {
@@ -375,6 +378,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
+    name?: string | undefined;
+    notes?: string | null | undefined;
     categoryId?: string | null | undefined;
     quickAddValues?: number[] | undefined;
     configEras?: {
@@ -398,10 +403,13 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    activityId?: string | undefined;
 }>, {
     unit: string;
     minimum: number;
     id: string;
+    name: string;
+    notes: string | null;
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
@@ -415,7 +423,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         volumePerSession: number;
     };
     summary: string;
-    activityId: string;
     state: "active" | "archived";
     archivedAtMs: number | null;
     periodStartPreference?: {
@@ -447,6 +454,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    activityId?: string | undefined;
 }, {
     unit: string;
     minimum: number;
@@ -464,7 +472,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         volumePerSession: number;
     };
     summary: string;
-    activityId: string;
     state: "active" | "archived";
     archivedAtMs: number | null;
     periodStartPreference?: {
@@ -473,6 +480,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
+    name?: string | undefined;
+    notes?: string | null | undefined;
     categoryId?: string | null | undefined;
     quickAddValues?: number[] | undefined;
     configEras?: {
@@ -496,6 +505,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    activityId?: string | undefined;
 }>;
 export declare const activityLogSchema: z.ZodObject<{
     id: z.ZodString;
@@ -632,8 +642,8 @@ export declare const activityHistoryStandardSnapshotSchema: z.ZodObject<{
 export declare const activityHistoryPeriodStatusSchema: z.ZodEnum<["Met", "In Progress", "Missed"]>;
 export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
     id: z.ZodString;
-    activityId: z.ZodString;
     standardId: z.ZodString;
+    activityId: z.ZodOptional<z.ZodString>;
     referenceTimestampMs: z.ZodEffects<z.ZodNumber, number, number>;
     standardSnapshot: z.ZodObject<{
         minimum: z.ZodNumber;
@@ -732,7 +742,6 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "Met" | "In Progress" | "Missed";
     id: string;
-    activityId: string;
     standardId: string;
     referenceTimestampMs: number;
     standardSnapshot: {
@@ -762,6 +771,7 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
     generatedAtMs: number;
     source: "boundary" | "resume" | "log-edit";
     deletedAtMs?: number | null | undefined;
+    activityId?: string | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;
@@ -769,7 +779,6 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
 }, {
     status: "Met" | "In Progress" | "Missed";
     id: string;
-    activityId: string;
     standardId: string;
     referenceTimestampMs: number;
     standardSnapshot: {
@@ -799,6 +808,7 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
     generatedAtMs: number;
     source: "boundary" | "resume" | "log-edit";
     deletedAtMs?: number | null | undefined;
+    activityId?: string | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;
@@ -806,7 +816,6 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
 }>, {
     status: "Met" | "In Progress" | "Missed";
     id: string;
-    activityId: string;
     standardId: string;
     referenceTimestampMs: number;
     standardSnapshot: {
@@ -836,6 +845,7 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
     generatedAtMs: number;
     source: "boundary" | "resume" | "log-edit";
     deletedAtMs?: number | null | undefined;
+    activityId?: string | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;
@@ -843,7 +853,6 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
 }, {
     status: "Met" | "In Progress" | "Missed";
     id: string;
-    activityId: string;
     standardId: string;
     referenceTimestampMs: number;
     standardSnapshot: {
@@ -873,6 +882,7 @@ export declare const activityHistoryDocSchema: z.ZodEffects<z.ZodObject<{
     generatedAtMs: number;
     source: "boundary" | "resume" | "log-edit";
     deletedAtMs?: number | null | undefined;
+    activityId?: string | undefined;
     periodStartMs?: number | undefined;
     periodEndMs?: number | undefined;
     periodLabel?: string | undefined;

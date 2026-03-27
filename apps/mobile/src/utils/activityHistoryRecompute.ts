@@ -84,7 +84,6 @@ export async function recomputeActivityHistoryPeriod({
   // Fall back to era-resolved config for new docs.
   const existingDoc = await getActivityHistoryDoc({
     userId,
-    activityId: standard.activityId,
     standardId: standard.id,
     periodStartMs: window.startMs,
   });
@@ -99,7 +98,6 @@ export async function recomputeActivityHistoryPeriod({
 
   await writeActivityHistoryPeriod({
     userId,
-    activityId: standard.activityId,
     standardId: standard.id,
     window,
     standardSnapshot,
@@ -122,13 +120,12 @@ export async function recomputeActivityHistoryPeriod({
       timezone,
       { periodStartPreference: previousStandard.periodStartPreference }
     );
-    const oldDocId = buildActivityHistoryDocId(standard.activityId, standard.id, oldWindow.startMs);
-    const newDocId = buildActivityHistoryDocId(standard.activityId, standard.id, window.startMs);
+    const oldDocId = buildActivityHistoryDocId(standard.id, oldWindow.startMs);
+    const newDocId = buildActivityHistoryDocId(standard.id, window.startMs);
 
     if (oldDocId !== newDocId) {
       softDeleteActivityHistoryDoc({
         userId,
-        activityId: standard.activityId,
         standardId: standard.id,
         periodStartMs: oldWindow.startMs,
       }).catch((err) => {

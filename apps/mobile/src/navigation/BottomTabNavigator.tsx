@@ -9,6 +9,7 @@ import { ActivitiesStack } from './ActivitiesStack';
 import { SettingsStack } from './SettingsStack';
 import { useTheme } from '../theme/useTheme';
 import { useActivityHistoryEngine } from '../hooks/useActivityHistoryEngine';
+import { useMigration } from '../hooks/useMigration';
 import { getTabBarStyle } from '@nine4/ui-kit';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
@@ -27,6 +28,9 @@ export function BottomTabNavigator() {
       console.info('[BottomTabNavigator] safe area insets', insets);
     }
   }, [insets]);
+
+  // Run one-time data migration (activities → standards)
+  useMigration();
 
   // Mount the Activity History Engine once at the authenticated app root
   // This ensures it runs for the whole session and avoids duplicate timers

@@ -38,19 +38,17 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
  */
 export function computeSyntheticCurrentRows(params: {
   standards: Standard[];
-  activityId: string;
   logs: ActivityLogSlice[];
   timezone: string;
   nowMs: number;
 }): MergedActivityHistoryRow[] {
-  const { standards, activityId, logs, timezone, nowMs } = params;
+  const { standards, logs, timezone, nowMs } = params;
 
   const syntheticRows: MergedActivityHistoryRow[] = [];
 
-  // Filter to only active standards that reference this activity
+  // Filter to only active standards
   const relevantStandards = standards.filter(
     (standard) =>
-      standard.activityId === activityId &&
       standard.state === 'active' &&
       standard.archivedAtMs === null
   );

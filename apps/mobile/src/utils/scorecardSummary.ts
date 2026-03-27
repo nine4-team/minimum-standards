@@ -1,4 +1,4 @@
-import type { Activity, Standard } from '@minimum-standards/shared-model';
+import type { Standard } from '@minimum-standards/shared-model';
 import type { MergedActivityHistoryRow } from './activityHistory';
 import { formatTotal } from './activityHistory';
 
@@ -29,9 +29,9 @@ export function aggregatePeriodStats(rows: MergedActivityHistoryRow[]): {
   return { completedCount, metCount, totalVolume };
 }
 
-export interface ActivitySummaryCard {
-  activityId: string;
-  activityName: string;
+export interface StandardSummaryCard {
+  standardId: string;
+  standardName: string;
   unit: string;
   totalVolume: number;
   totalVolumeFormatted: string;
@@ -43,46 +43,31 @@ export interface ActivitySummaryCard {
 }
 
 /**
- * Builds per-activity summary cards from merged history rows.
+ * Builds per-standard summary cards from merged history rows.
  *
- * Groups rows by activityId, then for each activity computes:
+ * Groups rows by standardId, then for each standard computes:
  * - totalVolume: sum of row.total across all rows
  * - completedCount: rows where status !== 'In Progress'
  * - metCount: completed rows where status === 'Met'
  * - percentMet: metCount / completedCount * 100 (0 if no completed)
  */
-export function buildActivitySummaryCards(params: {
-  activities: Activity[];
+export function buildStandardSummaryCards(params: {
   standards: Standard[];
-  mergedRowsByActivity: Record<string, MergedActivityHistoryRow[]>;
+  mergedRowsByStandard: Record<string, MergedActivityHistoryRow[]>;
   includeInactive: boolean;
-}): ActivitySummaryCard[] {
-  const { activities, standards, mergedRowsByActivity, includeInactive } = params;
+}): StandardSummaryCard[] {
+  const { standards, mergedRowsByStandard, includeInactive } = params;
 
-  // Determine which activities are relevant based on their standards
-  const activityHasActiveStandard = new Set<string>();
-  const activityHasAnyStandard = new Set<string>();
+  const relevantStandards = includeInactive
+    ? standards
+    : standards.filter(
+        (standard) => standard.state === 'active' && standard.archivedAtMs === null
+      );
 
-  for (const standard of standards) {
-    activityHasAnyStandard.add(standard.activityId);
-    if (standard.state === 'active' && standard.archivedAtMs === null) {
-      activityHasActiveStandard.add(standard.activityId);
-    }
-  }
+  const cards: StandardSummaryCard[] = [];
 
-  const relevantActivityIds = includeInactive
-    ? activityHasAnyStandard
-    : activityHasActiveStandard;
-
-  const activityMap = new Map(activities.map((a) => [a.id, a]));
-
-  const cards: ActivitySummaryCard[] = [];
-
-  for (const activityId of relevantActivityIds) {
-    const activity = activityMap.get(activityId);
-    if (!activity) continue;
-
-    const rows = mergedRowsByActivity[activityId] ?? [];
+  for (const standard of relevantStandards) {
+    const rows = mergedRowsByStandard[standard.id] ?? [];
     const { completedCount, metCount, totalVolume } = aggregatePeriodStats(rows);
 
     const percentMet = completedCount > 0
@@ -92,9 +77,9 @@ export function buildActivitySummaryCards(params: {
     const totalPeriods = rows.length;
 
     cards.push({
-      activityId,
-      activityName: activity.name,
-      unit: activity.unit,
+      standardId: standard.id,
+      standardName: standard.name,
+      unit: standard.unit,
       totalVolume,
       totalVolumeFormatted: formatTotal(totalVolume),
       percentMet,
@@ -105,8 +90,8 @@ export function buildActivitySummaryCards(params: {
     });
   }
 
-  // Sort alphabetically by activity name
-  cards.sort((a, b) => a.activityName.localeCompare(b.activityName));
+  // Sort alphabetically by standard name
+  cards.sort((a, b) => a.standardName.localeCompare(b.standardName));
 
   return cards;
 }

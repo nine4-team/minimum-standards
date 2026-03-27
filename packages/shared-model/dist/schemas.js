@@ -82,7 +82,7 @@ exports.configEraSchema = zod_1.z.object({
 });
 exports.standardSchema = zod_1.z.object({
     id: zod_1.z.string().min(1),
-    activityId: zod_1.z.string().min(1),
+    name: zod_1.z.string().max(120).default(''), // Allow empty for pre-migration docs
     minimum: zod_1.z.number().min(0),
     unit: zod_1.z
         .string()
@@ -112,6 +112,8 @@ exports.standardSchema = zod_1.z.object({
     periodStartPreference: periodStartPreferenceSchema.optional(),
     configEras: zod_1.z.array(exports.configEraSchema).optional(),
     categoryId: zod_1.z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
+    notes: zod_1.z.string().max(1000).nullable().default(null),
+    activityId: zod_1.z.string().min(1).optional(), // Deprecated: kept for migration
     createdAtMs: timestampMsSchema,
     updatedAtMs: timestampMsSchema,
     deletedAtMs: timestampMsSchema.nullable()
@@ -148,8 +150,8 @@ exports.activityHistoryPeriodStatusSchema = zod_1.z.enum(['Met', 'In Progress', 
 exports.activityHistoryDocSchema = zod_1.z
     .object({
     id: zod_1.z.string().min(1),
-    activityId: zod_1.z.string().min(1),
     standardId: zod_1.z.string().min(1),
+    activityId: zod_1.z.string().min(1).optional(), // Deprecated: kept for migration
     referenceTimestampMs: timestampMsSchema,
     standardSnapshot: exports.activityHistoryStandardSnapshotSchema,
     total: zod_1.z.number().min(0),

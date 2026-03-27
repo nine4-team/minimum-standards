@@ -11,20 +11,18 @@ import {
 
 /**
  * Builds a deterministic document ID for activityHistory documents.
- * Format: activityId__standardId__periodStartMs
+ * Format: standardId__periodStartMs
  */
 export function buildActivityHistoryDocId(
-  activityId: string,
   standardId: string,
   periodStartMs: number
 ): string {
-  return `${activityId}__${standardId}__${periodStartMs}`;
+  return `${standardId}__${periodStartMs}`;
 }
 
 export interface WriteActivityHistoryPeriodParams {
   firestore: unknown;
   userId: string;
-  activityId: string;
   standardId: string;
   window: PeriodWindow;
   standardSnapshot: ActivityHistoryStandardSnapshot;
@@ -47,7 +45,6 @@ export interface GetLatestHistoryForStandardParams {
 export interface GetActivityHistoryDocParams {
   firestore: unknown;
   userId: string;
-  activityId: string;
   standardId: string;
   periodStartMs: number;
 }
@@ -55,15 +52,14 @@ export interface GetActivityHistoryDocParams {
 export interface SoftDeleteActivityHistoryDocParams {
   firestore: unknown;
   userId: string;
-  activityId: string;
   standardId: string;
   periodStartMs: number;
 }
 
-export interface ListenActivityHistoryForActivityParams {
+export interface ListenActivityHistoryForStandardParams {
   firestore: unknown;
   userId: string;
-  activityId: string;
+  standardId: string;
   onNext: (docs: ActivityHistoryDoc[]) => void;
   onError?: (error: Error) => void;
 }
@@ -98,8 +94,8 @@ export type ActivityHistoryFirestoreBindings = CollectionBindings & {
 };
 
 type RawActivityHistoryDoc = {
-  activityId?: string;
   standardId?: string;
+  activityId?: string; // Legacy field
   referenceTimestampMs?: number;
   periodStartMs?: number;
   periodEndMs?: number;
@@ -122,7 +118,6 @@ function toActivityHistoryDoc(
 ): ActivityHistoryDoc | null {
   if (
     !data ||
-    typeof data.activityId !== 'string' ||
     typeof data.standardId !== 'string' ||
     !data.standardSnapshot ||
     typeof data.total !== 'number' ||
@@ -147,8 +142,8 @@ function toActivityHistoryDoc(
 
   return {
     id: docId,
-    activityId: data.activityId,
     standardId: data.standardId,
+    ...(data.activityId ? { activityId: data.activityId } : {}),
     referenceTimestampMs: referenceTimestamp,
     periodStartMs: typeof data.periodStartMs === 'number' ? data.periodStartMs : undefined,
     periodEndMs: typeof data.periodEndMs === 'number' ? data.periodEndMs : undefined,
@@ -186,7 +181,6 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
     const {
       firestore,
       userId,
-      activityId,
       standardId,
       window,
       standardSnapshot,
@@ -199,12 +193,11 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
       userId,
       bindings: { collection, doc },
     });
-    const docId = buildActivityHistoryDocId(activityId, standardId, window.startMs);
+    const docId = buildActivityHistoryDocId(standardId, window.startMs);
     const docRef = doc(collections.activityHistory, docId);
 
     const payload: ActivityHistoryDoc = {
       id: docId,
-      activityId,
       standardId,
       referenceTimestampMs: window.startMs,
       standardSnapshot,
@@ -227,14 +220,14 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
   async function getActivityHistoryDoc(
     params: GetActivityHistoryDocParams
   ): Promise<ActivityHistoryDoc | null> {
-    const { firestore, userId, activityId, standardId, periodStartMs } = params;
+    const { firestore, userId, standardId, periodStartMs } = params;
 
     const collections = getUserScopedCollections({
       firestore,
       userId,
       bindings: { collection, doc },
     });
-    const docId = buildActivityHistoryDocId(activityId, standardId, periodStartMs);
+    const docId = buildActivityHistoryDocId(standardId, periodStartMs);
     const docRef = doc(collections.activityHistory, docId);
 
     const snapshot = await getDoc(docRef);
@@ -252,12 +245,11 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
   async function softDeleteActivityHistoryDoc(
     params: SoftDeleteActivityHistoryDocParams
   ): Promise<void> {
-    const { firestore, userId, activityId, standardId, periodStartMs } = params;
+    const { firestore, userId, standardId, periodStartMs } = params;
 
     const existing = await getActivityHistoryDoc({
       firestore,
       userId,
-      activityId,
       standardId,
       periodStartMs,
     });
@@ -271,7 +263,7 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
       userId,
       bindings: { collection, doc },
     });
-    const docId = buildActivityHistoryDocId(activityId, standardId, periodStartMs);
+    const docId = buildActivityHistoryDocId(standardId, periodStartMs);
     const docRef = doc(collections.activityHistory, docId);
 
     // Clean the standardSnapshot to only include fields allowed by Firestore rules.
@@ -369,10 +361,10 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
     return null;
   }
 
-  function listenActivityHistoryForActivity(
-    params: ListenActivityHistoryForActivityParams
+  function listenActivityHistoryForStandard(
+    params: ListenActivityHistoryForStandardParams
   ): Unsubscribe {
-    const { firestore, userId, activityId, onNext, onError } = params;
+    const { firestore, userId, standardId, onNext, onError } = params;
 
     const collections = getUserScopedCollections({
       firestore,
@@ -381,7 +373,7 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
     });
     const historyQuery = query(
       collections.activityHistory,
-      where('activityId', '==', activityId),
+      where('standardId', '==', standardId),
       orderBy('referenceTimestampMs', 'desc')
     );
 
@@ -414,6 +406,6 @@ export function createActivityHistoryHelpers(bindings: ActivityHistoryFirestoreB
     getActivityHistoryDoc,
     softDeleteActivityHistoryDoc,
     getLatestHistoryForStandard,
-    listenActivityHistoryForActivity,
+    listenActivityHistoryForStandard,
   };
 }

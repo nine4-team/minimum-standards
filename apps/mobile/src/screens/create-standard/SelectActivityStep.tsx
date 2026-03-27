@@ -3,22 +3,20 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Activity } from '@minimum-standards/shared-model';
+import { BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
 import { StepHeader } from '../../navigation/CreateStandardFlow';
 import { CreateStandardFlowParamList, MainStackParamList } from '../../navigation/types';
-import { useActivities } from '../../hooks/useActivities';
 import { useCategories } from '../../hooks/useCategories';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
 import { useTheme } from '../../theme/useTheme';
-import { ActivityModal } from '../../components/ActivityModal';
 
 type FlowNav = NativeStackNavigationProp<CreateStandardFlowParamList>;
 type MainNav = NativeStackNavigationProp<MainStackParamList>;
@@ -29,233 +27,227 @@ export function SelectActivityStep() {
   const flowNavigation = useNavigation<FlowNav>();
   const mainNavigation = useNavigation<MainNav>();
 
-  const { activities, createActivity, updateActivity, searchQuery, setSearchQuery } =
-    useActivities();
   const { orderedCategories } = useCategories();
 
-  const selectedActivity = useStandardsBuilderStore((s) => s.selectedActivity);
-  const setSelectedActivity = useStandardsBuilderStore((s) => s.setSelectedActivity);
-
-  const [showActivityModal, setShowActivityModal] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
+  const standardName = useStandardsBuilderStore((s) => s.name);
+  const setStandardName = useStandardsBuilderStore((s) => s.setName);
+  const standardUnit = useStandardsBuilderStore((s) => s.unit);
+  const setStandardUnit = useStandardsBuilderStore((s) => s.setUnit);
+  const standardNotes = useStandardsBuilderStore((s) => s.notes);
+  const setStandardNotes = useStandardsBuilderStore((s) => s.setNotes);
+  const standardCategoryId = useStandardsBuilderStore((s) => s.categoryId);
+  const setStandardCategoryId = useStandardsBuilderStore((s) => s.setCategoryId);
 
   const resetBuilder = useStandardsBuilderStore((s) => s.reset);
+
+  const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
 
   const handleClose = useCallback(() => {
     resetBuilder();
     mainNavigation.goBack();
   }, [resetBuilder, mainNavigation]);
 
+  const canProceed = standardName.trim().length > 0 && standardUnit.trim().length > 0;
+
   const handleNext = useCallback(() => {
-    if (selectedActivity) {
+    if (canProceed) {
       flowNavigation.navigate('SetVolume');
     }
-  }, [selectedActivity, flowNavigation]);
-
-  const handleSelectActivity = useCallback(
-    (activity: Activity) => {
-      setSelectedActivity(activity);
-    },
-    [setSelectedActivity],
-  );
-
-  const handleCreateActivitySave = useCallback(
-    async (
-      activityData: Omit<Activity, 'id' | 'createdAtMs' | 'updatedAtMs' | 'deletedAtMs'>,
-    ) => {
-      const created = await createActivity(activityData);
-      return created;
-    },
-    [createActivity],
-  );
-
-  const handleCreatedActivitySelect = useCallback(
-    (activity: Activity) => {
-      setSelectedActivity(activity);
-      flowNavigation.navigate('SetVolume');
-    },
-    [setSelectedActivity, flowNavigation],
-  );
-
-  const handleEditActivitySave = useCallback(
-    async (
-      activityData: Omit<Activity, 'id' | 'createdAtMs' | 'updatedAtMs' | 'deletedAtMs'>,
-    ) => {
-      if (!selectedActivity) throw new Error('No activity selected');
-      await updateActivity(selectedActivity.id, activityData);
-      // Update the builder store with the new data so the UI reflects changes immediately
-      setSelectedActivity({
-        ...selectedActivity,
-        ...activityData,
-        updatedAtMs: Date.now(),
-      });
-      return { ...selectedActivity, ...activityData, updatedAtMs: Date.now() };
-    },
-    [selectedActivity, updateActivity, setSelectedActivity],
-  );
-
-  const getCategoryName = (categoryId: string | null): string => {
-    if (!categoryId) return 'None';
-    const category = orderedCategories.find((c) => c.id === categoryId);
-    return category?.name ?? 'None';
-  };
-
-  const renderActivityRow = ({ item }: { item: Activity }) => {
-    const isSelected = selectedActivity?.id === item.id;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.activityRow,
-          {
-            backgroundColor: isSelected
-              ? theme.background.surface
-              : theme.background.chrome,
-            borderBottomColor: theme.border.primary,
-          },
-        ]}
-        onPress={() => handleSelectActivity(item)}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.activityName, { color: theme.text.primary }]}>{item.name}</Text>
-        <MaterialIcons
-          name={isSelected ? 'radio-button-checked' : 'radio-button-unchecked'}
-          size={22}
-          color={isSelected ? theme.button.primary.background : theme.text.secondary}
-        />
-      </TouchableOpacity>
-    );
-  };
+  }, [canProceed, flowNavigation]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.chrome }]}>
       <StepHeader
         step={0}
         totalSteps={3}
-        title="Select Activity"
+        title="Name Your Standard"
         onClose={handleClose}
       />
 
-      {/* T022: Inline Tip */}
-      <View
-        style={[
-          styles.tipContainer,
-          {
-            backgroundColor: theme.background.surface,
-            borderLeftColor: theme.button.primary.background,
-          },
-        ]}
-      >
-        <View style={styles.tipRow}>
-          <MaterialIcons
-            name="lightbulb-outline"
-            size={16}
-            color={theme.text.secondary}
-            style={styles.tipIcon}
-          />
-          <Text style={[styles.tipText, { color: theme.text.secondary }]}>
-            Pick the activity that, if you did enough of it, would make success almost
-            guaranteed.
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => setLearnMoreExpanded(!learnMoreExpanded)}
-          style={styles.learnMoreButton}
-        >
-          <Text style={[styles.learnMoreText, { color: theme.button.primary.background }]}>
-            {learnMoreExpanded ? 'Show Less' : 'Learn More'}
-          </Text>
-          <MaterialIcons
-            name={learnMoreExpanded ? 'expand-less' : 'expand-more'}
-            size={16}
-            color={theme.button.primary.background}
-          />
-        </TouchableOpacity>
-        {learnMoreExpanded && (
-          <Text style={[styles.learnMoreContent, { color: theme.text.secondary }]}>
-            A Minimum Standard is the smallest amount of an activity you can commit to doing
-            consistently. The key insight: choose the activity that is most directly connected to
-            your goal. If your goal is to get fit, what single activity, done consistently, would
-            make that almost inevitable? Focus on the "lead domino" — the one action that makes
-            everything else easier or unnecessary.
-          </Text>
-        )}
-      </View>
-
-      {/* T019: Search input */}
-      <View style={[styles.searchContainer, { borderBottomColor: theme.border.primary }]}>
-        <MaterialIcons
-          name="search"
-          size={20}
-          color={theme.text.secondary}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={[styles.searchInput, { color: theme.input.text }]}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search activities..."
-          placeholderTextColor={theme.input.placeholder}
-          autoCorrect={false}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <MaterialIcons name="close" size={18} color={theme.text.secondary} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* T019: Activity List */}
-      <FlatList
-        data={activities}
-        renderItem={renderActivityRow}
-        keyExtractor={(item) => item.id}
-        style={styles.list}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
+      >
+        {/* Inline Tip */}
+        <View
+          style={[
+            styles.tipContainer,
+            {
+              backgroundColor: theme.background.surface,
+              borderLeftColor: theme.button.primary.background,
+            },
+          ]}
+        >
+          <View style={styles.tipRow}>
+            <MaterialIcons
+              name="lightbulb-outline"
+              size={16}
+              color={theme.text.secondary}
+              style={styles.tipIcon}
+            />
+            <Text style={[styles.tipText, { color: theme.text.secondary }]}>
+              Pick the activity that, if you did enough of it, would make success almost
+              guaranteed.
+            </Text>
+          </View>
           <TouchableOpacity
-            style={[styles.createNewRow, { borderBottomColor: theme.border.primary }]}
-            onPress={() => setShowActivityModal(true)}
+            onPress={() => setLearnMoreExpanded(!learnMoreExpanded)}
+            style={styles.learnMoreButton}
           >
-            <MaterialIcons name="add" size={22} color={theme.button.primary.background} />
-            <Text
-              style={[styles.createNewText, { color: theme.button.primary.background }]}
-            >
-              Create New Activity
+            <Text style={[styles.learnMoreText, { color: theme.button.primary.background }]}>
+              {learnMoreExpanded ? 'Show Less' : 'Learn More'}
             </Text>
+            <MaterialIcons
+              name={learnMoreExpanded ? 'expand-less' : 'expand-more'}
+              size={16}
+              color={theme.button.primary.background}
+            />
           </TouchableOpacity>
-        }
-      />
-
-      {/* Selected Activity Details */}
-      {selectedActivity && (
-        <View style={[styles.selectionDetails, { borderTopColor: theme.border.primary }]}>
-          <View style={styles.selectionHeaderRow}>
-            <Text style={[styles.selectionLabel, { color: theme.text.primary }]}>
-              {selectedActivity.name}
+          {learnMoreExpanded && (
+            <Text style={[styles.learnMoreContent, { color: theme.text.secondary }]}>
+              A Minimum Standard is the smallest amount of an activity you can commit to doing
+              consistently. The key insight: choose the activity that is most directly connected to
+              your goal. If your goal is to get fit, what single activity, done consistently, would
+              make that almost inevitable? Focus on the "lead domino" -- the one action that makes
+              everything else easier or unnecessary.
             </Text>
+          )}
+        </View>
+
+        {/* Name field */}
+        <View style={styles.fieldSection}>
+          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Name</Text>
+          <TextInput
+            style={[
+              styles.fieldInput,
+              {
+                backgroundColor: theme.input.background,
+                borderColor: theme.input.border,
+                color: theme.input.text,
+                borderRadius: BUTTON_BORDER_RADIUS,
+              },
+            ]}
+            value={standardName}
+            onChangeText={setStandardName}
+            placeholder="e.g. Running, Reading, Cold Calls"
+            placeholderTextColor={theme.input.placeholder}
+            maxLength={120}
+            autoFocus
+          />
+        </View>
+
+        {/* Unit field */}
+        <View style={styles.fieldSection}>
+          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Unit</Text>
+          <TextInput
+            style={[
+              styles.fieldInput,
+              {
+                backgroundColor: theme.input.background,
+                borderColor: theme.input.border,
+                color: theme.input.text,
+                borderRadius: BUTTON_BORDER_RADIUS,
+              },
+            ]}
+            value={standardUnit}
+            onChangeText={setStandardUnit}
+            placeholder="e.g. minutes, miles, pages, calls"
+            placeholderTextColor={theme.input.placeholder}
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Category picker */}
+        <View style={styles.fieldSection}>
+          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>
+            Category (Optional)
+          </Text>
+          <View style={styles.categoryRow}>
             <TouchableOpacity
-              style={[styles.editButton, { borderColor: theme.button.primary.background }]}
-              onPress={() => setEditModalVisible(true)}
+              style={[
+                styles.categoryChip,
+                {
+                  borderColor: standardCategoryId === null
+                    ? theme.button.primary.background
+                    : theme.border.primary,
+                  backgroundColor: standardCategoryId === null
+                    ? theme.background.surface
+                    : theme.background.chrome,
+                },
+              ]}
+              onPress={() => setStandardCategoryId(null)}
             >
-              <MaterialIcons name="edit" size={14} color={theme.button.primary.background} />
-              <Text style={[styles.editButtonText, { color: theme.button.primary.background }]}>
-                Edit
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  {
+                    color: standardCategoryId === null ? theme.text.primary : theme.text.secondary,
+                    fontWeight: standardCategoryId === null ? '600' : '400',
+                  },
+                ]}
+              >
+                None
               </Text>
             </TouchableOpacity>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailText, { color: theme.text.secondary }]}>
-              Unit: {selectedActivity.unit || '(none)'}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailText, { color: theme.text.secondary }]}>
-              Category: {getCategoryName(selectedActivity.categoryId)}
-            </Text>
+            {orderedCategories.map((cat) => {
+              const isActive = standardCategoryId === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      borderColor: isActive
+                        ? theme.button.primary.background
+                        : theme.border.primary,
+                      backgroundColor: isActive
+                        ? theme.background.surface
+                        : theme.background.chrome,
+                    },
+                  ]}
+                  onPress={() => setStandardCategoryId(cat.id)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      {
+                        color: isActive ? theme.text.primary : theme.text.secondary,
+                        fontWeight: isActive ? '600' : '400',
+                      },
+                    ]}
+                  >
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
-      )}
+
+        {/* Notes field */}
+        <View style={styles.fieldSection}>
+          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Notes (Optional)</Text>
+          <TextInput
+            style={[
+              styles.notesInput,
+              {
+                backgroundColor: theme.input.background,
+                borderColor: theme.input.border,
+                color: theme.input.text,
+                borderRadius: BUTTON_BORDER_RADIUS,
+              },
+            ]}
+            value={standardNotes ?? ''}
+            onChangeText={(text) => setStandardNotes(text || null)}
+            placeholder="Add notes about this standard..."
+            placeholderTextColor={theme.input.placeholder}
+            multiline
+            numberOfLines={3}
+            maxLength={1000}
+          />
+        </View>
+      </ScrollView>
 
       {/* Next Button */}
       <View
@@ -272,19 +264,19 @@ export function SelectActivityStep() {
           style={[
             styles.nextButton,
             {
-              backgroundColor: selectedActivity
+              backgroundColor: canProceed
                 ? theme.button.primary.background
                 : theme.button.disabled.background,
             },
           ]}
           onPress={handleNext}
-          disabled={!selectedActivity}
+          disabled={!canProceed}
         >
           <Text
             style={[
               styles.nextButtonText,
               {
-                color: selectedActivity
+                color: canProceed
                   ? theme.button.primary.text
                   : theme.button.disabled.text,
               },
@@ -294,24 +286,6 @@ export function SelectActivityStep() {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Activity Modal for creating new activities */}
-      <ActivityModal
-        visible={showActivityModal}
-        onClose={() => setShowActivityModal(false)}
-        onSave={handleCreateActivitySave}
-        onSelect={handleCreatedActivitySelect}
-      />
-
-      {/* Activity Modal for editing selected activity */}
-      {selectedActivity && (
-        <ActivityModal
-          visible={editModalVisible}
-          activity={selectedActivity}
-          onClose={() => setEditModalVisible(false)}
-          onSave={handleEditActivitySave}
-        />
-      )}
     </View>
   );
 }
@@ -320,7 +294,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  // Tip styles (T022)
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  // Tip styles
   tipContainer: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -357,91 +337,43 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingLeft: 24,
   },
-  // Search styles (T019)
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 4,
-  },
-  // Activity list styles (T019)
-  list: {
-    flex: 1,
-  },
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  // Field styles
+  fieldSection: {
+    marginTop: 20,
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  activityName: {
-    fontSize: 16,
-    flex: 1,
-  },
-  createNewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
     gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  createNewText: {
+  fieldLabel: {
     fontSize: 16,
     fontWeight: '600',
   },
-  // Selection detail styles (T020)
-  selectionDetails: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-  },
-  selectionLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  detailText: {
-    fontSize: 13,
-  },
-  // Edit button styles
-  selectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+  fieldInput: {
     borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
   },
-  editButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
+  notesInput: {
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderRadius: 20,
+  },
+  categoryChipText: {
+    fontSize: 14,
   },
   // Footer styles
   footer: {

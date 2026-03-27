@@ -12,7 +12,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Standard } from '@minimum-standards/shared-model';
 import { useStandardsLibrary } from '../hooks/useStandardsLibrary';
-import { useActivities } from '../hooks/useActivities';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { useTheme } from '../theme/useTheme';
 import { typography, BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
@@ -49,21 +48,11 @@ export function StandardsLibraryScreen({
     deleteStandard,
   } = useStandardsLibrary();
 
-  const { activities } = useActivities();
   const { createLogEntry, updateLogEntry } = useStandards();
 
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deleteStandardId, setDeleteStandardId] = useState<string | null>(null);
   const [deleteStandardName, setDeleteStandardName] = useState('');
-
-  // Create activity lookup map
-  const activityMap = useMemo(() => {
-    const map = new Map<string, string>();
-    activities.forEach((activity) => {
-      map.set(activity.id, activity.name);
-    });
-    return map;
-  }, [activities]);
 
   // Combine active and archived standards into a single list
   const allStandards = useMemo(() => {
@@ -94,9 +83,9 @@ export function StandardsLibraryScreen({
     }
   }, [onEditStandard]);
 
-  const handleDelete = useCallback((standardId: string, activityName: string) => {
+  const handleDelete = useCallback((standardId: string, standardName: string) => {
     setDeleteStandardId(standardId);
-    setDeleteStandardName(activityName);
+    setDeleteStandardName(standardName);
     setDeleteConfirmVisible(true);
   }, []);
 
@@ -129,7 +118,6 @@ export function StandardsLibraryScreen({
 
   const renderCard = useCallback(
     ({ item }: { item: Standard }) => {
-      const activityName = activityMap.get(item.activityId) ?? item.activityId;
       return (
         <StandardCard
           standard={item}
@@ -137,13 +125,12 @@ export function StandardsLibraryScreen({
           onArchive={() => handleArchive(item.id)}
           onActivate={() => handleActivate(item.id)}
           onEdit={() => handleEdit(item.id)}
-          onDelete={() => handleDelete(item.id, activityName)}
-          activityNameMap={activityMap}
+          onDelete={() => handleDelete(item.id, item.name)}
           onSelectStandard={onSelectStandard}
         />
       );
     },
-    [handleSelect, handleArchive, handleActivate, handleEdit, handleDelete, activityMap, onSelectStandard]
+    [handleSelect, handleArchive, handleActivate, handleEdit, handleDelete, onSelectStandard]
   );
 
   const content = useMemo(() => {

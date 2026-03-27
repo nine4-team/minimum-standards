@@ -26,13 +26,12 @@ export type StandardsStackParamList = {
 
 export type ScorecardStackParamList = {
   ScorecardSummary: undefined;
-  ScorecardDetail: { activityId: string };
+  ScorecardDetail: { standardId: string };
 };
 
 export type SettingsStackParamList = {
   SettingsRoot: undefined;
   Categories: { backTo?: 'Dashboard' } | undefined;
-  Activities: { backTo?: 'Dashboard' } | undefined;
   StandardsLibrary: undefined;
   Snapshots: undefined;
   SnapshotCreate: undefined;
@@ -59,7 +58,6 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainStackParamList>;
   StandardPeriodActivityLogs: {
     standardId: string;
-    activityId?: string;
     periodStartMs?: number;
     periodEndMs?: number;
     periodStandardSnapshot?: ActivityHistoryStandardSnapshot;

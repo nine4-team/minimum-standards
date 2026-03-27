@@ -14,7 +14,6 @@ import { useTheme } from '../theme/useTheme';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { useStandardPeriodActivityLogs } from '../hooks/useStandardPeriodActivityLogs';
 import { useStandards } from '../hooks/useStandards';
-import { useActivities } from '../hooks/useActivities';
 import { StandardPeriodHeader } from '../components/StandardPeriodHeader';
 import { ActivityLogsList } from '../components/ActivityLogsList';
 import { LogEntryModal } from '../components/LogEntryModal';
@@ -26,7 +25,7 @@ type RouteProps = RouteProp<RootStackParamList, 'StandardPeriodActivityLogs'>;
 export function StandardPeriodActivityLogsScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProps>();
-  const { standardId, activityId: activityIdParam, periodStartMs, periodEndMs, periodStandardSnapshot } = route.params;
+  const { standardId, periodStartMs, periodEndMs, periodStandardSnapshot } = route.params;
 
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -35,19 +34,11 @@ export function StandardPeriodActivityLogsScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingLog, setEditingLog] = useState<ActivityLog | null>(null);
 
-  // Get standard and activity information
+  // Get standard information
   const { standards, updateLogEntry, deleteLogEntry } = useStandards();
-  const { activities } = useActivities();
-
   const standard = useMemo(
     () => standards.find(s => s.id === standardId),
     [standards, standardId]
-  );
-
-  const resolvedActivityId = standard?.activityId ?? activityIdParam;
-  const activity = useMemo(
-    () => activities.find(a => a.id === resolvedActivityId),
-    [activities, resolvedActivityId]
   );
 
   // When the standard has been deleted, fall back to the embedded snapshot
@@ -165,7 +156,7 @@ export function StandardPeriodActivityLogsScreen() {
     }
   };
 
-  if ((!standard && !periodStandardSnapshot) || !activity || !periodInfo) {
+  if ((!standard && !periodStandardSnapshot) || !periodInfo) {
     return (
       <View style={[styles.screen, { backgroundColor: theme.background.screen }]}>
         <ErrorBanner error={new Error('Standard or period information not found')} />
@@ -233,7 +224,7 @@ export function StandardPeriodActivityLogsScreen() {
           targetValue,
           unit: headerUnit,
           progressPercent,
-          activityName: activity.name,
+          activityName: standard?.name ?? 'Standard',
           sessionConfig: headerSessionConfig,
         }}
       />
@@ -246,11 +237,6 @@ export function StandardPeriodActivityLogsScreen() {
           logEntry={editingLog}
           onClose={handleModalClose}
           onSave={handleLogSave}
-          resolveActivityName={(activityId) => {
-            const act = activities.find(a => a.id === activityId);
-            return act?.name;
-          }}
-          resolveActivity={(activityId) => activities.find((a) => a.id === activityId)}
           currentPeriodStartMs={periodInfo?.startMs}
           currentPeriodEndMs={periodInfo?.endMs}
         />

@@ -5,14 +5,13 @@ exports.createActivityHistoryHelpers = createActivityHistoryHelpers;
 const collection_layout_1 = require("./collection-layout");
 /**
  * Builds a deterministic document ID for activityHistory documents.
- * Format: activityId__standardId__periodStartMs
+ * Format: standardId__periodStartMs
  */
-function buildActivityHistoryDocId(activityId, standardId, periodStartMs) {
-    return `${activityId}__${standardId}__${periodStartMs}`;
+function buildActivityHistoryDocId(standardId, periodStartMs) {
+    return `${standardId}__${periodStartMs}`;
 }
 function toActivityHistoryDoc(docId, data) {
     if (!data ||
-        typeof data.activityId !== 'string' ||
         typeof data.standardId !== 'string' ||
         !data.standardSnapshot ||
         typeof data.total !== 'number' ||
@@ -32,8 +31,8 @@ function toActivityHistoryDoc(docId, data) {
     }
     return {
         id: docId,
-        activityId: data.activityId,
         standardId: data.standardId,
+        ...(data.activityId ? { activityId: data.activityId } : {}),
         referenceTimestampMs: referenceTimestamp,
         periodStartMs: typeof data.periodStartMs === 'number' ? data.periodStartMs : undefined,
         periodEndMs: typeof data.periodEndMs === 'number' ? data.periodEndMs : undefined,
@@ -53,17 +52,16 @@ function toActivityHistoryDoc(docId, data) {
 function createActivityHistoryHelpers(bindings) {
     const { collection, doc, query, where, orderBy, limit, getDocs, getDoc, setDoc, onSnapshot, } = bindings;
     async function writeActivityHistoryPeriod(params) {
-        const { firestore, userId, activityId, standardId, window, standardSnapshot, rollup, source, } = params;
+        const { firestore, userId, standardId, window, standardSnapshot, rollup, source, } = params;
         const collections = (0, collection_layout_1.getUserScopedCollections)({
             firestore,
             userId,
             bindings: { collection, doc },
         });
-        const docId = buildActivityHistoryDocId(activityId, standardId, window.startMs);
+        const docId = buildActivityHistoryDocId(standardId, window.startMs);
         const docRef = doc(collections.activityHistory, docId);
         const payload = {
             id: docId,
-            activityId,
             standardId,
             referenceTimestampMs: window.startMs,
             standardSnapshot,
@@ -82,13 +80,13 @@ function createActivityHistoryHelpers(bindings) {
         await setDoc(docRef, payload);
     }
     async function getActivityHistoryDoc(params) {
-        const { firestore, userId, activityId, standardId, periodStartMs } = params;
+        const { firestore, userId, standardId, periodStartMs } = params;
         const collections = (0, collection_layout_1.getUserScopedCollections)({
             firestore,
             userId,
             bindings: { collection, doc },
         });
-        const docId = buildActivityHistoryDocId(activityId, standardId, periodStartMs);
+        const docId = buildActivityHistoryDocId(standardId, periodStartMs);
         const docRef = doc(collections.activityHistory, docId);
         const snapshot = await getDoc(docRef);
         if (!snapshot.exists) {
@@ -101,11 +99,10 @@ function createActivityHistoryHelpers(bindings) {
         return toActivityHistoryDoc(docId, raw);
     }
     async function softDeleteActivityHistoryDoc(params) {
-        const { firestore, userId, activityId, standardId, periodStartMs } = params;
+        const { firestore, userId, standardId, periodStartMs } = params;
         const existing = await getActivityHistoryDoc({
             firestore,
             userId,
-            activityId,
             standardId,
             periodStartMs,
         });
@@ -117,7 +114,7 @@ function createActivityHistoryHelpers(bindings) {
             userId,
             bindings: { collection, doc },
         });
-        const docId = buildActivityHistoryDocId(activityId, standardId, periodStartMs);
+        const docId = buildActivityHistoryDocId(standardId, periodStartMs);
         const docRef = doc(collections.activityHistory, docId);
         // Clean the standardSnapshot to only include fields allowed by Firestore rules.
         // Old docs may have extra fields (e.g., state, quickAddValues) that fail hasOnly.
@@ -183,14 +180,14 @@ function createActivityHistoryHelpers(bindings) {
         }
         return null;
     }
-    function listenActivityHistoryForActivity(params) {
-        const { firestore, userId, activityId, onNext, onError } = params;
+    function listenActivityHistoryForStandard(params) {
+        const { firestore, userId, standardId, onNext, onError } = params;
         const collections = (0, collection_layout_1.getUserScopedCollections)({
             firestore,
             userId,
             bindings: { collection, doc },
         });
-        const historyQuery = query(collections.activityHistory, where('activityId', '==', activityId), orderBy('referenceTimestampMs', 'desc'));
+        const historyQuery = query(collections.activityHistory, where('standardId', '==', standardId), orderBy('referenceTimestampMs', 'desc'));
         return onSnapshot(historyQuery, (snapshot) => {
             const docs = [];
             snapshot.forEach((docSnap) => {
@@ -215,7 +212,7 @@ function createActivityHistoryHelpers(bindings) {
         getActivityHistoryDoc,
         softDeleteActivityHistoryDoc,
         getLatestHistoryForStandard,
-        listenActivityHistoryForActivity,
+        listenActivityHistoryForStandard,
     };
 }
 //# sourceMappingURL=activity-history-helpers.js.map

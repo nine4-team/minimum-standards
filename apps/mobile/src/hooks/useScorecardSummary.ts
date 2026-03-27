@@ -3,11 +3,10 @@ import type { ActivityHistoryDoc } from '@minimum-standards/shared-model';
 import type { TimeRange } from '../components/RangeFilterDrawer';
 import { firebaseAuth } from '../firebase/firebaseApp';
 import { useStandards } from './useStandards';
-import { useActivities } from './useActivities';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
-import { listenActivityHistoryForActivity } from '../utils/activityHistoryFirestore';
+import { listenActivityHistoryForStandard } from '../utils/activityHistoryFirestore';
 import { mergeActivityHistoryRows, MergedActivityHistoryRow } from '../utils/activityHistory';
-import { buildActivitySummaryCards, ActivitySummaryCard } from '../utils/scorecardSummary';
+import { buildStandardSummaryCards, StandardSummaryCard } from '../utils/scorecardSummary';
 
 const TIME_RANGE_DAYS: Record<TimeRange, number | null> = {
   '7d': 7,
@@ -17,7 +16,7 @@ const TIME_RANGE_DAYS: Record<TimeRange, number | null> = {
 };
 
 /**
- * Hook that manages multi-activity Firestore subscriptions and computes
+ * Hook that manages multi-standard Firestore subscriptions and computes
  * summary cards for the scorecard summary screen.
  *
  * Uses only persisted activity history rows (completed periods). The current
@@ -25,48 +24,43 @@ const TIME_RANGE_DAYS: Record<TimeRange, number | null> = {
  * through to the detail screen they see full data including the current period.
  */
 export function useScorecardSummary(): {
-  cards: ActivitySummaryCard[];
+  cards: StandardSummaryCard[];
   loading: boolean;
   error: Error | null;
 } {
   const userId = firebaseAuth.currentUser?.uid ?? null;
   const { standards, loading: standardsLoading, error: standardsError } = useStandards();
-  const { allActivities: activities, loading: activitiesLoading, error: activitiesError } = useActivities();
   const scorecardTimeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
   const showInactiveStandards = useUIPreferencesStore((s) => s.showInactiveStandards);
 
-  const [persistedRowsByActivity, setPersistedRowsByActivity] = useState<
+  const [persistedRowsByStandard, setPersistedRowsByStandard] = useState<
     Record<string, ActivityHistoryDoc[]>
   >({});
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<Error | null>(null);
 
-  // Determine which activities are relevant based on their standards
-  const relevantActivityIds = useMemo(() => {
-    const activityHasActiveStandard = new Set<string>();
-    const activityHasAnyStandard = new Set<string>();
+  // Determine which standards are relevant
+  const relevantStandardIds = useMemo(() => {
+    const ids: string[] = [];
 
     for (const standard of standards) {
-      activityHasAnyStandard.add(standard.activityId);
-      if (standard.state === 'active' && standard.archivedAtMs === null) {
-        activityHasActiveStandard.add(standard.activityId);
+      if (showInactiveStandards) {
+        ids.push(standard.id);
+      } else if (standard.state === 'active' && standard.archivedAtMs === null) {
+        ids.push(standard.id);
       }
     }
 
-    const relevantSet = showInactiveStandards
-      ? activityHasAnyStandard
-      : activityHasActiveStandard;
-
-    return Array.from(relevantSet).sort();
+    return ids.sort();
   }, [standards, showInactiveStandards]);
 
-  // Stable string key for the activity IDs array to use as a useEffect dependency
-  const relevantActivityIdsKey = relevantActivityIds.join(',');
+  // Stable string key for the standard IDs array to use as a useEffect dependency
+  const relevantStandardIdsKey = relevantStandardIds.join(',');
 
-  // Subscribe to activity history for each relevant activity
+  // Subscribe to activity history for each relevant standard
   useEffect(() => {
-    if (!userId || relevantActivityIds.length === 0) {
-      setPersistedRowsByActivity({});
+    if (!userId || relevantStandardIds.length === 0) {
+      setPersistedRowsByStandard({});
       setHistoryLoading(false);
       return;
     }
@@ -78,16 +72,16 @@ export function useScorecardSummary(): {
     const rowsMap: Record<string, ActivityHistoryDoc[]> = {};
     let loadedCount = 0;
 
-    for (const actId of relevantActivityIds) {
-      const unsub = listenActivityHistoryForActivity({
+    for (const stdId of relevantStandardIds) {
+      const unsub = listenActivityHistoryForStandard({
         userId,
-        activityId: actId,
+        standardId: stdId,
         onNext: (docs) => {
-          rowsMap[actId] = docs;
+          rowsMap[stdId] = docs;
           loadedCount += 1;
           // Update state with a copy to trigger re-render
-          setPersistedRowsByActivity({ ...rowsMap });
-          if (loadedCount >= relevantActivityIds.length) {
+          setPersistedRowsByStandard({ ...rowsMap });
+          if (loadedCount >= relevantStandardIds.length) {
             setHistoryLoading(false);
           }
         },
@@ -101,38 +95,38 @@ export function useScorecardSummary(): {
 
     return () => unsubscribes.forEach((fn) => fn());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, relevantActivityIdsKey]);
+  }, [userId, relevantStandardIdsKey]);
 
   // Merge persisted rows (no synthetic current-period rows in the simplified approach)
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 
-  const mergedRowsByActivity = useMemo(() => {
+  const mergedRowsByStandard = useMemo(() => {
     const result: Record<string, MergedActivityHistoryRow[]> = {};
 
-    for (const activityId of relevantActivityIds) {
-      const persisted = persistedRowsByActivity[activityId] ?? [];
+    for (const standardId of relevantStandardIds) {
+      const persisted = persistedRowsByStandard[standardId] ?? [];
       const merged = mergeActivityHistoryRows({
         persistedRows: persisted,
         syntheticRows: [],
         timezone,
         nowMs: Date.now(),
       });
-      result[activityId] = merged;
+      result[standardId] = merged;
     }
 
     return result;
-  }, [relevantActivityIds, persistedRowsByActivity, timezone]);
+  }, [relevantStandardIds, persistedRowsByStandard, timezone]);
 
   // Apply time range filter
-  const filteredRowsByActivity = useMemo(() => {
+  const filteredRowsByStandard = useMemo(() => {
     const nowMs = Date.now();
     const rangeDays = TIME_RANGE_DAYS[scorecardTimeRange];
     const rangeStartMs = rangeDays ? nowMs - rangeDays * 24 * 60 * 60 * 1000 : 0;
 
     const result: Record<string, MergedActivityHistoryRow[]> = {};
 
-    for (const activityId of relevantActivityIds) {
-      const rows = mergedRowsByActivity[activityId] ?? [];
+    for (const standardId of relevantStandardIds) {
+      const rows = mergedRowsByStandard[standardId] ?? [];
       let filtered: MergedActivityHistoryRow[];
 
       if (scorecardTimeRange === 'All') {
@@ -142,27 +136,26 @@ export function useScorecardSummary(): {
           (row) => row.periodStartMs < nowMs && row.periodEndMs >= rangeStartMs
         );
       }
-      result[activityId] = filtered;
+      result[standardId] = filtered;
     }
 
     return result;
-  }, [relevantActivityIds, mergedRowsByActivity, scorecardTimeRange]);
+  }, [relevantStandardIds, mergedRowsByStandard, scorecardTimeRange]);
 
   // Build final summary cards
   const cards = useMemo(() => {
-    return buildActivitySummaryCards({
-      activities,
+    return buildStandardSummaryCards({
       standards,
-      mergedRowsByActivity: filteredRowsByActivity,
+      mergedRowsByStandard: filteredRowsByStandard,
       includeInactive: showInactiveStandards,
     });
-  }, [activities, standards, filteredRowsByActivity, showInactiveStandards]);
+  }, [standards, filteredRowsByStandard, showInactiveStandards]);
 
-  // Aggregate loading state: loading until standards, activities, AND history are all ready
-  const loading = standardsLoading || activitiesLoading || historyLoading;
+  // Aggregate loading state: loading until standards AND history are all ready
+  const loading = standardsLoading || historyLoading;
 
   // First error encountered wins
-  const error = standardsError ?? activitiesError ?? historyError ?? null;
+  const error = standardsError ?? historyError ?? null;
 
   return { cards, loading, error };
 }

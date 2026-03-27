@@ -19,7 +19,7 @@ import { useSnapshots } from '../hooks/useSnapshots';
 import { buildSnapshotShareUrl } from '../utils/snapshotLinks';
 import { shareSnapshotLink } from '../utils/shareSnapshotLink';
 import type { SettingsStackParamList } from '../navigation/types';
-import type { ShareLinkRecord, SnapshotStandard } from '../types/snapshots';
+import type { ShareLinkRecord, SnapshotStandard, SnapshotStandardV2 } from '../types/snapshots';
 
 export function SnapshotDetailScreen() {
   const theme = useTheme();
@@ -137,10 +137,12 @@ export function SnapshotDetailScreen() {
 
   const activityNameMap = useMemo(() => {
     const map = new Map<string, string>();
-    const activities = snapshot?.payload.activities ?? [];
-    activities.forEach((activity) => {
-      map.set(activity.id, activity.name);
-    });
+    const payload = snapshot?.payload;
+    if (payload && 'activities' in payload && payload.activities) {
+      payload.activities.forEach((activity) => {
+        map.set(activity.id, activity.name);
+      });
+    }
     return map;
   }, [snapshot]);
   const categoryNameMap = useMemo(() => {
@@ -151,7 +153,7 @@ export function SnapshotDetailScreen() {
     });
     return map;
   }, [snapshot]);
-  const formatStandardSummary = (standard: SnapshotStandard) => {
+  const formatStandardSummary = (standard: SnapshotStandard | SnapshotStandardV2) => {
     const { interval, unit: cadenceUnit } = standard.cadence;
     const cadenceLabel = interval === 1 ? cadenceUnit : `${interval} ${cadenceUnit}s`;
     const base = `${standard.minimum} ${standard.unit} per ${cadenceLabel}`;
@@ -341,7 +343,9 @@ export function SnapshotDetailScreen() {
             <Text style={[styles.emptyText, { color: theme.text.secondary }]}>No standards.</Text>
           ) : (
             snapshot.payload.standards.map((standard, index) => {
-              const activityName = activityNameMap.get(standard.activityId) ?? 'Activity';
+              const activityName = 'name' in standard
+                ? (standard as SnapshotStandardV2).name
+                : activityNameMap.get((standard as SnapshotStandard).activityId) ?? 'Standard';
               return (
                 <View
                   key={standard.id}
