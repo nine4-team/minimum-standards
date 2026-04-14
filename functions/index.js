@@ -1,7 +1,11 @@
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
+const { defineSecret } = require('firebase-functions/params');
+const Anthropic = require('@anthropic-ai/sdk');
 
 admin.initializeApp();
+
+const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 
 function escapeHtml(value) {
   return String(value)
@@ -112,4 +116,97 @@ exports.sharePage = functions.https.onRequest(async (req, res) => {
     res.status(500).send('Failed to render share preview.');
   }
 });
+
+// --- suggestStandards ---
+
+const SUGGEST_SYSTEM_PROMPT = `You help people create recurring minimum commitments ("standards") for self-improvement.
+A standard has an activity name (e.g. "Running") and a unit of measurement (e.g. "minutes", "miles").
+
+Given what the user wants to improve, suggest 4-5 specific, measurable activities.
+For each activity, suggest 3-4 concrete units of measurement.
+Prefer specific over vague. Units should be countable.
+
+Respond ONLY with valid JSON matching this exact schema — no markdown, no explanation:
+{
+  "suggestions": [
+    { "name": "Activity Name", "units": ["unit1", "unit2", "unit3"] }
+  ]
+}`;
+
+const DAILY_SUGGEST_LIMIT = 20;
+
+async function checkRateLimit(uid) {
+  const ref = admin.firestore().doc(`users/${uid}/rateLimits/suggestStandards`);
+  const doc = await ref.get();
+  const now = Date.now();
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayMs = todayStart.getTime();
+
+  if (doc.exists) {
+    const data = doc.data();
+    if (data.windowStartMs >= todayMs) {
+      if (data.count >= DAILY_SUGGEST_LIMIT) {
+        return false;
+      }
+      await ref.update({ count: admin.firestore.FieldValue.increment(1) });
+      return true;
+    }
+  }
+  await ref.set({ count: 1, windowStartMs: todayMs });
+  return true;
+}
+
+exports.suggestStandards = functions.https.onCall(
+  { secrets: [anthropicApiKey] },
+  async (request) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const userInput = (request.data && request.data.userInput) || '';
+    const trimmed = String(userInput).trim();
+    if (!trimmed || trimmed.length > 500) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Please enter a description (max 500 characters).'
+      );
+    }
+
+    const allowed = await checkRateLimit(request.auth.uid);
+    if (!allowed) {
+      throw new functions.https.HttpsError(
+        'resource-exhausted',
+        'Daily suggestion limit reached. Try again tomorrow.'
+      );
+    }
+
+    try {
+      const client = new Anthropic({ apiKey: anthropicApiKey.value() });
+      const message = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        temperature: 0.7,
+        system: SUGGEST_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: trimmed }],
+      });
+
+      const text = message.content[0].text;
+      const parsed = JSON.parse(text);
+
+      if (!Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
+        throw new Error('Empty suggestions');
+      }
+
+      return { suggestions: parsed.suggestions };
+    } catch (err) {
+      if (err instanceof functions.https.HttpsError) throw err;
+      console.error('suggestStandards error:', err);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Something went wrong. Please try again.'
+      );
+    }
+  }
+);
 
