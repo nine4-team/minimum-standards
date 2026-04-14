@@ -69,16 +69,6 @@ export function SettingsScreen() {
           { backgroundColor: theme.background.surface }
         ]}>
           <TouchableOpacity
-            style={[styles.optionRow, { borderBottomColor: theme.border.secondary }]}
-            onPress={() => navigation.navigate('Categories')}
-          >
-            <View style={styles.optionLabelContainer}>
-              <MaterialIcons name="local-offer" size={22} color={theme.text.primary} style={styles.optionIcon} />
-              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Categories</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={theme.text.secondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
             style={styles.optionRow}
             onPress={() => navigation.navigate('StandardsLibrary')}
           >

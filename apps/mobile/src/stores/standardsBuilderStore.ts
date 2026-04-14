@@ -15,8 +15,6 @@ export interface StandardsBuilderState {
   setUnit: (unit: string) => void;
   notes: string | null;
   setNotes: (notes: string | null) => void;
-  categoryId: string | null;
-  setCategoryId: (categoryId: string | null) => void;
 
   // Cadence configuration
   cadence: StandardCadence | null;
@@ -61,7 +59,6 @@ export interface StandardsBuilderState {
   generatePayload: () => {
     name: string;
     notes: string | null;
-    categoryId: string | null;
     minimum: number;
     unit: string;
     cadence: StandardCadence;
@@ -80,7 +77,6 @@ const initialState = {
   name: '',
   unit: '',
   notes: null as string | null,
-  categoryId: null as string | null,
   cadence: defaultWeeklyCadence,
   goalTotal: null,
   unitOverride: null,
@@ -140,10 +136,6 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
 
   setNotes: (notes) => {
     set({ notes });
-  },
-
-  setCategoryId: (categoryId) => {
-    set({ categoryId });
   },
 
   setCadence: (cadence) => {
@@ -277,7 +269,6 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
     return {
       name: state.name.trim(),
       notes: state.notes,
-      categoryId: state.categoryId,
       minimum,
       unit: effectiveUnit,
       cadence: state.cadence,
@@ -299,7 +290,6 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
         name: standard.name,
         unit: standard.unit,
         notes: standard.notes,
-        categoryId: standard.categoryId ?? null,
         cadence: standard.cadence,
         goalTotal: standard.minimum,
         unitOverride: null,

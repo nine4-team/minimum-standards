@@ -40,7 +40,6 @@ export type ScorecardStackParamList = {
 
 export type SettingsStackParamList = {
   SettingsRoot: undefined;
-  Categories: { backTo?: 'Dashboard' } | undefined;
   StandardsLibrary: undefined;
   Snapshots: undefined;
   SnapshotCreate: undefined;

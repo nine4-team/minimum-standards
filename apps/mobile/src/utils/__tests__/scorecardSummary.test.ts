@@ -15,7 +15,6 @@ const makeActivity = (overrides: Partial<Activity> = {}): Activity => ({
   name: 'Push-ups',
   unit: 'reps',
   notes: null,
-  categoryId: null,
   createdAtMs: 1000,
   updatedAtMs: 1000,
   deletedAtMs: null,
@@ -39,7 +38,6 @@ const makeStandard = (overrides: Partial<Standard> = {}): Standard => ({
     sessionsPerCadence: 1,
     volumePerSession: 100,
   },
-  categoryId: null,
   ...overrides,
 });
 

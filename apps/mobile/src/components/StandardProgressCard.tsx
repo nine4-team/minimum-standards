@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import type { Standard } from '@minimum-standards/shared-model';
-import { formatUnitWithCount, UNCATEGORIZED_CATEGORY_ID } from '@minimum-standards/shared-model';
+import { formatUnitWithCount } from '@minimum-standards/shared-model';
 
 /** Minimal standard shape needed by the card — satisfied by both Standard and ActivityHistoryStandardSnapshot. */
 export type StandardProgressCardStandard = Pick<Standard, 'sessionConfig' | 'unit' | 'minimum'>;
@@ -35,11 +35,6 @@ export interface StandardProgressCardProps {
   showLogButton?: boolean;
   onLogPress?: () => void;
   onCardPress?: () => void;
-  categorizeLabel?: string;
-  onCategorize?: () => void;
-  categoryOptions?: Array<{ id: string; name: string }>;
-  selectedCategoryId?: string;
-  onAssignCategoryId?: (categoryId: string) => void | Promise<void>;
   onEdit?: () => void;
   onDelete?: () => void;
   onDeactivate?: () => void;
@@ -87,11 +82,6 @@ export function StandardProgressCard({
   showLogButton = false,
   onLogPress,
   onCardPress,
-  categorizeLabel,
-  onCategorize,
-  categoryOptions,
-  selectedCategoryId,
-  onAssignCategoryId,
   onEdit,
   onDelete,
   onDeactivate,
@@ -105,7 +95,6 @@ export function StandardProgressCard({
 }: StandardProgressCardProps) {
   const theme = useTheme();
   const [menuVisible, setMenuVisible] = useState(false);
-  const [categorizeMenuVisible, setCategorizeMenuVisible] = useState(false);
 
   const isCompact = variant === 'compact';
 
@@ -161,9 +150,7 @@ export function StandardProgressCard({
     setMenuVisible(true);
   }, [onMenuPress]);
 
-  const showCategorizeSubmenu = Boolean(onAssignCategoryId) && (categoryOptions?.length ?? 0) > 0;
-  const showCategorizeAction = Boolean(onCategorize) && !showCategorizeSubmenu;
-  const showMenu = Boolean(onMenuPress || showCategorizeSubmenu || showCategorizeAction || onEdit || onDeactivate || onDelete || onViewLogs);
+  const showMenu = Boolean(onMenuPress || onEdit || onDeactivate || onDelete || onViewLogs);
 
   const menuItems: BottomSheetMenuItem[] = (() => {
     const items: BottomSheetMenuItem[] = [];
@@ -172,12 +159,6 @@ export function StandardProgressCard({
     }
     if (onViewLogs) {
       items.push({ key: 'view-logs', label: 'View Logs', icon: 'history', onPress: () => onViewLogs() });
-    }
-    if (showCategorizeSubmenu) {
-      items.push({ key: 'categorize', label: categorizeLabel ?? 'Category', icon: 'format-list-bulleted', onPress: () => setCategorizeMenuVisible(true) });
-    }
-    if (showCategorizeAction) {
-      items.push({ key: 'categorize-action', label: categorizeLabel ?? 'Category', onPress: () => onCategorize?.() });
     }
     if (onEdit) {
       items.push({ key: 'edit', label: 'Edit', icon: 'edit', onPress: () => onEdit() });
@@ -189,24 +170,6 @@ export function StandardProgressCard({
       items.push({ key: 'delete', label: 'Delete', icon: 'delete', onPress: () => onDelete(), destructive: true });
     }
     return items;
-  })();
-
-  const categoryMenuItems: BottomSheetMenuItem[] = (() => {
-    if (!categoryOptions) return [];
-    return [
-      ...categoryOptions.map((c) => ({
-        key: c.id,
-        label: c.name,
-        icon: selectedCategoryId === c.id ? 'check' : undefined,
-        onPress: () => onAssignCategoryId?.(c.id),
-      })),
-      {
-        key: UNCATEGORIZED_CATEGORY_ID,
-        label: 'Uncategorized',
-        icon: selectedCategoryId === UNCATEGORIZED_CATEGORY_ID ? 'check' : undefined,
-        onPress: () => onAssignCategoryId?.(UNCATEGORIZED_CATEGORY_ID),
-      },
-    ];
   })();
 
   return (
@@ -361,15 +324,6 @@ export function StandardProgressCard({
       onRequestClose={() => setMenuVisible(false)}
       items={menuItems}
     />
-
-    {showCategorizeSubmenu && (
-      <BottomSheetMenu
-        visible={categorizeMenuVisible}
-        onRequestClose={() => setCategorizeMenuVisible(false)}
-        title="Category"
-        items={categoryMenuItems}
-      />
-    )}
     </>
   );
 }

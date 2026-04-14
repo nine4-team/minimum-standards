@@ -39,17 +39,6 @@ export type Activity = SoftDelete &
     name: string;
     unit: string;
     notes: string | null;
-    categoryId: string | null; // null means Uncategorized
-  };
-
-export const UNCATEGORIZED_CATEGORY_ID = 'uncategorized' as const;
-
-export type Category = SoftDelete &
-  AuditTimestamps & {
-    id: string;
-    name: string;
-    order: number; // Lower numbers appear first
-    isSystem?: boolean; // true for Uncategorized category
   };
 
 export type Standard = SoftDelete &
@@ -66,7 +55,6 @@ export type Standard = SoftDelete &
     sessionConfig: StandardSessionConfig; // Required: session-based configuration
     periodStartPreference?: PeriodStartPreference;
     configEras?: ConfigEra[];
-    categoryId: string | null; // null means Uncategorized
     notes: string | null;
     /** @deprecated Kept for migration compatibility. Will be removed in a future release. */
     activityId?: string;

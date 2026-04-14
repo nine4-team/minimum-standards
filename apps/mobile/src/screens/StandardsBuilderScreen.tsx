@@ -26,7 +26,8 @@ import {
   validateCadence,
   isPresetCadence,
 } from '../utils/cadenceUtils';
-import { useStandards } from '../hooks/useStandards';
+import { useStandards, ActiveCapExceededError } from '../hooks/useStandards';
+import { ArchiveToMakeRoomSheet } from '../components/ArchiveToMakeRoomSheet';
 import { trackStandardEvent } from '../utils/analytics';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { Standard } from '@minimum-standards/shared-model';
@@ -61,8 +62,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     setUnit: setStandardUnit,
     notes: standardNotes,
     setNotes: setStandardNotes,
-    categoryId: standardCategoryId,
-    setCategoryId: setStandardCategoryId,
     cadence,
     setCadence,
     goalTotal,
@@ -84,7 +83,16 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     reset,
   } = useStandardsBuilderStore();
 
-  const { createStandard, updateStandard, standards, unarchiveStandard } = useStandards();
+  const {
+    createStandard,
+    updateStandard,
+    standards,
+    unarchiveStandard,
+    archiveStandard,
+    activeStandards,
+  } = useStandards();
+  const [capSheetVisible, setCapSheetVisible] = useState(false);
+  const [pendingRetry, setPendingRetry] = useState<(() => Promise<void>) | null>(null);
   const [standardsLibraryVisible, setStandardsLibraryVisible] = useState(false);
   const [activePreset, setActivePreset] = useState<CadencePreset | null>('weekly');
   const [customIntervalInput, setCustomIntervalInput] = useState('1');
@@ -122,7 +130,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     setStandardName(standardToEdit.name);
     setStandardUnit(standardToEdit.unit);
     setStandardNotes(standardToEdit.notes ?? null);
-    setStandardCategoryId(standardToEdit.categoryId ?? null);
     setCadence(standardToEdit.cadence);
     setUnitOverride(null);
     
@@ -172,7 +179,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     setStandardName,
     setStandardUnit,
     setStandardNotes,
-    setStandardCategoryId,
     setSessionLabel,
     setSessionsPerCadence,
     setUnitOverride,
@@ -206,7 +212,6 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     setStandardName(standard.name);
     setStandardUnit(standard.unit);
     setStandardNotes(standard.notes ?? null);
-    setStandardCategoryId(standard.categoryId ?? null);
     setCadence(standard.cadence);
     setUnitOverride(null);
     
@@ -345,7 +350,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     setSaveError(null);
   };
 
-  const handleSave = async () => {
+  const handleSave = async ({ bypassCap = false }: { bypassCap?: boolean } = {}) => {
     setSaveError(null);
     if (!standardName.trim()) {
       setSaveError('Enter a name for your standard');
@@ -420,7 +425,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
             matchingStandard.state === 'archived' ||
             matchingStandard.archivedAtMs !== null
           ) {
-            await unarchiveStandard(matchingStandard.id);
+            await unarchiveStandard(matchingStandard.id, { bypassCap });
             Alert.alert(
               'Standard activated',
               'An existing inactive Standard has been activated.'
@@ -434,10 +439,13 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
           }
         } else {
           // No duplicate found: create new Standard
-          const newStandard = await createStandard({
-            ...standardPayload,
-            periodStartPreference: preference,
-          });
+          const newStandard = await createStandard(
+            {
+              ...standardPayload,
+              periodStartPreference: preference,
+            },
+            { bypassCap }
+          );
           trackStandardEvent('standard_create', {
             standardName: payload.name,
             archived: false,
@@ -450,6 +458,11 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
         resetForm();
       }
     } catch (err) {
+      if (err instanceof ActiveCapExceededError) {
+        setPendingRetry(() => () => handleSave({ bypassCap: true }));
+        setCapSheetVisible(true);
+        return;
+      }
       setSaveError(
         err instanceof Error ? err.message : 'Failed to save Standard'
       );
@@ -920,7 +933,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
                 { backgroundColor: theme.button.primary.background },
                 saving && styles.primaryButtonDisabled,
               ]}
-              onPress={handleSave}
+              onPress={() => handleSave()}
               disabled={saving}
             >
               <Text style={[styles.primaryButtonText, { fontSize: typography.button.primary.fontSize, fontWeight: typography.button.primary.fontWeight, color: theme.button.primary.text }]}>
@@ -935,6 +948,26 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
         visible={standardsLibraryVisible}
         onClose={() => setStandardsLibraryVisible(false)}
         onSelectStandard={handleStandardSelect}
+      />
+
+      <ArchiveToMakeRoomSheet
+        visible={capSheetVisible}
+        activeStandards={activeStandards}
+        onRequestClose={() => {
+          setCapSheetVisible(false);
+          setPendingRetry(null);
+        }}
+        onArchive={async (id) => {
+          setCapSheetVisible(false);
+          try {
+            await archiveStandard(id);
+            if (pendingRetry) {
+              await pendingRetry();
+            }
+          } finally {
+            setPendingRetry(null);
+          }
+        }}
       />
     </KeyboardAvoidingView>
   );

@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
 import { StepHeader } from '../../navigation/CreateStandardFlow';
 import { CreateStandardFlowParamList, MainStackParamList } from '../../navigation/types';
-import { useCategories } from '../../hooks/useCategories';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
 import { useTheme } from '../../theme/useTheme';
 
@@ -27,44 +26,16 @@ export function SelectActivityStep() {
   const flowNavigation = useNavigation<FlowNav>();
   const mainNavigation = useNavigation<MainNav>();
 
-  const { orderedCategories, createCategory } = useCategories();
-
   const standardName = useStandardsBuilderStore((s) => s.name);
   const setStandardName = useStandardsBuilderStore((s) => s.setName);
   const standardUnit = useStandardsBuilderStore((s) => s.unit);
   const setStandardUnit = useStandardsBuilderStore((s) => s.setUnit);
   const standardNotes = useStandardsBuilderStore((s) => s.notes);
   const setStandardNotes = useStandardsBuilderStore((s) => s.setNotes);
-  const standardCategoryId = useStandardsBuilderStore((s) => s.categoryId);
-  const setStandardCategoryId = useStandardsBuilderStore((s) => s.setCategoryId);
 
   const resetBuilder = useStandardsBuilderStore((s) => s.reset);
 
   const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [isSavingCategory, setIsSavingCategory] = useState(false);
-
-  const handleCreateCategory = useCallback(async () => {
-    const trimmed = newCategoryName.trim();
-    if (!trimmed || isSavingCategory) return;
-    setIsSavingCategory(true);
-    try {
-      const created = await createCategory({ name: trimmed });
-      setStandardCategoryId(created.id);
-      setNewCategoryName('');
-      setIsCreatingCategory(false);
-    } catch (err) {
-      console.error('[SelectActivityStep] Failed to create category:', err);
-    } finally {
-      setIsSavingCategory(false);
-    }
-  }, [newCategoryName, isSavingCategory, createCategory, setStandardCategoryId]);
-
-  const handleCancelCreateCategory = useCallback(() => {
-    setNewCategoryName('');
-    setIsCreatingCategory(false);
-  }, []);
 
   const handleClose = useCallback(() => {
     resetBuilder();
@@ -197,141 +168,6 @@ export function SelectActivityStep() {
             placeholderTextColor={theme.input.placeholder}
             autoCorrect={false}
           />
-        </View>
-
-        {/* Category picker */}
-        <View style={styles.fieldSection}>
-          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>
-            Category (Optional)
-          </Text>
-          <View style={styles.categoryRow}>
-            <TouchableOpacity
-              style={[
-                styles.categoryChip,
-                {
-                  borderColor: standardCategoryId === null
-                    ? theme.button.primary.background
-                    : theme.border.primary,
-                  backgroundColor: standardCategoryId === null
-                    ? theme.background.surface
-                    : theme.background.chrome,
-                },
-              ]}
-              onPress={() => setStandardCategoryId(null)}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  {
-                    color: standardCategoryId === null ? theme.text.primary : theme.text.secondary,
-                    fontWeight: standardCategoryId === null ? '600' : '400',
-                  },
-                ]}
-              >
-                None
-              </Text>
-            </TouchableOpacity>
-            {orderedCategories.map((cat) => {
-              const isActive = standardCategoryId === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      borderColor: isActive
-                        ? theme.button.primary.background
-                        : theme.border.primary,
-                      backgroundColor: isActive
-                        ? theme.background.surface
-                        : theme.background.chrome,
-                    },
-                  ]}
-                  onPress={() => setStandardCategoryId(cat.id)}
-                >
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      {
-                        color: isActive ? theme.text.primary : theme.text.secondary,
-                        fontWeight: isActive ? '600' : '400',
-                      },
-                    ]}
-                  >
-                    {cat.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            {isCreatingCategory ? (
-              <View style={styles.newCategoryInputRow}>
-                <TextInput
-                  style={[
-                    styles.newCategoryInput,
-                    {
-                      backgroundColor: theme.input.background,
-                      borderColor: theme.button.primary.background,
-                      color: theme.input.text,
-                    },
-                  ]}
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  placeholder="Category name"
-                  placeholderTextColor={theme.input.placeholder}
-                  autoFocus
-                  maxLength={50}
-                  onSubmitEditing={handleCreateCategory}
-                  onBlur={() => {
-                    if (!newCategoryName.trim()) {
-                      handleCancelCreateCategory();
-                    }
-                  }}
-                  editable={!isSavingCategory}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.newCategoryConfirm,
-                    {
-                      backgroundColor: newCategoryName.trim()
-                        ? theme.button.primary.background
-                        : theme.button.disabled.background,
-                    },
-                  ]}
-                  onPress={handleCreateCategory}
-                  disabled={!newCategoryName.trim() || isSavingCategory}
-                >
-                  <MaterialIcons
-                    name="check"
-                    size={18}
-                    color={newCategoryName.trim()
-                      ? theme.button.primary.text
-                      : theme.button.disabled.text}
-                  />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[
-                  styles.categoryChip,
-                  {
-                    borderColor: theme.border.primary,
-                    borderStyle: 'dashed',
-                    backgroundColor: theme.background.chrome,
-                  },
-                ]}
-                onPress={() => setIsCreatingCategory(true)}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    { color: theme.text.secondary },
-                  ]}
-                >
-                  + New
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
         </View>
 
         {/* Notes field */}
@@ -482,40 +318,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 80,
     textAlignVertical: 'top',
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1.5,
-    borderRadius: 20,
-  },
-  categoryChipText: {
-    fontSize: 14,
-  },
-  newCategoryInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  newCategoryInput: {
-    borderWidth: 1.5,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    fontSize: 14,
-    minWidth: 120,
-  },
-  newCategoryConfirm: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   // Footer styles
   footer: {

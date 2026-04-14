@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   View,
   Alert,
-  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,11 +14,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { SETTINGS_TAB_ROUTE_NAME } from '../navigation/types';
 import type { Standard } from '@minimum-standards/shared-model';
-import { UNCATEGORIZED_CATEGORY_ID } from '@minimum-standards/shared-model';
 import { useActiveStandardsDashboard } from '../hooks/useActiveStandardsDashboard';
 import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
-import { useCategories } from '../hooks/useCategories';
-import { useStandards } from '../hooks/useStandards';
+import {
+  useStandards,
+  MAX_ACTIVE_STANDARDS,
+  ActiveCapExceededError,
+} from '../hooks/useStandards';
+import { ArchiveToMakeRoomSheet } from '../components/ArchiveToMakeRoomSheet';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { trackStandardEvent } from '../utils/analytics';
 import { LogEntryModal } from '../components/LogEntryModal';
@@ -57,9 +59,6 @@ export function StandardsScreen({
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('completion');
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
-  const filterTabsScrollRef = useRef<ScrollView>(null);
-  const filterTabLayouts = useRef<Record<string, { x: number; width: number }>>({});
-  
   const {
     dashboardStandards,
     loading,
@@ -72,73 +71,34 @@ export function StandardsScreen({
     nowMs,
   } = useActiveStandardsDashboard();
 
-  const { orderedCategories } = useCategories();
-  const { archivedStandards, unarchiveStandard, deleteStandard, deleteLogEntry, updateStandard } = useStandards();
+  const {
+    archivedStandards,
+    unarchiveStandard,
+    deleteStandard,
+    deleteLogEntry,
+    updateStandard,
+    activeStandards,
+    activeCount,
+  } = useStandards();
 
   // State for inactive standard action menu
   const [inactiveMenuStandard, setInactiveMenuStandard] = useState<Standard | null>(null);
   const [inactiveMenuVisible, setInactiveMenuVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [categorizeMenuEntry, setCategorizeMenuEntry] = useState<DashboardStandard | null>(null);
-  const [categorizeMenuVisible, setCategorizeMenuVisible] = useState(false);
 
   // State for active standard action bottom sheet (T037–T041)
   const [activeMenuStandard, setActiveMenuStandard] = useState<Standard | null>(null);
   const [activeMenuVisible, setActiveMenuVisible] = useState(false);
   const [activeDeactivateConfirmVisible, setActiveDeactivateConfirmVisible] = useState(false);
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
-  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
 
-  const { focusedCategoryId, setFocusedCategoryId, showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
+  // State for the active-cap archive-to-make-room sheet
+  const [capSheetVisible, setCapSheetVisible] = useState(false);
+  const [pendingUnarchiveId, setPendingUnarchiveId] = useState<string | null>(null);
+
+  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
-
-  const customCategories = useMemo(() => {
-    return orderedCategories.filter(
-      (c) => !c.isSystem && c.id !== UNCATEGORIZED_CATEGORY_ID
-    );
-  }, [orderedCategories]);
-
-  const hasCustomCategories = customCategories.length > 0;
-  const cardCategorizeLabel = hasCustomCategories ? 'Category' : 'Create categories';
-
-  const hasInitializedCategoryFilter = useRef(false);
-
-  // Ensure a valid focus filter and default to the first custom category on launch.
-  useEffect(() => {
-    if (!hasCustomCategories) {
-      if (focusedCategoryId !== null) {
-        setFocusedCategoryId(null);
-      }
-      hasInitializedCategoryFilter.current = false;
-      return;
-    }
-
-    if (!hasInitializedCategoryFilter.current) {
-      setFocusedCategoryId(null);
-      hasInitializedCategoryFilter.current = true;
-      return;
-    }
-
-    if (focusedCategoryId === null) {
-      return;
-    }
-
-    const allowed = new Set<string>([
-      ...customCategories.map((c) => c.id),
-      UNCATEGORIZED_CATEGORY_ID,
-    ]);
-    if (!allowed.has(focusedCategoryId)) {
-      setFocusedCategoryId(null);
-    }
-  }, [customCategories, focusedCategoryId, hasCustomCategories, setFocusedCategoryId]);
-
-  const getEffectiveCategoryId = useCallback(
-    (entry: DashboardStandard): string => {
-      return entry.standard.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
-    },
-    []
-  );
 
   const handleLogPress = useCallback(
     (entry: DashboardStandard) => {
@@ -214,6 +174,12 @@ export function StandardsScreen({
     try {
       await unarchiveStandard(standardId);
     } catch (err) {
+      if (err instanceof ActiveCapExceededError) {
+        setPendingUnarchiveId(standardId);
+        setInactiveMenuVisible(false);
+        setCapSheetVisible(true);
+        return;
+      }
       Alert.alert('Error', 'Failed to reactivate standard');
       console.error('Failed to reactivate standard:', err);
     }
@@ -265,172 +231,11 @@ export function StandardsScreen({
     setActiveMenuStandard(null);
   }, [activeMenuStandard, deleteStandard]);
 
-  const activeMenuCategoryId = useMemo(() => {
-    if (!activeMenuStandard) return null;
-    return activeMenuStandard.categoryId ?? null;
-  }, [activeMenuStandard]);
-
-  const handleActiveAssignCategory = useCallback(async (categoryId: string | null) => {
-    if (!activeMenuStandard) return;
-    try {
-      await updateStandard({
-        standardId: activeMenuStandard.id,
-        name: activeMenuStandard.name,
-        notes: activeMenuStandard.notes ?? null,
-        categoryId,
-        minimum: activeMenuStandard.minimum,
-        unit: activeMenuStandard.unit,
-        cadence: activeMenuStandard.cadence,
-        sessionConfig: activeMenuStandard.sessionConfig,
-        periodStartPreference: activeMenuStandard.periodStartPreference ?? undefined,
-      });
-    } catch (err) {
-      Alert.alert('Error', 'Failed to assign category');
-      console.error('Failed to assign category:', err);
-    }
-    setCategoryPickerVisible(false);
-    setActiveMenuStandard(null);
-  }, [activeMenuStandard, updateStandard]);
-
-  const categoryPickerItems = useMemo(() => {
-    if (!activeMenuStandard) return [];
-    return [
-      {
-        key: 'none',
-        label: 'None',
-        icon: activeMenuCategoryId === null ? 'check' : undefined,
-        onPress: () => handleActiveAssignCategory(null),
-      },
-      ...customCategories.map((cat) => ({
-        key: cat.id,
-        label: cat.name,
-        icon: activeMenuCategoryId === cat.id ? 'check' : undefined,
-        onPress: () => handleActiveAssignCategory(cat.id),
-      })),
-    ];
-  }, [activeMenuStandard, activeMenuCategoryId, customCategories, handleActiveAssignCategory]);
-
   const handleViewInactiveLogs = useCallback((standardId: string) => {
     navigation.navigate('StandardPeriodActivityLogs', {
       standardId,
     });
   }, [navigation]);
-
-  // Calculate counts for chips
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    dashboardStandards.forEach((entry) => {
-      const categoryId = getEffectiveCategoryId(entry);
-      counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1);
-    });
-    return { counts, total: dashboardStandards.length };
-  }, [dashboardStandards, getEffectiveCategoryId]);
-
-  const handleFilterTabPress = useCallback(
-    (categoryId: string | null) => {
-      setFocusedCategoryId(categoryId);
-    },
-    [setFocusedCategoryId]
-  );
-
-  const filterTabs = useMemo(() => {
-    const tabs: Array<{
-      key: string;
-      categoryId: string | null;
-      label: string;
-      accessibilityLabel: string;
-    }> = [];
-
-    tabs.push({
-      key: '__all__',
-      categoryId: null,
-      label: `All (${categoryCounts.total})`,
-      accessibilityLabel: `All standards, ${categoryCounts.total} total`,
-    });
-
-    customCategories.forEach((category) => {
-      const count = categoryCounts.counts.get(category.id) ?? 0;
-      tabs.push({
-        key: category.id,
-        categoryId: category.id,
-        label: `${category.name} (${count})`,
-        accessibilityLabel: `${category.name} category, ${count} standards`,
-      });
-    });
-
-    const uncategorizedCount = categoryCounts.counts.get(UNCATEGORIZED_CATEGORY_ID) ?? 0;
-    tabs.push({
-      key: UNCATEGORIZED_CATEGORY_ID,
-      categoryId: UNCATEGORIZED_CATEGORY_ID,
-      label: `Uncategorized (${uncategorizedCount})`,
-      accessibilityLabel: `Uncategorized, ${uncategorizedCount} standards`,
-    });
-
-    return tabs;
-  }, [categoryCounts.counts, categoryCounts.total, customCategories]);
-
-  const selectedFilterTabKey = focusedCategoryId ?? '__all__';
-
-  // Keep the selected tab in view (same behavior as chart tabs).
-  useEffect(() => {
-    const layout = filterTabLayouts.current[selectedFilterTabKey];
-    if (layout && filterTabsScrollRef.current) {
-      filterTabsScrollRef.current.scrollTo({
-        x: layout.x - 16,
-        animated: true,
-      });
-    }
-  }, [selectedFilterTabKey]);
-
-  const handleCategorizePress = useCallback(() => {
-    navigation.navigate(
-      SETTINGS_TAB_ROUTE_NAME as any,
-      { screen: 'Categories', params: { backTo: 'Dashboard' } } as any
-    );
-  }, [navigation]);
-
-  const handleCardCategorize = useCallback(
-    (entry: DashboardStandard) => {
-      if (!hasCustomCategories) {
-        trackStandardEvent('dashboard_categorize_missing_categories', {
-          standardId: entry.standard.id,
-        });
-        handleCategorizePress();
-        return;
-      }
-
-      setCategorizeMenuEntry(entry);
-      setCategorizeMenuVisible(true);
-    },
-    [hasCustomCategories, handleCategorizePress]
-  );
-
-  const handleAssignCategory = useCallback(
-    async (entry: DashboardStandard, categoryId: string) => {
-      const s = entry.standard;
-      try {
-        trackStandardEvent('dashboard_categorize_assign', {
-          standardId: s.id,
-          categoryId,
-        });
-        await updateStandard({
-          standardId: s.id,
-          name: s.name,
-          notes: s.notes ?? null,
-          categoryId: categoryId === UNCATEGORIZED_CATEGORY_ID ? null : categoryId,
-          minimum: s.minimum,
-          unit: s.unit,
-          cadence: s.cadence,
-          sessionConfig: s.sessionConfig,
-          periodStartPreference: s.periodStartPreference ?? undefined,
-        });
-      } catch (err) {
-        Alert.alert('Error', `Failed to assign "${s.name}" to a category`);
-        console.error('Failed to assign category:', err);
-      }
-    },
-    [updateStandard]
-  );
 
   const renderCard = useCallback(
     ({ item }: { item: DashboardStandard }) => {
@@ -473,36 +278,25 @@ export function StandardsScreen({
       return aName.localeCompare(bName);
     };
 
-    const base = dashboardStandards;
-    const filtered =
-      focusedCategoryId === null
-        ? base
-        : base.filter((entry) => getEffectiveCategoryId(entry) === focusedCategoryId);
-    return [...filtered].sort(sortStandards);
-  }, [dashboardStandards, focusedCategoryId, getEffectiveCategoryId, sortOption]);
+    return [...dashboardStandards].sort(sortStandards);
+  }, [dashboardStandards, sortOption]);
 
   // Scroll to a newly created standard's card when it appears in the list
   useEffect(() => {
     if (!pendingScrollToStandardId) return;
-    // Clear category filter so the new card is visible regardless of category
-    if (focusedCategoryId !== null) {
-      setFocusedCategoryId(null);
-    }
     const index = sortedAndFilteredStandards.findIndex(
       (entry) => entry.standard.id === pendingScrollToStandardId
     );
     if (index === -1) return; // standard hasn't appeared in data yet; effect will re-run when it does
     setPendingScrollToStandardId(null);
     setHighlightedStandardId(pendingScrollToStandardId);
-    // Allow FlatList to render the item before scrolling
     setTimeout(() => {
       flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
     }, 300);
-    // Clear highlight after a brief flash
     setTimeout(() => {
       setHighlightedStandardId(null);
     }, 2000);
-  }, [pendingScrollToStandardId, sortedAndFilteredStandards, focusedCategoryId, setFocusedCategoryId, setPendingScrollToStandardId]);
+  }, [pendingScrollToStandardId, sortedAndFilteredStandards, setPendingScrollToStandardId]);
 
   const content = useMemo(() => {
     if (loading && dashboardStandards.length === 0) {
@@ -576,23 +370,6 @@ export function StandardsScreen({
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refreshProgress} />
         }
-        ListEmptyComponent={
-          <View style={styles.emptyFilteredContainer} testID="dashboard-empty-filter">
-            <Text style={[styles.emptyFilteredText, { color: theme.text.secondary }]}>
-              No standards in this category
-            </Text>
-            <TouchableOpacity
-              onPress={() => setFocusedCategoryId(null)}
-              style={[styles.clearFilterButton, { borderColor: theme.border.secondary }]}
-              accessibilityRole="button"
-              accessibilityLabel="Show all standards"
-            >
-              <Text style={[styles.clearFilterButtonText, { color: theme.text.secondary }]}>
-                Show All
-              </Text>
-            </TouchableOpacity>
-          </View>
-        }
         ListFooterComponent={
           showInactiveStandards && archivedStandards.length > 0 ? (
             <View style={styles.inactiveSection}>
@@ -655,7 +432,6 @@ export function StandardsScreen({
     onLaunchBuilder,
     refreshProgress,
     renderCard,
-    setFocusedCategoryId,
     showInactiveStandards,
     theme,
     sortedAndFilteredStandards,
@@ -678,7 +454,9 @@ export function StandardsScreen({
             <MaterialIcons name="hourglass-empty" size={24} color={showTimeBar ? theme.button.icon.icon : theme.text.tertiary} />
           </TouchableOpacity>
         )}
-        <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Standards</Text>
+        <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
+          Standards <Text style={{ color: theme.text.secondary }}>{activeCount}/{MAX_ACTIVE_STANDARDS}</Text>
+        </Text>
         <TouchableOpacity
           onPress={() => setHeaderMenuVisible(true)}
           style={styles.headerMenuButton}
@@ -688,67 +466,6 @@ export function StandardsScreen({
           <MaterialIcons name="more-vert" size={24} color={theme.button.icon.icon} />
         </TouchableOpacity>
       </View>
-
-      {/* Focus Tabs Row */}
-      {dashboardStandards.length > 0 && hasCustomCategories && (
-        <View
-          style={[
-            styles.filterTabsContainer,
-            {
-              backgroundColor: theme.background.chrome,
-              borderBottomColor: theme.border.secondary,
-            },
-          ]}
-        >
-          <ScrollView
-            ref={filterTabsScrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterTabsScrollContent}
-          >
-            {filterTabs.map((tab) => {
-              const isSelected = (tab.categoryId ?? '__all__') === selectedFilterTabKey;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  onLayout={(event) => {
-                    filterTabLayouts.current[tab.key] = event.nativeEvent.layout;
-                    // If this is the selected tab, snap to it immediately (no animation)
-                    if (tab.key === selectedFilterTabKey) {
-                      filterTabsScrollRef.current?.scrollTo({
-                        x: event.nativeEvent.layout.x - 16,
-                        animated: false,
-                      });
-                    }
-                  }}
-                  style={[
-                    styles.filterTab,
-                    isSelected && {
-                      borderBottomColor: theme.tabBar.activeTint,
-                      borderBottomWidth: 3,
-                    },
-                  ]}
-                  onPress={() => handleFilterTabPress(tab.categoryId)}
-                  activeOpacity={0.7}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={tab.accessibilityLabel}
-                >
-                  <Text
-                    style={[
-                      styles.filterTabText,
-                      { color: isSelected ? theme.tabBar.activeTint : theme.text.secondary },
-                      isSelected && { fontWeight: '700' },
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
 
       <ErrorBanner error={error} onRetry={handleRetry} />
 
@@ -842,84 +559,12 @@ export function StandardsScreen({
             },
           },
           {
-            key: 'manage-categories',
-            label: 'Manage Categories',
-            onPress: handleCategorizePress,
-          },
-          {
             key: 'show-inactive',
             label: 'Show Inactive Standards',
             icon: showInactiveStandards ? 'check' : undefined,
             onPress: () => setShowInactiveStandards(!showInactiveStandards),
           },
         ]}
-      />
-
-      <BottomSheetMenu
-        visible={categorizeMenuVisible}
-        onRequestClose={() => {
-          setCategorizeMenuVisible(false);
-          setCategorizeMenuEntry(null);
-        }}
-        title="Category"
-        items={categorizeMenuEntry ? [
-          ...customCategories.map((category) => ({
-            key: category.id,
-            label: category.name,
-            icon: getEffectiveCategoryId(categorizeMenuEntry) === category.id ? 'check' : undefined,
-            onPress: async () => {
-              const s = categorizeMenuEntry.standard;
-              try {
-                trackStandardEvent('dashboard_categorize_assign', {
-                  standardId: s.id,
-                  categoryId: category.id,
-                });
-                await updateStandard({
-                  standardId: s.id,
-                  name: s.name,
-                  notes: s.notes ?? null,
-                  categoryId: category.id,
-                  minimum: s.minimum,
-                  unit: s.unit,
-                  cadence: s.cadence,
-                  sessionConfig: s.sessionConfig,
-                  periodStartPreference: s.periodStartPreference ?? undefined,
-                });
-              } catch (err) {
-                Alert.alert('Error', 'Failed to assign category');
-                console.error('Failed to assign category:', err);
-              }
-            },
-          })),
-          {
-            key: UNCATEGORIZED_CATEGORY_ID,
-            label: 'Uncategorized',
-            icon: getEffectiveCategoryId(categorizeMenuEntry) === UNCATEGORIZED_CATEGORY_ID ? 'check' : undefined,
-            onPress: async () => {
-              const s = categorizeMenuEntry.standard;
-              try {
-                trackStandardEvent('dashboard_categorize_assign', {
-                  standardId: s.id,
-                  categoryId: UNCATEGORIZED_CATEGORY_ID,
-                });
-                await updateStandard({
-                  standardId: s.id,
-                  name: s.name,
-                  notes: s.notes ?? null,
-                  categoryId: null,
-                  minimum: s.minimum,
-                  unit: s.unit,
-                  cadence: s.cadence,
-                  sessionConfig: s.sessionConfig,
-                  periodStartPreference: s.periodStartPreference ?? undefined,
-                });
-              } catch (err) {
-                Alert.alert('Error', 'Failed to assign category');
-                console.error('Failed to assign category:', err);
-              }
-            },
-          },
-        ] : []}
       />
 
       {/* Active standard action bottom sheet (T037) */}
@@ -933,12 +578,6 @@ export function StandardsScreen({
             label: 'Edit',
             icon: 'edit',
             onPress: handleActiveEdit,
-          },
-          {
-            key: 'categorize',
-            label: 'Category',
-            icon: 'format-list-bulleted',
-            onPress: () => setCategoryPickerVisible(true),
           },
           {
             key: 'deactivate',
@@ -994,15 +633,27 @@ export function StandardsScreen({
         }}
       />
 
-      {/* Active standard category picker (T041) */}
-      <BottomSheetMenu
-        visible={categoryPickerVisible}
+      <ArchiveToMakeRoomSheet
+        visible={capSheetVisible}
+        activeStandards={activeStandards}
         onRequestClose={() => {
-          setCategoryPickerVisible(false);
-          setActiveMenuStandard(null);
+          setCapSheetVisible(false);
+          setPendingUnarchiveId(null);
         }}
-        title="Category"
-        items={categoryPickerItems}
+        onArchive={async (id) => {
+          setCapSheetVisible(false);
+          const toReactivate = pendingUnarchiveId;
+          setPendingUnarchiveId(null);
+          try {
+            await archiveStandard(id);
+            if (toReactivate) {
+              await unarchiveStandard(toReactivate, { bypassCap: true });
+            }
+          } catch (err) {
+            Alert.alert('Error', 'Failed to swap active standards');
+            console.error(err);
+          }
+        }}
       />
     </View>
   );
@@ -1196,46 +847,6 @@ const styles = StyleSheet.create({
   listContent: {
     padding: SCREEN_PADDING,
     gap: CARD_LIST_GAP,
-  },
-  emptyFilteredContainer: {
-    paddingTop: 24,
-    alignItems: 'center',
-    gap: 12,
-  },
-  emptyFilteredText: {
-    fontSize: 14,
-  },
-  clearFilterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  clearFilterButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterTabsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-  },
-  filterTabsScrollContent: {
-    flexDirection: 'row',
-    paddingHorizontal: SCREEN_PADDING,
-    paddingRight: 16,
-  },
-  filterTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: -1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterTabText: {
-    fontSize: 13,
-    fontWeight: '500',
   },
   inactiveSection: {
     marginTop: CARD_LIST_GAP,

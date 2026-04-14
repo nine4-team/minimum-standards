@@ -6,13 +6,11 @@ import {
   where,
 } from '@react-native-firebase/firestore';
 import {
-  Category,
   Standard,
   formatStandardSummary,
   normalizeUnitToPlural,
 } from '@minimum-standards/shared-model';
 import { firebaseFirestore } from '../firebase/firebaseApp';
-import { toFirestoreCategory } from './categoryConverter';
 import type { SnapshotPayload, SnapshotPayloadV2 } from '../types/snapshots';
 
 type SnapshotImportErrorCode =
@@ -39,18 +37,6 @@ function normalizeName(value: string): string {
 }
 
 
-function isValidCategories(categories: unknown[]): boolean {
-  return categories.every((category: any) => {
-    return (
-      category
-      && typeof category.id === 'string'
-      && typeof category.name === 'string'
-      && typeof category.order === 'number'
-      && (category.isSystem == null || typeof category.isSystem === 'boolean')
-    );
-  });
-}
-
 function isValidStandardBase(standard: any): boolean {
   return (
     standard
@@ -74,8 +60,7 @@ function isSnapshotPayloadV2(value: unknown): value is SnapshotPayloadV2 {
   if (!value || typeof value !== 'object') return false;
   const payload = value as any;
   if (payload.version !== 2) return false;
-  if (!Array.isArray(payload.categories) || !Array.isArray(payload.standards)) return false;
-  if (!isValidCategories(payload.categories)) return false;
+  if (!Array.isArray(payload.standards)) return false;
   return payload.standards.every((standard: any) => {
     return isValidStandardBase(standard) && typeof standard.name === 'string';
   });
@@ -85,8 +70,7 @@ function isSnapshotPayloadV2(value: unknown): value is SnapshotPayloadV2 {
 function isSnapshotPayloadV1(value: unknown): value is SnapshotPayload {
   if (!value || typeof value !== 'object') return false;
   const payload = value as any;
-  if (!Array.isArray(payload.categories) || !Array.isArray(payload.activities) || !Array.isArray(payload.standards)) return false;
-  if (!isValidCategories(payload.categories)) return false;
+  if (!Array.isArray(payload.activities) || !Array.isArray(payload.standards)) return false;
 
   const activityValid = payload.activities.every((activity: any) => {
     return (
@@ -95,7 +79,6 @@ function isSnapshotPayloadV1(value: unknown): value is SnapshotPayload {
       && typeof activity.name === 'string'
       && typeof activity.unit === 'string'
       && (activity.notes == null || typeof activity.notes === 'string')
-      && (activity.categoryId == null || typeof activity.categoryId === 'string')
     );
   });
   if (!activityValid) return false;
@@ -110,14 +93,12 @@ function convertV1toV2(payload: SnapshotPayload): SnapshotPayloadV2 {
   const activityMap = new Map(payload.activities.map((a) => [a.id, a]));
   return {
     version: 2,
-    categories: payload.categories,
     standards: payload.standards.map((standard) => {
       const activity = activityMap.get(standard.activityId);
       return {
         id: standard.id,
         name: activity?.name ?? 'Unknown',
         notes: activity?.notes ?? null,
-        categoryId: activity?.categoryId ?? null,
         minimum: standard.minimum,
         unit: standard.unit,
         cadence: standard.cadence,
@@ -145,35 +126,20 @@ function normalizePayload(value: unknown): SnapshotPayloadV2 | null {
 
 export function buildSnapshotPayload({
   standards,
-  categories,
   selectedStandardIds,
 }: {
   standards: Standard[];
-  categories: Category[];
   selectedStandardIds: string[];
 }): SnapshotPayloadV2 {
   const selectedSet = new Set(selectedStandardIds);
   const selectedStandards = standards.filter((standard) => selectedSet.has(standard.id));
-  const categoryIds = new Set(
-    selectedStandards
-      .map((standard) => standard.categoryId)
-      .filter((categoryId): categoryId is string => Boolean(categoryId))
-  );
-  const selectedCategories = categories.filter((category) => categoryIds.has(category.id));
 
   return {
     version: 2,
-    categories: selectedCategories.map((category) => ({
-      id: category.id,
-      name: category.name,
-      order: category.order,
-      isSystem: category.isSystem ?? false,
-    })),
     standards: selectedStandards.map((standard) => ({
       id: standard.id,
       name: standard.name,
       notes: standard.notes ?? null,
-      categoryId: standard.categoryId ?? null,
       minimum: standard.minimum,
       unit: standard.unit,
       cadence: standard.cadence,
@@ -197,8 +163,6 @@ export async function importSnapshotForUser({
   isOwnSnapshot: boolean;
   alreadyInstalled: boolean;
   createdCounts: {
-    categories: number;
-    activities: number;
     standards: number;
   };
 }> {
@@ -261,7 +225,7 @@ export async function importSnapshotForUser({
       ownerUserId: snapshotData.ownerUserId,
       isOwnSnapshot: true,
       alreadyInstalled: false,
-      createdCounts: { categories: 0, activities: 0, standards: 0 },
+      createdCounts: { standards: 0 },
     };
   }
 
@@ -276,28 +240,17 @@ export async function importSnapshotForUser({
       ownerUserId: snapshotData.ownerUserId,
       isOwnSnapshot: false,
       alreadyInstalled: true,
-      createdCounts: { categories: 0, activities: 0, standards: 0 },
+      createdCounts: { standards: 0 },
     };
   }
 
-  const categoriesQuery = query(
-    collection(doc(firebaseFirestore, 'users', userId), 'categories'),
-    where('deletedAt', '==', null)
-  );
   const standardsQuery = query(
     collection(doc(firebaseFirestore, 'users', userId), 'standards'),
     where('deletedAt', '==', null)
   );
 
-  const [categoriesSnapshot, standardsSnapshot] = await Promise.all([
-    categoriesQuery.get(),
-    standardsQuery.get(),
-  ]);
+  const standardsSnapshot = await standardsQuery.get();
 
-  const existingCategories = categoriesSnapshot.docs.map((item) => ({
-    id: item.id,
-    ...(item.data() as any),
-  }));
   const existingStandardDocs = new Map<string, { ref: any; data: Record<string, any> }>();
   const existingStandards = standardsSnapshot.docs.map((item) => {
     const data = item.data() as Record<string, any>;
@@ -312,37 +265,7 @@ export async function importSnapshotForUser({
     };
   }) as Standard[];
 
-  const categoryNameMap = new Map<string, string>();
-  existingCategories.forEach((category) => {
-    if (typeof category.name === 'string') {
-      categoryNameMap.set(normalizeName(category.name), category.id);
-    }
-  });
-
-  const categoryIdMap = new Map<string, string>();
-  let createdCategoryCount = 0;
   const batch = firebaseFirestore.batch();
-
-  normalizedPayload.categories.forEach((category) => {
-    const normalized = normalizeName(category.name);
-    const existingId = categoryNameMap.get(normalized);
-    if (existingId) {
-      categoryIdMap.set(category.id, existingId);
-      return;
-    }
-
-    const categoryRef = doc(
-      collection(doc(firebaseFirestore, 'users', userId), 'categories')
-    );
-    batch.set(categoryRef, toFirestoreCategory({
-      name: category.name,
-      order: category.order,
-      isSystem: category.isSystem ?? false,
-    }));
-    categoryIdMap.set(category.id, categoryRef.id);
-    categoryNameMap.set(normalized, categoryRef.id);
-    createdCategoryCount += 1;
-  });
 
   let createdStandardCount = 0;
   const updatedStandardIds = new Set<string>();
@@ -360,10 +283,6 @@ export async function importSnapshotForUser({
   }
 
   normalizedPayload.standards.forEach((standard) => {
-    const mappedCategoryId = standard.categoryId
-      ? categoryIdMap.get(standard.categoryId) ?? standard.categoryId
-      : null;
-
     // Try to find an existing standard with matching name/cadence/minimum/unit
     const key = standardKey(standard.name, standard.cadence, standard.minimum, standard.unit);
     const existing = existingStandardKeyMap.get(key);
@@ -388,7 +307,6 @@ export async function importSnapshotForUser({
     batch.set(standardRef, {
       name: standard.name,
       notes: standard.notes ?? null,
-      categoryId: mappedCategoryId,
       minimum: standard.minimum,
       unit: standard.unit,
       cadence: standard.cadence,
@@ -425,8 +343,6 @@ export async function importSnapshotForUser({
     isOwnSnapshot: false,
     alreadyInstalled: false,
     createdCounts: {
-      categories: createdCategoryCount,
-      activities: 0,
       standards: createdStandardCount,
     },
   };

@@ -13,7 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Standard } from '@minimum-standards/shared-model';
 import { calculatePeriodWindow } from '@minimum-standards/shared-model';
 import { useStandardHistory } from '../hooks/useStandardHistory';
-import { useStandards } from '../hooks/useStandards';
+import { useStandards, ActiveCapExceededError } from '../hooks/useStandards';
+import { ArchiveToMakeRoomSheet } from '../components/ArchiveToMakeRoomSheet';
 import { LogEntryModal } from '../components/LogEntryModal';
 import { StandardProgressCard } from '../components/StandardProgressCard';
 import type { PeriodHistoryEntry } from '../utils/standardHistory';
@@ -43,11 +44,13 @@ export function StandardDetailScreen({
 
   const {
     standards,
+    activeStandards,
     createLogEntry,
     updateLogEntry,
     archiveStandard,
     unarchiveStandard,
   } = useStandards();
+  const [capSheetVisible, setCapSheetVisible] = useState(false);
   const standard = useMemo(
     () => standards.find((s) => s.id === standardId) ?? null,
     [standards, standardId]
@@ -188,10 +191,19 @@ export function StandardDetailScreen({
     }
     if (standard.state === 'active') {
       await archiveStandard(standardId);
+      onArchive(standardId);
     } else {
-      await unarchiveStandard(standardId);
+      try {
+        await unarchiveStandard(standardId);
+        onArchive(standardId);
+      } catch (err) {
+        if (err instanceof ActiveCapExceededError) {
+          setCapSheetVisible(true);
+          return;
+        }
+        throw err;
+      }
     }
-    onArchive(standardId);
   }, [standard, standardId, archiveStandard, unarchiveStandard, onArchive]);
 
   const handleRetry = useCallback(() => {
@@ -359,6 +371,22 @@ export function StandardDetailScreen({
         onSave={handleLogSave}
         currentPeriodStartMs={currentPeriodWindow?.startMs}
         currentPeriodEndMs={currentPeriodWindow?.endMs}
+      />
+
+      <ArchiveToMakeRoomSheet
+        visible={capSheetVisible}
+        activeStandards={activeStandards}
+        onRequestClose={() => setCapSheetVisible(false)}
+        onArchive={async (id) => {
+          setCapSheetVisible(false);
+          try {
+            await archiveStandard(id);
+            await unarchiveStandard(standardId, { bypassCap: true });
+            onArchive(standardId);
+          } catch (err) {
+            console.error('Failed to swap active standards', err);
+          }
+        }}
       />
     </View>
   );

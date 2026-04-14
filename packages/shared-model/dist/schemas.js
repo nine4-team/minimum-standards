@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activityHistoryDocSchema = exports.activityHistoryPeriodStatusSchema = exports.activityHistoryStandardSnapshotSchema = exports.activityHistorySourceSchema = exports.dashboardPinsSchema = exports.activityLogSchema = exports.standardSchema = exports.configEraSchema = exports.categorySchema = exports.activitySchema = exports.standardSessionConfigSchema = exports.standardStateSchema = exports.legacyStandardCadenceSchema = exports.standardCadenceSchema = exports.cadenceUnitSchema = void 0;
+exports.activityHistoryDocSchema = exports.activityHistoryPeriodStatusSchema = exports.activityHistoryStandardSnapshotSchema = exports.activityHistorySourceSchema = exports.dashboardPinsSchema = exports.activityLogSchema = exports.standardSchema = exports.configEraSchema = exports.activitySchema = exports.standardSessionConfigSchema = exports.standardStateSchema = exports.legacyStandardCadenceSchema = exports.standardCadenceSchema = exports.cadenceUnitSchema = void 0;
 const zod_1 = require("zod");
 const unit_normalization_1 = require("./unit-normalization");
 const timestampMsSchema = zod_1.z
@@ -57,16 +57,6 @@ exports.activitySchema = zod_1.z.object({
         }
     }),
     notes: zod_1.z.string().max(1000).nullable().default(null),
-    categoryId: zod_1.z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
-    createdAtMs: timestampMsSchema,
-    updatedAtMs: timestampMsSchema,
-    deletedAtMs: timestampMsSchema.nullable()
-});
-exports.categorySchema = zod_1.z.object({
-    id: zod_1.z.string().min(1),
-    name: zod_1.z.string().min(1).max(120),
-    order: zod_1.z.number().int().nonnegative(),
-    isSystem: zod_1.z.boolean().optional(),
     createdAtMs: timestampMsSchema,
     updatedAtMs: timestampMsSchema,
     deletedAtMs: timestampMsSchema.nullable()
@@ -111,7 +101,6 @@ exports.standardSchema = zod_1.z.object({
     sessionConfig: exports.standardSessionConfigSchema, // Required: session-based configuration
     periodStartPreference: periodStartPreferenceSchema.optional(),
     configEras: zod_1.z.array(exports.configEraSchema).optional(),
-    categoryId: zod_1.z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
     notes: zod_1.z.string().max(1000).nullable().default(null),
     activityId: zod_1.z.string().min(1).optional(), // Deprecated: kept for migration
     createdAtMs: timestampMsSchema,

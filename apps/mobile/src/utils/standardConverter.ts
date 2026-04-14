@@ -10,7 +10,6 @@ export type FirestoreStandardData = {
   summary: string;
   sessionConfig: Standard['sessionConfig'];
   quickAddValues?: number[];
-  categoryId?: string | null;
   notes?: string | null;
   /** @deprecated Kept for migration compatibility */
   activityId?: string;
@@ -47,7 +46,6 @@ export function fromFirestoreStandard(
     sessionConfig: data.sessionConfig,
     periodStartPreference: data.periodStartPreference,
     configEras: Array.isArray(data.configEras) ? data.configEras : undefined,
-    categoryId: data.categoryId ?? null,
     quickAddValues: Array.isArray(data.quickAddValues)
       ? data.quickAddValues.filter(
           (value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0

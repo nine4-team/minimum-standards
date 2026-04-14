@@ -30,7 +30,6 @@ export declare const activitySchema: z.ZodObject<{
     name: z.ZodString;
     unit: z.ZodEffects<z.ZodString, string, string>;
     notes: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-    categoryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
     updatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
     deletedAtMs: z.ZodNullable<z.ZodEffects<z.ZodNumber, number, number>>;
@@ -42,7 +41,6 @@ export declare const activitySchema: z.ZodObject<{
     createdAtMs: number;
     updatedAtMs: number;
     deletedAtMs: number | null;
-    categoryId?: string | null | undefined;
 }, {
     unit: string;
     id: string;
@@ -51,32 +49,6 @@ export declare const activitySchema: z.ZodObject<{
     updatedAtMs: number;
     deletedAtMs: number | null;
     notes?: string | null | undefined;
-    categoryId?: string | null | undefined;
-}>;
-export declare const categorySchema: z.ZodObject<{
-    id: z.ZodString;
-    name: z.ZodString;
-    order: z.ZodNumber;
-    isSystem: z.ZodOptional<z.ZodBoolean>;
-    createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
-    updatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
-    deletedAtMs: z.ZodNullable<z.ZodEffects<z.ZodNumber, number, number>>;
-}, "strip", z.ZodTypeAny, {
-    id: string;
-    name: string;
-    createdAtMs: number;
-    updatedAtMs: number;
-    deletedAtMs: number | null;
-    order: number;
-    isSystem?: boolean | undefined;
-}, {
-    id: string;
-    name: string;
-    createdAtMs: number;
-    updatedAtMs: number;
-    deletedAtMs: number | null;
-    order: number;
-    isSystem?: boolean | undefined;
 }>;
 export declare const configEraSchema: z.ZodObject<{
     effectiveFromMs: z.ZodEffects<z.ZodNumber, number, number>;
@@ -296,7 +268,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }>, "many">>;
-    categoryId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     notes: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     activityId: z.ZodOptional<z.ZodString>;
     createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
@@ -329,7 +300,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
-    categoryId?: string | null | undefined;
     quickAddValues?: number[] | undefined;
     configEras?: {
         unit: string;
@@ -380,7 +350,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     } | undefined;
     name?: string | undefined;
     notes?: string | null | undefined;
-    categoryId?: string | null | undefined;
     quickAddValues?: number[] | undefined;
     configEras?: {
         unit: string;
@@ -431,7 +400,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
-    categoryId?: string | null | undefined;
     quickAddValues?: number[] | undefined;
     configEras?: {
         unit: string;
@@ -482,7 +450,6 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     } | undefined;
     name?: string | undefined;
     notes?: string | null | undefined;
-    categoryId?: string | null | undefined;
     quickAddValues?: number[] | undefined;
     configEras?: {
         unit: string;
@@ -542,7 +509,6 @@ export type ActivitySchema = z.infer<typeof activitySchema>;
 export type StandardSchema = z.infer<typeof standardSchema>;
 export type ActivityLogSchema = z.infer<typeof activityLogSchema>;
 export type DashboardPinsSchema = z.infer<typeof dashboardPinsSchema>;
-export type CategorySchema = z.infer<typeof categorySchema>;
 export declare const dashboardPinsSchema: z.ZodObject<{
     id: z.ZodString;
     pinnedStandardIds: z.ZodArray<z.ZodString, "many">;

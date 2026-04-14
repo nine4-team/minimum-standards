@@ -81,7 +81,6 @@ service cloud.firestore {
         'name',
         'unit',
         'notes',
-        'categoryId',
         'createdAt',
         'updatedAt',
         'deletedAt'
@@ -95,77 +94,9 @@ service cloud.firestore {
       && request.resource.data.unit.size() <= 40
       && isOptionalStringField('notes')
       && (!('notes' in request.resource.data) || request.resource.data.notes == null || request.resource.data.notes.size() <= 1000)
-      && (
-        !('categoryId' in request.resource.data)
-        || request.resource.data.categoryId == null
-        || (request.resource.data.categoryId is string && request.resource.data.categoryId.size() >= 1)
-      )
       && isTimestamp(request.resource.data.createdAt)
       && isTimestamp(request.resource.data.updatedAt)
       && isOptionalTimestampField('deletedAt');
-    }
-
-    // Validation for partial updates (allows updating only specific fields)
-    function validCategory() {
-      return hasOnlyKeys([
-        'name',
-        'order',
-        'isSystem',
-        'createdAt',
-        'updatedAt',
-        'deletedAt'
-      ])
-      && ('deletedAt' in request.resource.data)
-      && request.resource.data.name is string
-      && request.resource.data.name.size() >= 1
-      && request.resource.data.name.size() <= 120
-      && request.resource.data.order is int
-      && request.resource.data.order >= 0
-      && (
-        !('isSystem' in request.resource.data)
-        || request.resource.data.isSystem is bool
-      )
-      && isTimestamp(request.resource.data.createdAt)
-      && isTimestamp(request.resource.data.updatedAt)
-      && isOptionalTimestampField('deletedAt');
-    }
-
-    function validCategoryUpdate() {
-      let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly([
-        'name',
-        'order',
-        'isSystem',
-        'updatedAt',
-        'deletedAt'
-      ])
-      && (
-        !affected.hasAny(['name']) || (
-          'name' in request.resource.data
-          && request.resource.data.name is string
-          && request.resource.data.name.size() >= 1
-          && request.resource.data.name.size() <= 120
-        )
-      )
-      && (
-        !affected.hasAny(['order']) || (
-          'order' in request.resource.data
-          && request.resource.data.order is int
-          && request.resource.data.order >= 0
-        )
-      )
-      && (
-        !affected.hasAny(['isSystem']) || (
-          'isSystem' in request.resource.data
-          && request.resource.data.isSystem is bool
-        )
-      )
-      && (
-        !affected.hasAny(['updatedAt']) || request.resource.data.updatedAt == request.time
-      )
-      && (
-        !affected.hasAny(['deletedAt']) || isOptionalTimestampField('deletedAt')
-      );
     }
 
     function validActivityUpdate() {
@@ -174,7 +105,6 @@ service cloud.firestore {
         'name',
         'unit',
         'notes',
-        'categoryId',
         'updatedAt',
         'deletedAt'
       ])
@@ -201,13 +131,6 @@ service cloud.firestore {
         )
       )
       && (
-        !affected.hasAny(['categoryId']) || (
-          !('categoryId' in request.resource.data)
-          || request.resource.data.categoryId == null
-          || (request.resource.data.categoryId is string && request.resource.data.categoryId.size() >= 1)
-        )
-      )
-      && (
         !affected.hasAny(['updatedAt']) || request.resource.data.updatedAt == request.time
       )
       && (
@@ -226,7 +149,6 @@ service cloud.firestore {
         'sessionConfig',
         'periodStartPreference',
         'quickAddValues',
-        'categoryId',
         'notes',
         'activityId',
         'archivedAt',
@@ -271,11 +193,6 @@ service cloud.firestore {
       && isTimestamp(request.resource.data.updatedAt)
       && isOptionalTimestampField('deletedAt')
       && isOptionalTimestampField('archivedAt')
-      && (
-        !('categoryId' in request.resource.data)
-        || request.resource.data.categoryId == null
-        || (request.resource.data.categoryId is string && request.resource.data.categoryId.size() >= 1)
-      )
       && (
         !('notes' in request.resource.data)
         || request.resource.data.notes == null
@@ -509,11 +426,14 @@ service cloud.firestore {
     function validSnapshotPayload(payload) {
       return payload is map
         && payload.keys().hasOnly(['version', 'categories', 'activities', 'standards'])
-        && payload.categories is list
         && payload.standards is list
         && (
           !('activities' in payload)
           || payload.activities is list
+        )
+        && (
+          !('categories' in payload)
+          || payload.categories is list
         );
     }
 
@@ -659,13 +579,6 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         allow create: if isOwner(uid) && validStandard() && isCreateWithServerTimestamps();
         allow update: if isOwner(uid) && validStandard() && isUpdateWithServerTimestampAndStableCreatedAt() && canWriteStandard();
-        allow delete: if false; // soft-delete via deletedAt
-      }
-
-      match /categories/{categoryId} {
-        allow read: if isOwner(uid);
-        allow create: if isOwner(uid) && validCategory() && isCreateWithServerTimestamps();
-        allow update: if isOwner(uid) && validCategoryUpdate() && isUpdateWithServerTimestampAndStableCreatedAt();
         allow delete: if false; // soft-delete via deletedAt
       }
 

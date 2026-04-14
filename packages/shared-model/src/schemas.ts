@@ -61,17 +61,6 @@ export const activitySchema = z.object({
       }
     }),
   notes: z.string().max(1000).nullable().default(null),
-  categoryId: z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
-  createdAtMs: timestampMsSchema,
-  updatedAtMs: timestampMsSchema,
-  deletedAtMs: timestampMsSchema.nullable()
-});
-
-export const categorySchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1).max(120),
-  order: z.number().int().nonnegative(),
-  isSystem: z.boolean().optional(),
   createdAtMs: timestampMsSchema,
   updatedAtMs: timestampMsSchema,
   deletedAtMs: timestampMsSchema.nullable()
@@ -117,7 +106,6 @@ export const standardSchema = z.object({
   sessionConfig: standardSessionConfigSchema, // Required: session-based configuration
   periodStartPreference: periodStartPreferenceSchema.optional(),
   configEras: z.array(configEraSchema).optional(),
-  categoryId: z.string().min(1).nullable().optional(), // null means Uncategorized, optional for backwards compatibility
   notes: z.string().max(1000).nullable().default(null),
   activityId: z.string().min(1).optional(), // Deprecated: kept for migration
   createdAtMs: timestampMsSchema,
@@ -147,7 +135,6 @@ export type ActivitySchema = z.infer<typeof activitySchema>;
 export type StandardSchema = z.infer<typeof standardSchema>;
 export type ActivityLogSchema = z.infer<typeof activityLogSchema>;
 export type DashboardPinsSchema = z.infer<typeof dashboardPinsSchema>;
-export type CategorySchema = z.infer<typeof categorySchema>;
 
 export const dashboardPinsSchema = z.object({
   id: z.string().min(1),

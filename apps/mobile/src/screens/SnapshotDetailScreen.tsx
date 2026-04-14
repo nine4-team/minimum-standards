@@ -145,14 +145,6 @@ export function SnapshotDetailScreen() {
     }
     return map;
   }, [snapshot]);
-  const categoryNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    const categories = snapshot?.payload.categories ?? [];
-    categories.forEach((category) => {
-      map.set(category.id, category.name);
-    });
-    return map;
-  }, [snapshot]);
   const formatStandardSummary = (standard: SnapshotStandard | SnapshotStandardV2) => {
     const { interval, unit: cadenceUnit } = standard.cadence;
     const cadenceLabel = interval === 1 ? cadenceUnit : `${interval} ${cadenceUnit}s`;
@@ -372,32 +364,6 @@ export function SnapshotDetailScreen() {
           )}
         </View>
 
-        <View style={[styles.section, { backgroundColor: theme.background.surface, borderColor: theme.border.secondary }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text.secondary }]}>Categories</Text>
-          {snapshot.payload.categories.length === 0 ? (
-            <Text style={[styles.emptyText, { color: theme.text.secondary }]}>No categories.</Text>
-          ) : (
-            snapshot.payload.categories.map((category, index) => (
-              <View
-                key={category.id}
-                style={[
-                  styles.listRow,
-                  {
-                    borderBottomColor: theme.border.secondary,
-                    borderBottomWidth:
-                      index !== snapshot.payload.categories.length - 1 ? 1 : 0,
-                  },
-                ]}
-              >
-                <View style={styles.listInfo}>
-                  <Text style={[styles.listTitle, { color: theme.text.primary }]}>
-                    {category.name}
-                  </Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
       </ScrollView>
     </View>
   );

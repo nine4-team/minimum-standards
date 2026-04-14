@@ -64,11 +64,9 @@ export function useSnapshotImportFlow() {
           return;
         }
 
-        const { standards, activities, categories } = result.createdCounts;
+        const { standards } = result.createdCounts;
         const parts: string[] = [];
         if (standards > 0) parts.push(`${standards} standard${standards !== 1 ? 's' : ''}`);
-        if (activities > 0) parts.push(`${activities} activit${activities !== 1 ? 'ies' : 'y'}`);
-        if (categories > 0) parts.push(`${categories} categor${categories !== 1 ? 'ies' : 'y'}`);
 
         if (parts.length === 0) {
           Alert.alert(

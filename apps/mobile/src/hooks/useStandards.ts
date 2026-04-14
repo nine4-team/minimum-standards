@@ -27,10 +27,18 @@ import { retryFirestoreWrite } from '../utils/retry';
 import { emitActivityLogMutation } from '../utils/activityLogEvents';
 import { recomputeActivityHistoryPeriod } from '../utils/activityHistoryRecompute';
 
+export const MAX_ACTIVE_STANDARDS = 7;
+
+export class ActiveCapExceededError extends Error {
+  constructor() {
+    super(`Active standards cap reached (${MAX_ACTIVE_STANDARDS}).`);
+    this.name = 'ActiveCapExceededError';
+  }
+}
+
 export interface CreateStandardInput {
   name: string;
   notes: string | null;
-  categoryId: string | null;
   minimum: number;
   unit: string;
   cadence: StandardCadence;
@@ -70,7 +78,6 @@ export interface UpdateStandardInput {
   standardId: string;
   name: string;
   notes: string | null;
-  categoryId: string | null;
   minimum: number;
   unit: string;
   cadence: StandardCadence;
@@ -84,12 +91,14 @@ export interface UseStandardsResult {
   activeStandards: Standard[];
   archivedStandards: Standard[];
   orderedActiveStandards: Standard[];
+  activeCount: number;
+  isAtActiveCap: boolean;
   loading: boolean;
   error: Error | null;
-  createStandard: (input: CreateStandardInput) => Promise<Standard>;
+  createStandard: (input: CreateStandardInput, options?: { bypassCap?: boolean }) => Promise<Standard>;
   updateStandard: (input: UpdateStandardInput) => Promise<Standard>;
   archiveStandard: (standardId: string) => Promise<void>;
-  unarchiveStandard: (standardId: string) => Promise<void>;
+  unarchiveStandard: (standardId: string, options?: { bypassCap?: boolean }) => Promise<void>;
   deleteStandard: (standardId: string) => Promise<void>;
   createLogEntry: (input: CreateLogInput) => Promise<void>;
   updateLogEntry: (input: UpdateLogInput) => Promise<void>;
@@ -180,7 +189,10 @@ export function useStandards(): UseStandardsResult {
   );
 
   const createStandard = useCallback(
-    async (input: CreateStandardInput): Promise<Standard> => {
+    async (
+      input: CreateStandardInput,
+      options: { bypassCap?: boolean } = {}
+    ): Promise<Standard> => {
       if (!userId) {
         throw new Error('User not authenticated');
       }
@@ -190,12 +202,15 @@ export function useStandards(): UseStandardsResult {
         'standards'
       );
 
+      if (!options.bypassCap && activeStandards.length >= MAX_ACTIVE_STANDARDS) {
+        throw new ActiveCapExceededError();
+      }
+
       const docRef = doc(standardsCollection);
 
       const payload = {
         name: input.name,
         notes: input.notes ?? null,
-        categoryId: input.categoryId ?? null,
         minimum: input.minimum,
         unit: input.unit,
         cadence: input.cadence,
@@ -229,7 +244,7 @@ export function useStandards(): UseStandardsResult {
       );
       return created;
     },
-    [userId]
+    [userId, activeStandards.length]
   );
 
   const updateStandard = useCallback(
@@ -264,7 +279,6 @@ export function useStandards(): UseStandardsResult {
       const payload: Record<string, unknown> = {
         name: input.name,
         notes: input.notes ?? null,
-        categoryId: input.categoryId ?? null,
         minimum: input.minimum,
         unit: input.unit,
         cadence: input.cadence,
@@ -361,9 +375,21 @@ export function useStandards(): UseStandardsResult {
   );
 
   const updateArchiveState = useCallback(
-    async (standardId: string, shouldArchive: boolean): Promise<void> => {
+    async (
+      standardId: string,
+      shouldArchive: boolean,
+      options: { bypassCap?: boolean } = {}
+    ): Promise<void> => {
       if (!userId) {
         throw new Error('User not authenticated');
+      }
+
+      if (
+        !shouldArchive &&
+        !options.bypassCap &&
+        activeStandards.length >= MAX_ACTIVE_STANDARDS
+      ) {
+        throw new ActiveCapExceededError();
       }
 
       const standardRef = doc(
@@ -381,7 +407,7 @@ export function useStandards(): UseStandardsResult {
         });
       });
     },
-    [userId]
+    [userId, activeStandards.length]
   );
 
   const archiveStandard = useCallback(
@@ -390,7 +416,8 @@ export function useStandards(): UseStandardsResult {
   );
 
   const unarchiveStandard = useCallback(
-    async (standardId: string) => updateArchiveState(standardId, false),
+    async (standardId: string, options: { bypassCap?: boolean } = {}) =>
+      updateArchiveState(standardId, false, options),
     [updateArchiveState]
   );
 
@@ -644,6 +671,8 @@ export function useStandards(): UseStandardsResult {
     activeStandards,
     archivedStandards,
     orderedActiveStandards,
+    activeCount: activeStandards.length,
+    isAtActiveCap: activeStandards.length >= MAX_ACTIVE_STANDARDS,
     loading,
     error,
     createStandard,

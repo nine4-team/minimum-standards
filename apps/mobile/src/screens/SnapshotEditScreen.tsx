@@ -17,7 +17,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import { getScreenContainerStyle } from '@nine4/ui-kit';
 import { useStandards } from '../hooks/useStandards';
-import { useCategories } from '../hooks/useCategories';
 import { useSnapshots } from '../hooks/useSnapshots';
 import { buildSnapshotPayload } from '../utils/snapshotImport';
 import type { SettingsStackParamList } from '../navigation/types';
@@ -28,7 +27,6 @@ export function SnapshotEditScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const route = useRoute<RouteProp<SettingsStackParamList, 'SnapshotEdit'>>();
   const { standards } = useStandards();
-  const { categories } = useCategories();
   const { snapshots, updateSnapshotTitle, updateSnapshotPayload } = useSnapshots();
 
   const snapshot = useMemo(
@@ -61,12 +59,11 @@ export function SnapshotEditScreen() {
   const payload = useMemo(() => {
     return buildSnapshotPayload({
       standards,
-      categories,
       selectedStandardIds,
     });
-  }, [standards, categories, selectedStandardIds]);
+  }, [standards, selectedStandardIds]);
 
-  const countsLabel = `${payload.standards.length} standards · ${payload.categories.length} categories`;
+  const countsLabel = `${payload.standards.length} standards`;
 
   const snapshotStandardIds = useMemo(() => {
     return new Set(snapshot?.payload.standards.map((standard) => standard.id) ?? []);
@@ -208,7 +205,7 @@ export function SnapshotEditScreen() {
         <View style={[styles.section, { backgroundColor: theme.background.surface, borderColor: theme.border.secondary }]}>
           <Text style={[styles.sectionTitle, { color: theme.text.secondary }]}>Contents</Text>
           <Text style={[styles.helperText, { color: theme.text.secondary }]}>
-            Pick standards and we will include required categories.
+            Pick standards to include.
           </Text>
           <Text style={[styles.countsText, { color: theme.text.primary }]}>{countsLabel}</Text>
           <Text style={[styles.helperNote, { color: theme.text.secondary }]}>

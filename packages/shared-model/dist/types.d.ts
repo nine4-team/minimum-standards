@@ -31,14 +31,6 @@ export type Activity = SoftDelete & AuditTimestamps & {
     name: string;
     unit: string;
     notes: string | null;
-    categoryId: string | null;
-};
-export declare const UNCATEGORIZED_CATEGORY_ID: "uncategorized";
-export type Category = SoftDelete & AuditTimestamps & {
-    id: string;
-    name: string;
-    order: number;
-    isSystem?: boolean;
 };
 export type Standard = SoftDelete & AuditTimestamps & {
     id: string;
@@ -53,7 +45,6 @@ export type Standard = SoftDelete & AuditTimestamps & {
     sessionConfig: StandardSessionConfig;
     periodStartPreference?: PeriodStartPreference;
     configEras?: ConfigEra[];
-    categoryId: string | null;
     notes: string | null;
     /** @deprecated Kept for migration compatibility. Will be removed in a future release. */
     activityId?: string;

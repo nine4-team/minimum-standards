@@ -12,7 +12,7 @@ import { firebaseFirestore } from '../firebase/firebaseApp';
 const MIGRATION_KEY = 'activitiesFlattened';
 
 /**
- * One-time migration: copies Activity fields (name, notes, categoryId) onto
+ * One-time migration: copies Activity fields (name, notes) onto
  * each Standard, then rewrites ActivityHistory doc IDs from the old
  * `activityId__standardId__periodStartMs` format to `standardId__periodStartMs`.
  *
@@ -36,13 +36,12 @@ export async function migrateActivitiesToStandards(userId: string): Promise<bool
 
   // Read all activities (including soft-deleted)
   const activitiesSnap = await getDocs(collection(userDoc, 'activities'));
-  const activityMap = new Map<string, { name: string; notes: string | null; categoryId: string | null }>();
+  const activityMap = new Map<string, { name: string; notes: string | null }>();
   activitiesSnap.forEach((actDoc: any) => {
     const data = actDoc.data();
     activityMap.set(actDoc.id, {
       name: data.name ?? '',
       notes: data.notes ?? null,
-      categoryId: data.categoryId ?? null,
     });
   });
 
@@ -80,7 +79,6 @@ export async function migrateActivitiesToStandards(userId: string): Promise<bool
       stdDoc.ref.update({
         name: activity.name,
         notes: activity.notes,
-        categoryId: data.categoryId ?? activity.categoryId ?? null,
         updatedAt: serverTimestamp(),
       }).catch((err: any) => {
         console.error(`[Migration] Failed to update standard ${stdDoc.id}:`, err?.message ?? err);
