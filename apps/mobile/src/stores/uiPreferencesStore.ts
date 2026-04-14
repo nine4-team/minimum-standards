@@ -13,6 +13,8 @@ interface UIPreferencesState {
   setThemePreference: (theme: ThemePreference) => void;
   focusModeEnabled: boolean;
   setFocusModeEnabled: (enabled: boolean) => void;
+  timeBarFeatureEnabled: boolean;
+  setTimeBarFeatureEnabled: (enabled: boolean) => void;
   showTimeBar: boolean;
   setShowTimeBar: (show: boolean) => void;
   hiddenTimeBarStandardIds: string[];
@@ -35,6 +37,8 @@ export const useUIPreferencesStore = create<UIPreferencesState>()(
       setThemePreference: (theme) => set({ themePreference: theme }),
       focusModeEnabled: false,
       setFocusModeEnabled: (enabled) => set({ focusModeEnabled: enabled }),
+      timeBarFeatureEnabled: false,
+      setTimeBarFeatureEnabled: (enabled) => set({ timeBarFeatureEnabled: enabled }),
       showTimeBar: true,
       setShowTimeBar: (show) => set({ showTimeBar: show, hiddenTimeBarStandardIds: [] }),
       hiddenTimeBarStandardIds: [],

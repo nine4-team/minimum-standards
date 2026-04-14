@@ -96,7 +96,7 @@ export function StandardsScreen({
   const [capSheetVisible, setCapSheetVisible] = useState(false);
   const [pendingUnarchiveId, setPendingUnarchiveId] = useState<string | null>(null);
 
-  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
+  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId, timeBarFeatureEnabled } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
@@ -241,7 +241,9 @@ export function StandardsScreen({
     ({ item }: { item: DashboardStandard }) => {
       const standardId = item.standard.id;
       const isOverriddenForStandard = hiddenTimeBarStandardIds.includes(standardId);
-      const effectiveShowTimeBar = isOverriddenForStandard ? !showTimeBar : showTimeBar;
+      const effectiveShowTimeBar = timeBarFeatureEnabled
+        ? (isOverriddenForStandard ? !showTimeBar : showTimeBar)
+        : false;
       return (
         <StandardCard
           entry={item}
@@ -250,7 +252,7 @@ export function StandardsScreen({
           onMenuPress={() => handleActiveMenuOpen(item.standard)}
           nowMs={nowMs}
           showTimeBar={effectiveShowTimeBar}
-          onToggleTimeBar={() => toggleTimeBarForStandard(standardId)}
+          onToggleTimeBar={timeBarFeatureEnabled ? () => toggleTimeBarForStandard(standardId) : undefined}
           highlighted={item.standard.id === highlightedStandardId}
         />
       );
@@ -262,6 +264,7 @@ export function StandardsScreen({
       showTimeBar,
       hiddenTimeBarStandardIds,
       toggleTimeBarForStandard,
+      timeBarFeatureEnabled,
       highlightedStandardId,
     ]
   );
@@ -444,7 +447,7 @@ export function StandardsScreen({
           <TouchableOpacity onPress={onBack} accessibilityRole="button">
             <Text style={[styles.backButton, { color: theme.primary.main }]}>{backButtonLabel}</Text>
           </TouchableOpacity>
-        ) : (
+        ) : timeBarFeatureEnabled ? (
           <TouchableOpacity
             onPress={() => setShowTimeBar(!showTimeBar)}
             style={styles.headerLeftButton}
@@ -453,6 +456,8 @@ export function StandardsScreen({
           >
             <MaterialIcons name="hourglass-empty" size={24} color={showTimeBar ? theme.button.icon.icon : theme.text.tertiary} />
           </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
         )}
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
           Standards <Text style={{ color: theme.text.secondary }}>{activeCount}/{MAX_ACTIVE_STANDARDS}</Text>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,7 +17,7 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { signOut } = useAuthStore();
-  const { themePreference, setThemePreference } = useUIPreferencesStore();
+  const { themePreference, setThemePreference, timeBarFeatureEnabled, setTimeBarFeatureEnabled } = useUIPreferencesStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,13 +106,10 @@ export function SettingsScreen() {
           getCardBorderStyle(theme),
           { backgroundColor: theme.background.surface }
         ]}>
-          {themeOptions.map((option, index) => (
+          {themeOptions.map((option) => (
             <TouchableOpacity
               key={option.value}
-              style={[
-                styles.optionRow,
-                index !== themeOptions.length - 1 && [styles.optionBorder, { borderBottomColor: theme.border.secondary }]
-              ]}
+              style={[styles.optionRow, styles.optionBorder, { borderBottomColor: theme.border.secondary }]}
               onPress={() => setThemePreference(option.value)}
             >
               <View style={styles.optionLabelContainer}>
@@ -124,6 +121,16 @@ export function SettingsScreen() {
               )}
             </TouchableOpacity>
           ))}
+          <View style={styles.optionRow}>
+            <View style={styles.optionLabelContainer}>
+              <MaterialIcons name="hourglass-empty" size={22} color={theme.text.primary} style={styles.optionIcon} />
+              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Show time bar</Text>
+            </View>
+            <Switch
+              value={timeBarFeatureEnabled}
+              onValueChange={setTimeBarFeatureEnabled}
+            />
+          </View>
         </View>
 
         {error && (
