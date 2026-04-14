@@ -115,6 +115,23 @@ export function SelectActivityStep() {
           )}
         </View>
 
+        {/* Suggestor entry point */}
+        <TouchableOpacity
+          style={styles.suggestorLink}
+          onPress={() => {
+            mainNavigation.replace('SuggestorFlow');
+          }}
+        >
+          <MaterialIcons
+            name="auto-awesome"
+            size={16}
+            color={theme.button.primary.background}
+          />
+          <Text style={[styles.suggestorLinkText, { color: theme.button.primary.background }]}>
+            Not sure what to track? Help me decide
+          </Text>
+        </TouchableOpacity>
+
         {/* Name field */}
         <View style={styles.fieldSection}>
           <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Name</Text>
@@ -336,6 +353,19 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 8,
     paddingLeft: 24,
+  },
+  // Suggestor link
+  suggestorLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  suggestorLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Field styles
   fieldSection: {

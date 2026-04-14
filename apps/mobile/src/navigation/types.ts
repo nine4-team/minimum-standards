@@ -17,6 +17,15 @@ export type CreateStandardFlowParamList = {
   SetPeriod: undefined;
 };
 
+// Suggestor flow param list
+export type SuggestorFlowParamList = {
+  SuggestorInput: undefined;
+  SuggestorActivity: {
+    suggestions: Array<{ name: string; units: string[] }>;
+  };
+  SuggestorUnit: { activityName: string; units: string[] };
+};
+
 // Individual tab stack param lists
 export type StandardsStackParamList = {
   ActiveStandardsDashboard: undefined;
@@ -50,7 +59,12 @@ export type BottomTabParamList = {
 // Main stack now contains the bottom tab navigator
 export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<BottomTabParamList>;
-  CreateStandardFlow: NavigatorScreenParams<CreateStandardFlowParamList>;
+  CreateStandardFlow:
+    | (NavigatorScreenParams<CreateStandardFlowParamList> & {
+        initialRoute?: 'SelectActivity' | 'SetVolume';
+      })
+    | undefined;
+  SuggestorFlow: NavigatorScreenParams<SuggestorFlowParamList> | undefined;
 };
 
 export type RootStackParamList = {

@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainStackParamList } from './types';
 import { BottomTabNavigator } from './BottomTabNavigator';
 import { CreateStandardFlow } from './CreateStandardFlow';
+import { SuggestorFlow } from './SuggestorFlow';
 import { useTheme } from '../theme/useTheme';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -21,6 +22,11 @@ export function MainStack() {
       <Stack.Screen
         name="CreateStandardFlow"
         component={CreateStandardFlow}
+        options={{ presentation: 'fullScreenModal' }}
+      />
+      <Stack.Screen
+        name="SuggestorFlow"
+        component={SuggestorFlow}
         options={{ presentation: 'fullScreenModal' }}
       />
     </Stack.Navigator>

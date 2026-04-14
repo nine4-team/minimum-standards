@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CreateStandardFlowParamList } from './types';
+import { CreateStandardFlowParamList, MainStackParamList } from './types';
 import { SelectActivityStep } from '../screens/create-standard/SelectActivityStep';
 import { SetVolumeStep } from '../screens/create-standard/SetVolumeStep';
 import { SetPeriodStep } from '../screens/create-standard/SetPeriodStep';
@@ -115,21 +116,24 @@ const headerStyles = StyleSheet.create({
 export function CreateStandardFlow() {
   const reset = useStandardsBuilderStore((s) => s.reset);
   const editingStandardId = useStandardsBuilderStore((s) => s.editingStandardId);
+  const route = useRoute<RouteProp<MainStackParamList, 'CreateStandardFlow'>>();
+  const initialRoute = route.params?.initialRoute ?? 'SelectActivity';
 
-  // Reset the builder store when the flow mounts (skip if editing an existing standard)
+  // Reset the builder store when the flow mounts (skip if editing an existing standard
+  // or entering from suggestor with pre-filled state)
   // and when it unmounts (user navigated away mid-flow — discard state so they start fresh next time)
   React.useEffect(() => {
-    if (!editingStandardId) {
+    if (!editingStandardId && initialRoute === 'SelectActivity') {
       reset();
     }
     return () => {
       reset();
     };
-  }, [editingStandardId, reset]);
+  }, [editingStandardId, initialRoute, reset]);
 
   return (
     <Stack.Navigator
-      initialRouteName="SelectActivity"
+      initialRouteName={initialRoute}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',

@@ -59,8 +59,13 @@ export function SetVolumeStep() {
   }, [parentNavigation, mainNavigation]);
 
   const handleBack = useCallback(() => {
-    flowNavigation.goBack();
-  }, [flowNavigation]);
+    if (flowNavigation.canGoBack()) {
+      flowNavigation.goBack();
+    } else {
+      // No SelectActivity to go back to (entered via suggestor) — close the flow
+      handleClose();
+    }
+  }, [flowNavigation, handleClose]);
 
   const handleGoalTotalChange = useCallback(
     (text: string) => {
