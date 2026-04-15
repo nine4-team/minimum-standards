@@ -318,7 +318,7 @@ export function SnapshotDetailScreen() {
               <Text
                 style={[
                   styles.menuItemText,
-                  { color: deleting ? theme.text.secondary : theme.button.destructive.text },
+                  { color: deleting ? theme.text.secondary : theme.status.missed.text },
                 ]}
               >
                 Delete Snapshot
