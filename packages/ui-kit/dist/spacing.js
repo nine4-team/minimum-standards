@@ -8,6 +8,6 @@ exports.CARD_PADDING = exports.CARD_LIST_GAP = exports.SCREEN_PADDING = void 0;
  * across all "card list" surfaces (Active Standards, Standards Library, History, etc).
  */
 exports.SCREEN_PADDING = 16;
-exports.CARD_LIST_GAP = 12;
+exports.CARD_LIST_GAP = 10;
 exports.CARD_PADDING = 16;
 //# sourceMappingURL=spacing.js.map

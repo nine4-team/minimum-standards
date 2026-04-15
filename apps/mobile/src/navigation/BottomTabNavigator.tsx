@@ -37,10 +37,13 @@ export function BottomTabNavigator() {
   useActivityHistoryEngine();
 
   const baseTabBarStyle = getTabBarStyle(theme, insets);
+  const bottomPadding = 16;
+  const compactHeight = 49 + bottomPadding;
   const tabBarStyle = {
     ...baseTabBarStyle,
-    height: typeof baseTabBarStyle.height === 'number' ? baseTabBarStyle.height + 16 : baseTabBarStyle.height,
-    minHeight: typeof baseTabBarStyle.minHeight === 'number' ? baseTabBarStyle.minHeight + 16 : baseTabBarStyle.minHeight,
+    paddingBottom: bottomPadding,
+    height: compactHeight,
+    minHeight: compactHeight,
   };
 
   return (
@@ -77,23 +80,22 @@ export function BottomTabNavigator() {
                 flex: 1,
                 alignItems: 'center',
                 justifyContent: 'center',
-                paddingTop: 4,
                 opacity: pressed ? 0.6 : 1,
                 transform: [{ scale: pressed ? 0.9 : 1 }],
               })}
             >
               <View
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 26,
-                  borderWidth: 2,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  borderWidth: 1.5,
                   borderColor: theme.button.primary.background,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <MaterialIcons name="add" size={30} color={theme.tabBar.inactiveTint} />
+                <MaterialIcons name="add" size={22} color={theme.tabBar.inactiveTint} />
               </View>
             </Pressable>
           ),
