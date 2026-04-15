@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -10,13 +10,128 @@ import { SettingsStack } from './SettingsStack';
 import { useTheme } from '../theme/useTheme';
 import { useActivityHistoryEngine } from '../hooks/useActivityHistoryEngine';
 import { useMigration } from '../hooks/useMigration';
-import { getTabBarStyle } from '@nine4/ui-kit';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
-// Placeholder component for the Create tab (never actually renders)
 function EmptyScreen() {
   return <View />;
+}
+
+const NAV_ICONS: Record<string, string> = {
+  Standards: 'pending-actions',
+  Scorecards: 'bar-chart',
+  [SETTINGS_TAB_ROUTE_NAME]: 'settings',
+};
+
+const NAV_LABELS: Record<string, string> = {
+  Standards: 'Standards tab',
+  Scorecards: 'Scorecards tab',
+  [SETTINGS_TAB_ROUTE_NAME]: 'Settings tab',
+};
+
+function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const navRoutes = state.routes.filter((r) => r.name !== 'Create');
+  const activeRouteKey = state.routes[state.index]?.key;
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: Math.max(insets.bottom, 8),
+        backgroundColor: 'transparent',
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: theme.background.surface,
+          borderRadius: 26,
+          paddingHorizontal: 6,
+          height: 52,
+          shadowColor: '#000',
+          shadowOpacity: 0.1,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 8,
+        }}
+      >
+        {navRoutes.map((route) => {
+          const isFocused = route.key === activeRouteKey;
+          const iconName = NAV_ICONS[route.name] ?? 'circle';
+          return (
+            <Pressable
+              key={route.key}
+              onPress={() => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!isFocused && !event.defaultPrevented) {
+                  navigation.navigate(route.name as never);
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={NAV_LABELS[route.name]}
+              accessibilityState={isFocused ? { selected: true } : {}}
+              style={({ pressed }) => ({
+                width: 48,
+                height: 44,
+                borderRadius: 22,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginHorizontal: 2,
+                backgroundColor: isFocused ? theme.button.primary.background : 'transparent',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <MaterialIcons
+                name={iconName}
+                size={22}
+                color={isFocused ? '#fff' : '#555'}
+              />
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Pressable
+        onPress={() => (navigation as any).navigate('CreateStandardFlow')}
+        accessibilityRole="button"
+        accessibilityLabel="Create standard"
+        style={({ pressed }) => ({
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          backgroundColor: theme.button.primary.background,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: theme.button.primary.background,
+          shadowOpacity: 0.4,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 10,
+          opacity: pressed ? 0.9 : 1,
+          transform: [{ scale: pressed ? 0.95 : 1 }],
+        })}
+      >
+        <MaterialIcons name="add" size={28} color="#fff" />
+      </Pressable>
+    </View>
+  );
 }
 
 export function BottomTabNavigator() {
@@ -29,110 +144,37 @@ export function BottomTabNavigator() {
     }
   }, [insets]);
 
-  // Run one-time data migration (activities → standards)
   useMigration();
-
-  // Mount the Activity History Engine once at the authenticated app root
-  // This ensures it runs for the whole session and avoids duplicate timers
   useActivityHistoryEngine();
-
-  const baseTabBarStyle = getTabBarStyle(theme, insets);
-  const bottomPadding = 16;
-  const compactHeight = 49 + bottomPadding;
-  const tabBarStyle = {
-    ...baseTabBarStyle,
-    paddingBottom: bottomPadding,
-    height: compactHeight,
-    minHeight: compactHeight,
-  };
 
   return (
     <Tab.Navigator
       initialRouteName="Standards"
       sceneContainerStyle={{ backgroundColor: theme.background.screen }}
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.tabBar.activeTint,
-        tabBarInactiveTintColor: theme.tabBar.inactiveTint,
-        tabBarStyle,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
-        tabBarIconStyle: {
-          marginTop: 4,
-        },
       }}
     >
       <Tab.Screen
         name="Create"
         component={EmptyScreen}
-        options={({ navigation }) => ({
-          tabBarLabel: () => null,
-          tabBarIcon: () => null,
-          tabBarAccessibilityLabel: 'Create standard',
-          tabBarButton: () => (
-            <Pressable
-              onPress={() => navigation.navigate('CreateStandardFlow')}
-              accessibilityRole="button"
-              accessibilityLabel="Create standard"
-              style={({ pressed }) => ({
-                flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.6 : 1,
-                transform: [{ scale: pressed ? 0.9 : 1 }],
-              })}
-            >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  borderWidth: 1.5,
-                  borderColor: theme.button.primary.background,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <MaterialIcons name="add" size={22} color={theme.tabBar.inactiveTint} />
-              </View>
-            </Pressable>
-          ),
-        })}
+        options={{ tabBarAccessibilityLabel: 'Create standard' }}
       />
       <Tab.Screen
         name="Standards"
         component={StandardsStack}
-        options={{
-          tabBarLabel: 'Standards',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="pending-actions" size={size || 24} color={color} />
-          ),
-          tabBarAccessibilityLabel: 'Standards tab',
-        }}
+        options={{ tabBarAccessibilityLabel: 'Standards tab' }}
       />
       <Tab.Screen
         name="Scorecards"
         component={ActivitiesStack}
-        options={{
-          tabBarLabel: 'Scorecards',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="assessment" size={size || 24} color={color} />
-          ),
-          tabBarAccessibilityLabel: 'Scorecards tab',
-        }}
+        options={{ tabBarAccessibilityLabel: 'Scorecards tab' }}
       />
       <Tab.Screen
         name={SETTINGS_TAB_ROUTE_NAME}
         component={SettingsStack}
-        options={{
-          tabBarLabel: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="settings" size={size || 24} color={color} />
-          ),
-          tabBarAccessibilityLabel: 'Settings tab',
-        }}
+        options={{ tabBarAccessibilityLabel: 'Settings tab' }}
       />
     </Tab.Navigator>
   );
