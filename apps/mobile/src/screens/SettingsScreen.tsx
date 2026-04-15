@@ -36,10 +36,10 @@ export function SettingsScreen() {
     }
   };
 
-  const themeOptions: { label: string; value: ThemePreference; icon: string }[] = [
-    { label: 'Light', value: 'light', icon: 'light-mode' },
-    { label: 'Dark', value: 'dark', icon: 'dark-mode' },
-    { label: 'Auto', value: 'system', icon: 'brightness-auto' },
+  const themeOptions: { label: string; value: ThemePreference }[] = [
+    { label: 'Light', value: 'light' },
+    { label: 'Dark', value: 'dark' },
+    { label: 'Auto', value: 'system' },
   ];
 
   return (
@@ -61,26 +61,6 @@ export function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <Text style={[styles.sectionTitle, getSectionTitleStyle(theme)]}>Organization</Text>
-        <View style={[
-          styles.card,
-          getCardBaseStyle({ radius: 12 }),
-          getCardBorderStyle(theme),
-          { backgroundColor: theme.background.surface }
-        ]}>
-          <TouchableOpacity
-            style={styles.optionRow}
-            onPress={() => navigation.navigate('StandardsLibrary')}
-          >
-            <View style={styles.optionLabelContainer}>
-              <MaterialIcons name="pending-actions" size={22} color={theme.text.primary} style={styles.optionIcon} />
-              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Standards</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={theme.text.secondary} />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={[styles.sectionTitle, getSectionTitleStyle(theme), { marginTop: 24 }]}>Sharing</Text>
         <View style={[
           styles.card,
           getCardBaseStyle({ radius: 12 }),
@@ -99,32 +79,47 @@ export function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionTitle, getSectionTitleStyle(theme), { marginTop: 24 }]}>Appearance</Text>
+        <View style={[
+          styles.card,
+          getCardBaseStyle({ radius: 12 }),
+          getCardBorderStyle(theme),
+          { backgroundColor: theme.background.surface, padding: 8 }
+        ]}>
+          <View style={[styles.segmentedControl, { backgroundColor: theme.background.screen }]}>
+            {themeOptions.map((option) => {
+              const selected = themePreference === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.segment,
+                    selected && { backgroundColor: theme.background.surface, shadowColor: theme.shadow },
+                  ]}
+                  onPress={() => setThemePreference(option.value)}
+                >
+                  <Text style={[
+                    styles.segmentLabel,
+                    { color: selected ? theme.text.primary : theme.text.secondary },
+                    selected && styles.segmentLabelSelected,
+                  ]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         <View style={[
           styles.card,
           getCardBaseStyle({ radius: 12 }),
           getCardBorderStyle(theme),
           { backgroundColor: theme.background.surface }
         ]}>
-          {themeOptions.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[styles.optionRow, styles.optionBorder, { borderBottomColor: theme.border.secondary }]}
-              onPress={() => setThemePreference(option.value)}
-            >
-              <View style={styles.optionLabelContainer}>
-                <MaterialIcons name={option.icon} size={22} color={theme.text.primary} style={styles.optionIcon} />
-                <Text style={[styles.optionLabel, { color: theme.text.primary }]}>{option.label}</Text>
-              </View>
-              {themePreference === option.value && (
-                <MaterialIcons name="check" size={24} color={theme.button.primary.background} />
-              )}
-            </TouchableOpacity>
-          ))}
           <View style={styles.optionRow}>
             <View style={styles.optionLabelContainer}>
               <MaterialIcons name="hourglass-empty" size={22} color={theme.text.primary} style={styles.optionIcon} />
-              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Show time bar</Text>
+              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Show Period Progress Bar</Text>
             </View>
             <Switch
               value={timeBarFeatureEnabled}
@@ -198,6 +193,25 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    padding: 3,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  segmentLabelSelected: {
+    fontWeight: '600',
   },
   errorContainer: {
     borderRadius: 12,
