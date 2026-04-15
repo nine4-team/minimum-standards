@@ -18,7 +18,6 @@ import { useActiveStandardsDashboard } from '../hooks/useActiveStandardsDashboar
 import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
 import {
   useStandards,
-  MAX_ACTIVE_STANDARDS,
   ActiveCapExceededError,
 } from '../hooks/useStandards';
 import { ArchiveToMakeRoomSheet } from '../components/ArchiveToMakeRoomSheet';
@@ -78,7 +77,6 @@ export function StandardsScreen({
     deleteLogEntry,
     updateStandard,
     activeStandards,
-    activeCount,
   } = useStandards();
 
   // State for inactive standard action menu
@@ -460,7 +458,7 @@ export function StandardsScreen({
           <View style={styles.headerSpacer} />
         )}
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
-          Standards <Text style={{ color: theme.text.secondary }}>{activeCount}/{MAX_ACTIVE_STANDARDS}</Text>
+          Standards
         </Text>
         <TouchableOpacity
           onPress={() => setHeaderMenuVisible(true)}
