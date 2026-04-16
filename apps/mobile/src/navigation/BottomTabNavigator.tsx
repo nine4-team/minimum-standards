@@ -116,19 +116,30 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           width: 52,
           height: 52,
           borderRadius: 26,
-          backgroundColor: theme.button.primary.background,
+          backgroundColor: theme.background.surface,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: theme.button.primary.background,
-          shadowOpacity: 0.4,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 10,
+          shadowColor: '#000',
+          shadowOpacity: 0.1,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 8,
           opacity: pressed ? 0.9 : 1,
           transform: [{ scale: pressed ? 0.95 : 1 }],
         })}
       >
-        <MaterialIcons name="add" size={28} color="#fff" />
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: theme.button.primary.background,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MaterialIcons name="add" size={22} color="#fff" />
+        </View>
       </Pressable>
     </View>
   );
