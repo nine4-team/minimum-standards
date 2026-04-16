@@ -692,34 +692,33 @@ export function LogEntryModal({
         )}
 
         {isManualMode && (
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.text.primary }]}>{selectedStandard.unit}</Text>
-            <View style={styles.valueInputRow}>
-              <TextInput
-                ref={valueInputRef}
-                style={[
-                  styles.input,
-                  styles.valueInput,
-                  { backgroundColor: theme.input.background, borderColor: saveError ? theme.input.borderError : theme.input.border, color: theme.input.text },
-                  saveError && styles.inputError,
-                ]}
-                value={value}
-                onChangeText={(text) => {
-                  setValue(text);
-                  if (saveError) {
-                    setSaveError(null);
-                  }
-                }}
-                onPressIn={() => valueInputRef.current?.focus()}
-                placeholder=""
-                placeholderTextColor={theme.input.placeholder}
-                keyboardType={Platform.OS === 'android' ? 'number-pad' : 'numeric'}
-                editable={!saving}
-                autoFocus={Platform.OS === 'android' && !isEditMode}
-                showSoftInputOnFocus={true}
-                accessibilityLabel={`Enter ${selectedStandard.unit}`}
-              />
-            </View>
+          <View style={styles.numberField}>
+            <TextInput
+              ref={valueInputRef}
+              style={[
+                styles.bigNumberInput,
+                { color: saveError ? theme.input.borderError : theme.text.primary },
+              ]}
+              value={value}
+              onChangeText={(text) => {
+                setValue(text);
+                if (saveError) {
+                  setSaveError(null);
+                }
+              }}
+              onPressIn={() => valueInputRef.current?.focus()}
+              placeholder="0"
+              placeholderTextColor={theme.text.tertiary}
+              keyboardType={Platform.OS === 'android' ? 'number-pad' : 'numeric'}
+              editable={!saving}
+              autoFocus={Platform.OS === 'android' && !isEditMode}
+              showSoftInputOnFocus={true}
+              accessibilityLabel={`Enter ${selectedStandard.unit}`}
+              underlineColorAndroid="transparent"
+            />
+            <Text style={[styles.numberUnit, { color: theme.text.secondary }]}>
+              {selectedStandard.unit}
+            </Text>
           </View>
         )}
 
@@ -793,34 +792,33 @@ export function LogEntryModal({
 
         {saveError && <Text style={[styles.errorText, { color: theme.input.borderError }]}>{saveError}</Text>}
 
-        {/* Simplified When/Note Row */}
-        <View style={styles.metaRow}>
+        {/* Inline When · Note row */}
+        <View style={styles.metaInline}>
           <TouchableOpacity
             onPress={handleToggleWhen}
-            style={[styles.compactMetaButton, { backgroundColor: theme.background.tertiary, borderColor: theme.border.primary }]}
             disabled={saving}
             accessibilityLabel="Change when this occurred"
             accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
           >
-            <Text style={[styles.compactMetaButtonLabel, { color: theme.text.secondary }]}>When</Text>
-            <Text style={[styles.compactMetaButtonValue, { color: theme.text.primary }]} numberOfLines={1}>
+            <Text style={[styles.metaInlineText, { color: theme.text.secondary }]} numberOfLines={1}>
               {formatDate(selectedDate)}
             </Text>
           </TouchableOpacity>
-
+          <Text style={[styles.metaInlineDot, { color: theme.text.tertiary }]}>·</Text>
           <TouchableOpacity
             onPress={handleToggleNote}
-            style={[styles.compactMetaButton, { backgroundColor: theme.background.tertiary, borderColor: theme.border.primary }]}
             disabled={saving}
             accessibilityLabel={showNote ? 'Hide note' : 'Add a note'}
             accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            style={styles.metaInlineNote}
           >
-            <Text style={[styles.compactMetaButtonLabel, { color: theme.text.secondary }]}>Note</Text>
             <Text
-              style={[styles.compactMetaButtonValue, { color: note ? theme.text.primary : theme.text.secondary }]}
+              style={[styles.metaInlineText, { color: note ? theme.text.primary : theme.text.secondary }]}
               numberOfLines={1}
             >
-              {note ? note : 'Tap to add'}
+              {note ? note : 'Add note'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1398,28 +1396,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
-  metaRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+  numberField: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+    paddingBottom: 4,
+    marginBottom: 4,
   },
-  compactMetaButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 6,
+  bigNumberInput: {
+    fontSize: 96,
+    fontWeight: '300',
+    textAlign: 'center',
+    padding: 0,
+    minWidth: 120,
+    minHeight: 110,
+    includeFontPadding: false,
+    letterSpacing: -2,
   },
-  compactMetaButtonLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  compactMetaButtonValue: {
+  numberUnit: {
     fontSize: 14,
     fontWeight: '500',
+    marginTop: 2,
+  },
+  metaInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  metaInlineText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  metaInlineDot: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  metaInlineNote: {
+    maxWidth: 200,
   },
   expandedSection: {
     borderWidth: 1,
