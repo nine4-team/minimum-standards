@@ -440,7 +440,7 @@ export function ActivityHistoryScreen({
         ]}
       >
         <TouchableOpacity onPress={onBack} accessibilityRole="button">
-          <Text style={[styles.backButton, { color: theme.primary.main }]}>← Back</Text>
+          <Text style={[styles.backButton, { color: theme.primary.main }]}>←</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Scorecard Detail</Text>
         <TouchableOpacity 

@@ -1149,7 +1149,7 @@ export function LogEntryModal({
                     accessibilityRole="button"
                     accessibilityLabel="Cancel edit"
                   >
-                    <Text style={[styles.cancelEditText, { color: theme.primary.main }]}>← Back</Text>
+                    <Text style={[styles.cancelEditText, { color: theme.primary.main }]}>←</Text>
                   </TouchableOpacity>
                 )}
                 <Text style={[styles.modalTitle, { color: theme.text.primary }]}>

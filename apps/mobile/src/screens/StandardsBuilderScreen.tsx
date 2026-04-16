@@ -552,7 +552,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     >
       <View style={[styles.header, { borderBottomColor: theme.border.primary, backgroundColor: theme.background.chrome, paddingTop: Math.max(insets.top, 12) }]}>
         <TouchableOpacity onPress={onBack}>
-          <Text style={[styles.backButton, { fontSize: typography.button.primary.fontSize, fontWeight: typography.button.primary.fontWeight, color: theme.link }]}>← Back</Text>
+          <Text style={[styles.backButton, { fontSize: typography.button.primary.fontSize, fontWeight: typography.button.primary.fontWeight, color: theme.link }]}>←</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
           {isEditMode ? 'Edit Standard' : 'Create Standard'}

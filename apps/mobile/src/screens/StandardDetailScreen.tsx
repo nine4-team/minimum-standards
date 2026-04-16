@@ -215,7 +215,7 @@ export function StandardDetailScreen({
       <View style={[styles.screen, { backgroundColor: theme.background.screen }]}>
         <View style={[styles.header, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary }]}>
           <TouchableOpacity onPress={onBack} accessibilityRole="button">
-            <Text style={[styles.backButton, { color: theme.primary.main }]}>← Back</Text>
+            <Text style={[styles.backButton, { color: theme.primary.main }]}>←</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Standard Details</Text>
           <View style={styles.headerSpacer} />
@@ -236,7 +236,7 @@ export function StandardDetailScreen({
       <View style={[styles.screen, { backgroundColor: theme.background.screen }]}>
         <View style={[styles.header, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary }]}>
           <TouchableOpacity onPress={onBack} accessibilityRole="button">
-            <Text style={[styles.backButton, { color: theme.primary.main }]}>← Back</Text>
+            <Text style={[styles.backButton, { color: theme.primary.main }]}>←</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Standard Details</Text>
           <View style={styles.headerSpacer} />
@@ -254,7 +254,7 @@ export function StandardDetailScreen({
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
       <View style={[styles.header, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
         <TouchableOpacity onPress={onBack} accessibilityRole="button">
-          <Text style={[styles.backButton, { color: theme.primary.main }]}>← Back</Text>
+          <Text style={[styles.backButton, { color: theme.primary.main }]}>←</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
           {activityName}
