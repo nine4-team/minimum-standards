@@ -27,7 +27,7 @@ import { retryFirestoreWrite } from '../utils/retry';
 import { emitActivityLogMutation } from '../utils/activityLogEvents';
 import { recomputeActivityHistoryPeriod } from '../utils/activityHistoryRecompute';
 
-export const MAX_ACTIVE_STANDARDS = 7;
+export const MAX_ACTIVE_STANDARDS = 6;
 
 export class ActiveCapExceededError extends Error {
   constructor() {

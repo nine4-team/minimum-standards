@@ -95,7 +95,6 @@ const headerStyles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 8,
-    borderBottomWidth: 1,
   },
   title: {
     fontSize: 18,

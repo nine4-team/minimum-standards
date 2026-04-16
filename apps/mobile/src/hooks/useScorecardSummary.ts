@@ -23,8 +23,14 @@ const TIME_RANGE_DAYS: Record<TimeRange, number | null> = {
  * in-progress period is not reflected in summary totals — when the user taps
  * through to the detail screen they see full data including the current period.
  */
+export type ScorecardSection = {
+  title: string;
+  data: StandardSummaryCard[];
+};
+
 export function useScorecardSummary(): {
   cards: StandardSummaryCard[];
+  sections: ScorecardSection[];
   loading: boolean;
   error: Error | null;
 } {
@@ -151,11 +157,20 @@ export function useScorecardSummary(): {
     });
   }, [standards, filteredRowsByStandard, showInactiveStandards]);
 
+  const sections = useMemo(() => {
+    const active = cards.filter((c) => c.isActive);
+    const inactive = cards.filter((c) => !c.isActive);
+    const result: ScorecardSection[] = [];
+    if (active.length > 0) result.push({ title: 'Active', data: active });
+    if (inactive.length > 0) result.push({ title: 'Inactive', data: inactive });
+    return result;
+  }, [cards]);
+
   // Aggregate loading state: loading until standards AND history are all ready
   const loading = standardsLoading || historyLoading;
 
   // First error encountered wins
   const error = standardsError ?? historyError ?? null;
 
-  return { cards, loading, error };
+  return { cards, sections, loading, error };
 }

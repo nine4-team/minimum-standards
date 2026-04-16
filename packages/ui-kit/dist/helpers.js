@@ -87,8 +87,6 @@ function getScreenHeaderStyle(theme, insets) {
         paddingBottom: 16,
         paddingTop: Math.max(insets.top, 12),
         backgroundColor: theme.background.chrome,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.border.secondary,
     };
 }
 /**

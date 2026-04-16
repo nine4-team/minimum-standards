@@ -597,7 +597,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 12,
-    borderBottomWidth: 1,
   },
   backButton: {
     fontSize: 16,

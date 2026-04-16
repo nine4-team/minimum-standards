@@ -72,18 +72,11 @@ export function StandardsScreen({
   } = useActiveStandardsDashboard();
 
   const {
-    archivedStandards,
-    unarchiveStandard,
     deleteStandard,
     deleteLogEntry,
     updateStandard,
     activeStandards,
   } = useStandards();
-
-  // State for inactive standard action menu
-  const [inactiveMenuStandard, setInactiveMenuStandard] = useState<Standard | null>(null);
-  const [inactiveMenuVisible, setInactiveMenuVisible] = useState(false);
-  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   // State for active standard action bottom sheet (T037–T041)
   const [activeMenuStandard, setActiveMenuStandard] = useState<Standard | null>(null);
@@ -91,11 +84,7 @@ export function StandardsScreen({
   const [activeDeactivateConfirmVisible, setActiveDeactivateConfirmVisible] = useState(false);
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
 
-  // State for the active-cap archive-to-make-room sheet
-  const [capSheetVisible, setCapSheetVisible] = useState(false);
-  const [pendingUnarchiveId, setPendingUnarchiveId] = useState<string | null>(null);
-
-  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId, timeBarFeatureEnabled, standardsLayout } = useUIPreferencesStore();
+  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, pendingScrollToStandardId, setPendingScrollToStandardId, timeBarFeatureEnabled, standardsLayout } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
@@ -164,26 +153,6 @@ export function StandardsScreen({
     });
   }, [navigation]);
 
-  const handleInactiveMenuOpen = useCallback((standard: Standard) => {
-    setInactiveMenuStandard(standard);
-    setInactiveMenuVisible(true);
-  }, []);
-
-  const handleReactivate = useCallback(async (standardId: string) => {
-    try {
-      await unarchiveStandard(standardId);
-    } catch (err) {
-      if (err instanceof ActiveCapExceededError) {
-        setPendingUnarchiveId(standardId);
-        setInactiveMenuVisible(false);
-        setCapSheetVisible(true);
-        return;
-      }
-      Alert.alert('Error', 'Failed to reactivate standard');
-      console.error('Failed to reactivate standard:', err);
-    }
-  }, [unarchiveStandard]);
-
   const handleDeleteStandard = useCallback(async (standardId: string) => {
     try {
       await deleteStandard(standardId);
@@ -229,12 +198,6 @@ export function StandardsScreen({
     setActiveDeleteConfirmVisible(false);
     setActiveMenuStandard(null);
   }, [activeMenuStandard, deleteStandard]);
-
-  const handleViewInactiveLogs = useCallback((standardId: string) => {
-    navigation.navigate('StandardPeriodActivityLogs', {
-      standardId,
-    });
-  }, [navigation]);
 
   const renderCard = useCallback(
     ({ item }: { item: DashboardStandard }) => {
@@ -339,8 +302,7 @@ export function StandardsScreen({
       );
     }
 
-    if (dashboardStandards.length === 0 && archivedStandards.length === 0) {
-      // Truly empty: no active or inactive standards at all
+    if (dashboardStandards.length === 0) {
       return (
         <View style={styles.emptyContainer} testID="dashboard-empty-state">
           <MaterialIcons name="flag" size={64} color={theme.text.secondary} />
@@ -366,24 +328,6 @@ export function StandardsScreen({
       );
     }
 
-    if (dashboardStandards.length === 0) {
-      // No active standards, but has archived/inactive
-      return (
-        <View style={styles.emptyContainer} testID="dashboard-empty-state">
-          <Text style={[styles.emptyText, { color: theme.text.secondary }]}>
-            No active standards
-          </Text>
-          <TouchableOpacity
-            onPress={onLaunchBuilder}
-            style={[styles.builderButton, { backgroundColor: theme.button.primary.background }]}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.builderButtonText, { fontSize: typography.button.primary.fontSize, fontWeight: typography.button.primary.fontWeight, color: theme.button.primary.text }]}>Create Standard</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
     const isGrid = standardsLayout === 'grid';
     return (
       <FlatList
@@ -400,71 +344,16 @@ export function StandardsScreen({
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refreshProgress} />
         }
-        ListFooterComponent={
-          showInactiveStandards && archivedStandards.length > 0 ? (
-            <View style={styles.inactiveSection}>
-              <Text style={[styles.inactiveSectionHeader, { color: theme.text.secondary }]}>
-                Inactive Standards
-              </Text>
-              {archivedStandards.map((standard) => {
-                const activityName = standard.name;
-                const { interval, unit: cadenceUnit } = standard.cadence;
-                const cadenceStr = interval === 1 ? cadenceUnit : `${interval} ${cadenceUnit}s`;
-                const volumeText = `${standard.minimum} ${standard.unit} / ${cadenceStr}`;
-
-                return (
-                  <View key={standard.id} style={styles.inactiveCardWrapper}>
-                    <View style={[
-                      styles.inactiveCard,
-                      {
-                        backgroundColor: theme.background.card,
-                        borderColor: theme.border.secondary,
-                      },
-                    ]}>
-                      <View style={styles.inactiveCardContent}>
-                        <View style={styles.inactiveCardInfo}>
-                          <Text
-                            style={[styles.inactiveCardName, { color: theme.text.primary }]}
-                            numberOfLines={1}
-                          >
-                            {activityName}
-                          </Text>
-                          <Text
-                            style={[styles.inactiveCardDetail, { color: theme.text.secondary }]}
-                            numberOfLines={1}
-                          >
-                            {volumeText}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => handleInactiveMenuOpen(standard)}
-                          style={styles.inactiveCardMenuButton}
-                          accessibilityRole="button"
-                          accessibilityLabel={`More options for ${activityName}`}
-                        >
-                          <MaterialIcons name="more-vert" size={20} color={theme.button.icon.icon} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          ) : null
-        }
       />
     );
   }, [
-    archivedStandards,
     dashboardStandards,
-    handleInactiveMenuOpen,
     loading,
     onLaunchBuilder,
     refreshProgress,
     renderCard,
     renderGridCard,
     standardsLayout,
-    showInactiveStandards,
     theme,
     sortedAndFilteredStandards,
   ]);
@@ -497,7 +386,7 @@ export function StandardsScreen({
           accessibilityRole="button"
           accessibilityLabel="More options"
         >
-          <MaterialIcons name="more-vert" size={24} color={theme.button.icon.icon} />
+          <MaterialIcons name="more-horiz" size={24} color={theme.text.secondary} />
         </TouchableOpacity>
       </View>
 
@@ -512,56 +401,6 @@ export function StandardsScreen({
         onSave={handleLogSave}
         onDeleteLogEntry={async (logEntryId, standardId, occurredAtMs) => {
           await deleteLogEntry({ logEntryId, standardId, occurredAtMs });
-        }}
-      />
-
-      <BottomSheetMenu
-        visible={inactiveMenuVisible}
-        onRequestClose={() => setInactiveMenuVisible(false)}
-        title={inactiveMenuStandard ? inactiveMenuStandard.name : ''}
-        items={inactiveMenuStandard ? [
-          {
-            key: 'reactivate',
-            label: 'Reactivate',
-            icon: 'replay',
-            onPress: () => handleReactivate(inactiveMenuStandard.id),
-          },
-          {
-            key: 'delete',
-            label: 'Delete',
-            icon: 'delete',
-            destructive: true,
-            onPress: () => {
-              setInactiveMenuVisible(false);
-              setDeleteConfirmVisible(true);
-            },
-          },
-          {
-            key: 'view-logs',
-            label: 'View Logs',
-            icon: 'history',
-            onPress: () => handleViewInactiveLogs(inactiveMenuStandard.id),
-          },
-        ] : []}
-      />
-
-      <BottomSheetConfirmation
-        visible={deleteConfirmVisible}
-        onRequestClose={() => setDeleteConfirmVisible(false)}
-        title="Delete Standard"
-        message="Are you sure you want to delete this standard? This cannot be undone."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        destructive
-        onConfirm={() => {
-          if (inactiveMenuStandard) {
-            handleDeleteStandard(inactiveMenuStandard.id);
-          }
-          setDeleteConfirmVisible(false);
-          setInactiveMenuStandard(null);
-        }}
-        onCancel={() => {
-          setDeleteConfirmVisible(false);
         }}
       />
 
@@ -785,7 +624,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   backButton: {
     fontSize: 16,
@@ -811,6 +649,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingVertical: 4,
+    opacity: 0.5,
   },
   skeletonContainer: {
     padding: SCREEN_PADDING,

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/useTheme';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useScorecardSummary } from '../hooks/useScorecardSummary';
+import type { ScorecardSection } from '../hooks/useScorecardSummary';
 import { StandardSummaryCard } from '../components/ActivitySummaryCard';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { RangeFilterDrawer } from '../components/RangeFilterDrawer';
@@ -33,7 +34,7 @@ export function ScorecardSummaryScreen({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  const { cards, loading, error } = useScorecardSummary();
+  const { cards, sections, loading, error } = useScorecardSummary();
 
   const scorecardTimeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
   const setScorecardTimeRange = useUIPreferencesStore((s) => s.setScorecardTimeRange);
@@ -44,10 +45,25 @@ export function ScorecardSummaryScreen({
   const [rangeDrawerVisible, setRangeDrawerVisible] = useState(false);
 
   const renderCard = ({ item }: { item: StandardSummaryCardData }) => (
-    <StandardSummaryCard
-      card={item}
-      onPress={() => onNavigateToDetail(item.standardId)}
-    />
+    <View style={styles.cardWrapper}>
+      <StandardSummaryCard
+        card={item}
+        onPress={() => onNavigateToDetail(item.standardId)}
+      />
+    </View>
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: ScorecardSection }) => (
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionLine, { backgroundColor: theme.border.secondary }]} />
+        <Text style={[styles.sectionLabel, { color: theme.text.tertiary }]}>
+          {section.title}
+        </Text>
+        <View style={[styles.sectionLine, { backgroundColor: theme.border.secondary }]} />
+      </View>
+    ),
+    [theme],
   );
 
   return (
@@ -73,9 +89,9 @@ export function ScorecardSummaryScreen({
           accessibilityLabel="More options"
         >
           <MaterialIcons
-            name="more-vert"
+            name="more-horiz"
             size={24}
-            color={theme.button.icon.icon}
+            color={theme.text.secondary}
           />
         </TouchableOpacity>
       </View>
@@ -96,15 +112,17 @@ export function ScorecardSummaryScreen({
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={cards}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.standardId}
           renderItem={renderCard}
+          renderSectionHeader={renderSectionHeader}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 16 },
           ]}
           showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
         />
       )}
 
@@ -150,7 +168,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   headerTitle: {
     fontSize: 18,
@@ -166,6 +183,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingVertical: 4,
+    opacity: 0.5,
   },
   loadingContainer: {
     flex: 1,
@@ -189,8 +207,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   listContent: {
-    paddingTop: SCREEN_PADDING,
     paddingHorizontal: SCREEN_PADDING,
-    gap: CARD_LIST_GAP,
+  },
+  cardWrapper: {
+    marginBottom: CARD_LIST_GAP,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+  },
+  sectionLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
 });

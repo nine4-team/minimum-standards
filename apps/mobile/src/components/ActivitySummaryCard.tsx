@@ -44,37 +44,23 @@ export function StandardSummaryCard({ card, onPress }: StandardSummaryCardProps)
         <MaterialIcon name="chevron-right" size={20} color={theme.text.tertiary} />
       </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.statCell}>
-          <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Met</Text>
-          <Text style={[styles.statValue, { color: metColor }]}>
-            {card.percentMet}%
-          </Text>
-        </View>
-
-        <View style={styles.statCell}>
-          <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Periods</Text>
-          <Text style={[styles.statValue, { color: metColor }]} numberOfLines={1}>
-            {card.metCount}/{card.completedCount}
-          </Text>
-        </View>
-
-        <View style={styles.statCell}>
-          <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Total</Text>
-          <Text style={[styles.statValue, { color: metColor }]} numberOfLines={1}>
-            {card.totalVolumeFormatted}
-            <Text style={[styles.statUnit, { color: metColor }]}> {card.unit}</Text>
-          </Text>
-        </View>
-      </View>
+      <Text style={[styles.statsLine, { color: metColor }]} numberOfLines={1}>
+        {card.percentMet}%
+        <Text style={{ color: theme.text.tertiary }}>  ·  </Text>
+        {card.metCount}/{card.completedCount}
+        <Text style={{ color: theme.text.tertiary }}>  ·  </Text>
+        {card.totalVolumeFormatted}
+        <Text style={styles.statUnit}> {card.unit}</Text>
+      </Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 2,
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
@@ -90,19 +76,8 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 4,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 24,
-  },
-  statCell: {
-    gap: 2,
-  },
-  statLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  statValue: {
-    fontSize: 16,
+  statsLine: {
+    fontSize: 14,
     fontWeight: '600',
   },
   statUnit: {

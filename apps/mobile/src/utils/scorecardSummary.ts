@@ -40,6 +40,7 @@ export interface StandardSummaryCard {
   completedCount: number;
   totalPeriods: number;
   countMetLabel: string;
+  isActive: boolean;
 }
 
 /**
@@ -76,6 +77,8 @@ export function buildStandardSummaryCards(params: {
 
     const totalPeriods = rows.length;
 
+    const isActive = standard.state === 'active' && standard.archivedAtMs === null;
+
     cards.push({
       standardId: standard.id,
       standardName: standard.name,
@@ -87,11 +90,15 @@ export function buildStandardSummaryCards(params: {
       completedCount,
       totalPeriods,
       countMetLabel: `${metCount}/${completedCount} periods`,
+      isActive,
     });
   }
 
-  // Sort alphabetically by standard name
-  cards.sort((a, b) => a.standardName.localeCompare(b.standardName));
+  // Active first, then alphabetically within each group
+  cards.sort((a, b) => {
+    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+    return a.standardName.localeCompare(b.standardName);
+  });
 
   return cards;
 }

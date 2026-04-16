@@ -126,7 +126,7 @@ export function StandardCard({
                     </TouchableOpacity>
                     <View ref={menuButtonRef}>
                       <TouchableOpacity onPress={handleMenuPress} style={localStyles.menuButton} accessibilityRole="button" accessibilityLabel={`More options for ${activityName}`}>
-                        <MaterialIcons name="more-vert" size={20} color={theme.button.icon.icon} />
+                        <MaterialIcons name="more-horiz" size={20} color={theme.text.secondary} />
                       </TouchableOpacity>
                     </View>
                   </>

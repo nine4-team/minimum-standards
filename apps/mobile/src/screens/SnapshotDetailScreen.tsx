@@ -232,7 +232,7 @@ export function SnapshotDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel="More options"
           >
-            <MaterialIcons name="more-vert" size={24} color={theme.button.icon.icon} />
+            <MaterialIcons name="more-horiz" size={24} color={theme.text.secondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -379,7 +379,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 16,
-    borderBottomWidth: 1,
   },
   headerTitle: {
     flex: 1,
@@ -403,6 +402,7 @@ const styles = StyleSheet.create({
     width: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    opacity: 0.5,
   },
   loadingContainer: {
     flex: 1,

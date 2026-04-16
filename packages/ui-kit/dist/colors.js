@@ -75,7 +75,7 @@ exports.lightTheme = {
             text: '#fff',
         },
         destructive: {
-            background: '#c00',
+            background: '#987e55',
             text: '#fff',
         },
         icon: {
@@ -170,7 +170,7 @@ exports.darkTheme = {
             text: '#B0B0B0',
         },
         destructive: {
-            background: '#EF5350',
+            background: '#987e55',
             text: '#fff',
         },
         icon: {

@@ -239,7 +239,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 16,
-    borderBottomWidth: 1,
   },
   headerTitle: {
     flex: 1,
