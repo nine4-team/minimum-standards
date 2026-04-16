@@ -19,7 +19,7 @@ export type ActivitySummaryCardProps = StandardSummaryCardProps;
 
 export function StandardSummaryCard({ card, onPress }: StandardSummaryCardProps) {
   const theme = useTheme();
-  const metColor = card.percentMet >= 90 ? theme.status.met.barComplete : theme.status.met.text;
+  const metColor = theme.text.secondary;
 
   return (
     <TouchableOpacity
@@ -46,11 +46,13 @@ export function StandardSummaryCard({ card, onPress }: StandardSummaryCardProps)
 
       <Text style={[styles.statsLine, { color: metColor }]} numberOfLines={1}>
         {card.percentMet}%
+        <Text style={styles.statUnit}> met</Text>
         <Text style={{ color: theme.text.tertiary }}>  ·  </Text>
         {card.metCount}/{card.completedCount}
+        <Text style={styles.statUnit}> periods</Text>
         <Text style={{ color: theme.text.tertiary }}>  ·  </Text>
-        {card.totalVolumeFormatted}
-        <Text style={styles.statUnit}> {card.unit}</Text>
+        <Text style={{ color: theme.text.secondary }}>{card.totalVolumeFormatted}</Text>
+        <Text style={[styles.statUnit, { color: theme.text.secondary }]}> {card.unit}</Text>
       </Text>
     </TouchableOpacity>
   );
@@ -58,9 +60,9 @@ export function StandardSummaryCard({ card, onPress }: StandardSummaryCardProps)
 
 const styles = StyleSheet.create({
   card: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 6,
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
@@ -71,14 +73,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   standardName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     flex: 1,
     marginRight: 4,
+    letterSpacing: -0.2,
   },
   statsLine: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
   },
   statUnit: {
     fontSize: 13,

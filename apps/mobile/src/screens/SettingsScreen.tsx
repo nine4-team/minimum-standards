@@ -17,7 +17,7 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { signOut } = useAuthStore();
-  const { themePreference, setThemePreference, timeBarFeatureEnabled, setTimeBarFeatureEnabled, standardsLayout, setStandardsLayout } = useUIPreferencesStore();
+  const { themePreference, setThemePreference, standardsLayout, setStandardsLayout } = useUIPreferencesStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -161,24 +161,6 @@ export function SettingsScreen() {
                 </TouchableOpacity>
               );
             })}
-          </View>
-        </View>
-
-        <View style={[
-          styles.card,
-          getCardBaseStyle({ radius: 12 }),
-          getCardBorderStyle(theme),
-          { backgroundColor: theme.background.surface }
-        ]}>
-          <View style={styles.optionRow}>
-            <View style={styles.optionLabelContainer}>
-              <MaterialIcons name="hourglass-empty" size={22} color={theme.text.primary} style={styles.optionIcon} />
-              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Show Period Progress Bar</Text>
-            </View>
-            <Switch
-              value={timeBarFeatureEnabled}
-              onValueChange={setTimeBarFeatureEnabled}
-            />
           </View>
         </View>
 

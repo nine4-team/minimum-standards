@@ -36,6 +36,8 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const navRoutes = state.routes.filter((r) => r.name !== 'Create');
   const activeRouteKey = state.routes[state.index]?.key;
 
+  const fadeColor = theme.background.screen;
+
   return (
     <View
       pointerEvents="box-none"
@@ -44,15 +46,32 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         bottom: 0,
         left: 0,
         right: 0,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: Math.max(insets.bottom, 8),
-        backgroundColor: 'transparent',
       }}
     >
+      {/* Fade gradient: transparent → screen background */}
+      <View pointerEvents="none" style={{ height: 32 }}>
+        {[0, 0.08, 0.2, 0.4, 0.65, 0.85, 1].map((opacity, i, arr) => (
+          <View
+            key={i}
+            style={{
+              flex: 1,
+              backgroundColor: fadeColor,
+              opacity,
+            }}
+          />
+        ))}
+      </View>
+      <View
+        pointerEvents="box-none"
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingBottom: Math.max(insets.bottom, 8),
+          backgroundColor: fadeColor,
+        }}
+      >
       <View
         style={{
           flexDirection: 'row',
@@ -141,6 +160,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           <MaterialIcons name="add" size={22} color="#fff" />
         </View>
       </Pressable>
+      </View>
     </View>
   );
 }

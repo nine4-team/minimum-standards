@@ -152,8 +152,8 @@ export function CircularStandardCard({
         </View>
       </View>
 
-      <Text style={[styles.name, { color: theme.text.primary }]} numberOfLines={2}>
-        {activityName}
+      <Text style={[styles.name, { color: theme.text.primary }]} numberOfLines={1}>
+        {activityName.toUpperCase()}
       </Text>
       <Text style={[styles.unit, { color: theme.text.secondary }]} numberOfLines={1}>
         {unit}
@@ -202,6 +202,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: '600',
     textAlign: 'center',
     marginTop: 4,
