@@ -74,6 +74,24 @@ export function SettingsScreen() {
         ]}>
           <TouchableOpacity
             style={styles.optionRow}
+            onPress={() => navigation.navigate('StandardsLibrary')}
+          >
+            <View style={styles.optionLabelContainer}>
+              <MaterialIcons name="tune" size={22} color={theme.text.primary} style={styles.optionIcon} />
+              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Manage Standards</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={theme.text.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[
+          styles.card,
+          getCardBaseStyle({ radius: 12 }),
+          getCardBorderStyle(theme),
+          { backgroundColor: theme.background.surface }
+        ]}>
+          <TouchableOpacity
+            style={styles.optionRow}
             onPress={() => navigation.navigate('Snapshots')}
           >
             <View style={styles.optionLabelContainer}>
