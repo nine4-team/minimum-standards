@@ -10,14 +10,14 @@ import { AuthError } from '../utils/errors';
 import { logAuthErrorToCrashlytics } from '../utils/crashlytics';
 import { useTheme } from '../theme/useTheme';
 import { getCardBorderStyle, getCardBaseStyle, getSectionTitleStyle, getScreenContainerStyle, getScreenHeaderStyle } from '@nine4/ui-kit';
-import { useUIPreferencesStore, ThemePreference } from '../stores/uiPreferencesStore';
+import { useUIPreferencesStore, ThemePreference, StandardsLayout } from '../stores/uiPreferencesStore';
 
 export function SettingsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { signOut } = useAuthStore();
-  const { themePreference, setThemePreference, timeBarFeatureEnabled, setTimeBarFeatureEnabled } = useUIPreferencesStore();
+  const { themePreference, setThemePreference, timeBarFeatureEnabled, setTimeBarFeatureEnabled, standardsLayout, setStandardsLayout } = useUIPreferencesStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +40,11 @@ export function SettingsScreen() {
     { label: 'Light', value: 'light' },
     { label: 'Dark', value: 'dark' },
     { label: 'Auto', value: 'system' },
+  ];
+
+  const layoutOptions: { label: string; value: StandardsLayout }[] = [
+    { label: 'List', value: 'list' },
+    { label: 'Grid', value: 'grid' },
   ];
 
   return (
@@ -96,6 +101,37 @@ export function SettingsScreen() {
                     selected && { backgroundColor: theme.background.surface, shadowColor: theme.shadow },
                   ]}
                   onPress={() => setThemePreference(option.value)}
+                >
+                  <Text style={[
+                    styles.segmentLabel,
+                    { color: selected ? theme.text.primary : theme.text.secondary },
+                    selected && styles.segmentLabelSelected,
+                  ]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={[
+          styles.card,
+          getCardBaseStyle({ radius: 12 }),
+          getCardBorderStyle(theme),
+          { backgroundColor: theme.background.surface, padding: 8 }
+        ]}>
+          <View style={[styles.segmentedControl, { backgroundColor: theme.background.screen }]}>
+            {layoutOptions.map((option) => {
+              const selected = standardsLayout === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.segment,
+                    selected && { backgroundColor: theme.background.surface, shadowColor: theme.shadow },
+                  ]}
+                  onPress={() => setStandardsLayout(option.value)}
                 >
                   <Text style={[
                     styles.segmentLabel,

@@ -5,12 +5,15 @@ import type { TimeRange } from '../components/RangeFilterDrawer';
 
 export type ChartType = 'Daily Volume' | 'Daily Progress' | 'Period Progress' | 'Standards Progress' | 'Cumulative Volume';
 export type ThemePreference = 'light' | 'dark' | 'system';
+export type StandardsLayout = 'list' | 'grid';
 
 interface UIPreferencesState {
   preferredActivityChart: ChartType;
   setPreferredActivityChart: (chart: ChartType) => void;
   themePreference: ThemePreference;
   setThemePreference: (theme: ThemePreference) => void;
+  standardsLayout: StandardsLayout;
+  setStandardsLayout: (layout: StandardsLayout) => void;
   focusModeEnabled: boolean;
   setFocusModeEnabled: (enabled: boolean) => void;
   timeBarFeatureEnabled: boolean;
@@ -35,6 +38,8 @@ export const useUIPreferencesStore = create<UIPreferencesState>()(
       setPreferredActivityChart: (chart) => set({ preferredActivityChart: chart }),
       themePreference: 'system',
       setThemePreference: (theme) => set({ themePreference: theme }),
+      standardsLayout: 'list',
+      setStandardsLayout: (layout) => set({ standardsLayout: layout }),
       focusModeEnabled: false,
       setFocusModeEnabled: (enabled) => set({ focusModeEnabled: enabled }),
       timeBarFeatureEnabled: false,

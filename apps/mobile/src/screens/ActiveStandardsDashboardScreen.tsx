@@ -26,6 +26,7 @@ import { trackStandardEvent } from '../utils/analytics';
 import { LogEntryModal } from '../components/LogEntryModal';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { StandardProgressCard } from '../components/StandardProgressCard';
+import { CircularStandardCard } from '../components/CircularStandardCard';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { BottomSheetConfirmation } from '../components/BottomSheetConfirmation';
 import { useTheme } from '../theme/useTheme';
@@ -94,7 +95,7 @@ export function StandardsScreen({
   const [capSheetVisible, setCapSheetVisible] = useState(false);
   const [pendingUnarchiveId, setPendingUnarchiveId] = useState<string | null>(null);
 
-  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId, timeBarFeatureEnabled } = useUIPreferencesStore();
+  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, showInactiveStandards, setShowInactiveStandards, pendingScrollToStandardId, setPendingScrollToStandardId, timeBarFeatureEnabled, standardsLayout } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
@@ -267,6 +268,30 @@ export function StandardsScreen({
     ]
   );
 
+  const renderGridCard = useCallback(
+    ({ item }: { item: DashboardStandard }) => {
+      const { standard, progress } = item;
+      return (
+        <CircularStandardCard
+          standard={standard}
+          activityName={standard.name}
+          currentTotalFormatted={progress?.currentTotalFormatted ?? '0'}
+          targetValueFormatted={Math.round(progress?.targetValue ?? standard.minimum).toString()}
+          progressPercent={progress?.progressPercent ?? 0}
+          unit={standard.unit}
+          periodStartMs={progress?.periodStartMs}
+          periodEndMs={progress?.periodEndMs}
+          nowMs={nowMs}
+          onLogPress={() => handleLogPress(item)}
+          onCardPress={() => handleLogPress(item)}
+          onMenuPress={() => handleActiveMenuOpen(standard)}
+          highlighted={standard.id === highlightedStandardId}
+        />
+      );
+    },
+    [handleActiveMenuOpen, handleLogPress, nowMs, highlightedStandardId]
+  );
+
   const sortedAndFilteredStandards = useMemo(() => {
     const sortStandards = (a: DashboardStandard, b: DashboardStandard) => {
       if (sortOption === 'completion') {
@@ -359,14 +384,18 @@ export function StandardsScreen({
       );
     }
 
+    const isGrid = standardsLayout === 'grid';
     return (
       <FlatList
         ref={flatListRef}
         testID="dashboard-list"
+        key={isGrid ? 'grid' : 'list'}
         data={sortedAndFilteredStandards}
-        renderItem={renderCard}
+        renderItem={isGrid ? renderGridCard : renderCard}
         keyExtractor={(item) => item.standard.id}
         contentContainerStyle={styles.listContent}
+        numColumns={isGrid ? 2 : 1}
+        columnWrapperStyle={isGrid ? styles.gridRow : undefined}
         onScrollToIndexFailed={() => {}}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refreshProgress} />
@@ -433,6 +462,8 @@ export function StandardsScreen({
     onLaunchBuilder,
     refreshProgress,
     renderCard,
+    renderGridCard,
+    standardsLayout,
     showInactiveStandards,
     theme,
     sortedAndFilteredStandards,
@@ -849,6 +880,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: SCREEN_PADDING,
+    gap: CARD_LIST_GAP,
+  },
+  gridRow: {
     gap: CARD_LIST_GAP,
   },
   inactiveSection: {
