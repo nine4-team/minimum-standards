@@ -59,6 +59,7 @@ export function StandardsBuilderScreenWrapper() {
 
 export function StandardsScreenWrapper() {
   const navigation = useNavigation<StandardsNavigationProp>();
+  const { standards } = useStandards();
   return (
     <StandardsScreen
       onBack={() => {}}
@@ -69,7 +70,10 @@ export function StandardsScreenWrapper() {
         // No navigation per Activity History plan - standard taps are now a no-op
       }}
       onEditStandard={(standardId) => {
-        navigation.navigate('StandardsBuilder', { standardId });
+        const standard = standards.find((s) => s.id === standardId);
+        if (!standard) return;
+        useStandardsBuilderStore.getState().loadFromStandard(standard);
+        (navigation as any).navigate('CreateStandardFlow');
       }}
       backButtonLabel={undefined}
     />
@@ -104,7 +108,8 @@ export function StandardDetailScreenWrapper({ route }: { route: { params: { stan
 
   const handleEdit = (standardToEdit: Standard) => {
     if (standardToEdit) {
-      navigation.navigate('StandardsBuilder', { standardId: standardToEdit.id });
+      useStandardsBuilderStore.getState().loadFromStandard(standardToEdit);
+      (navigation as any).navigate('CreateStandardFlow');
     }
   };
 
