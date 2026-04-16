@@ -22,8 +22,8 @@ export interface CircularStandardCardProps {
   highlighted?: boolean;
 }
 
-const RING_SIZE = 120;
-const STROKE = 9;
+const RING_SIZE = 130;
+const STROKE = 10;
 const PACE_TICK_STROKE = 1.5;
 const PACE_TICK_OVERSHOOT = 1;
 
@@ -190,12 +190,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ringValue: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     includeFontPadding: false,
   },
   ringTarget: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
     includeFontPadding: false,
     marginTop: 2,
