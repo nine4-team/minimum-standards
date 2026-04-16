@@ -18,9 +18,7 @@ import { useActiveStandardsDashboard } from '../hooks/useActiveStandardsDashboar
 import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
 import {
   useStandards,
-  ActiveCapExceededError,
 } from '../hooks/useStandards';
-import { ArchiveToMakeRoomSheet } from '../components/ArchiveToMakeRoomSheet';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { trackStandardEvent } from '../utils/analytics';
 import { LogEntryModal } from '../components/LogEntryModal';
@@ -30,7 +28,7 @@ import { CircularStandardCard } from '../components/CircularStandardCard';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { BottomSheetConfirmation } from '../components/BottomSheetConfirmation';
 import { useTheme } from '../theme/useTheme';
-import { typography, BUTTON_BORDER_RADIUS, CARD_LIST_GAP, SCREEN_PADDING, getScreenContainerStyle } from '@nine4/ui-kit';
+import { BUTTON_BORDER_RADIUS, CARD_LIST_GAP, SCREEN_PADDING, getScreenContainerStyle } from '@nine4/ui-kit';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type SortOption = 'completion' | 'alpha';
@@ -75,7 +73,6 @@ export function StandardsScreen({
     deleteStandard,
     deleteLogEntry,
     updateStandard,
-    activeStandards,
   } = useStandards();
 
   // State for active standard action bottom sheet (T037–T041)
@@ -152,15 +149,6 @@ export function StandardsScreen({
       // No period boundaries - will calculate current period
     });
   }, [navigation]);
-
-  const handleDeleteStandard = useCallback(async (standardId: string) => {
-    try {
-      await deleteStandard(standardId);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to delete standard');
-      console.error('Failed to delete standard:', err);
-    }
-  }, [deleteStandard]);
 
   // --- Active standard bottom sheet handlers (T037–T041) ---
 
@@ -431,12 +419,6 @@ export function StandardsScreen({
               );
             },
           },
-          {
-            key: 'show-inactive',
-            label: 'Show Inactive Standards',
-            icon: showInactiveStandards ? 'check' : undefined,
-            onPress: () => setShowInactiveStandards(!showInactiveStandards),
-          },
         ]}
       />
 
@@ -476,7 +458,7 @@ export function StandardsScreen({
           setActiveMenuStandard(null);
         }}
         title="Deactivate Standard"
-        message="This standard will be moved to inactive. You can reactivate it later from the inactive standards list."
+        message="This standard will be moved to inactive. You can reactivate it later from the Standards Library."
         confirmLabel="Deactivate"
         cancelLabel="Cancel"
         destructive
@@ -506,28 +488,6 @@ export function StandardsScreen({
         }}
       />
 
-      <ArchiveToMakeRoomSheet
-        visible={capSheetVisible}
-        activeStandards={activeStandards}
-        onRequestClose={() => {
-          setCapSheetVisible(false);
-          setPendingUnarchiveId(null);
-        }}
-        onArchive={async (id) => {
-          setCapSheetVisible(false);
-          const toReactivate = pendingUnarchiveId;
-          setPendingUnarchiveId(null);
-          try {
-            await archiveStandard(id);
-            if (toReactivate) {
-              await unarchiveStandard(toReactivate, { bypassCap: true });
-            }
-          } catch (err) {
-            Alert.alert('Error', 'Failed to swap active standards');
-            console.error(err);
-          }
-        }}
-      />
     </View>
   );
 }
@@ -705,63 +665,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  emptyText: {
-    fontSize: 16,
-  },
-  builderButton: {
-    marginTop: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: BUTTON_BORDER_RADIUS,
-  },
-  builderButtonText: {
-    // fontSize and fontWeight come from typography.button.primary
-  },
   listContent: {
     padding: SCREEN_PADDING,
     gap: CARD_LIST_GAP,
   },
   gridRow: {
     gap: CARD_LIST_GAP,
-  },
-  inactiveSection: {
-    marginTop: CARD_LIST_GAP,
-  },
-  inactiveSectionHeader: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: CARD_LIST_GAP,
-  },
-  inactiveCardWrapper: {
-    opacity: 0.6,
-    marginBottom: CARD_LIST_GAP,
-  },
-  inactiveCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
-  },
-  inactiveCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  inactiveCardInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  inactiveCardName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  inactiveCardDetail: {
-    fontSize: 14,
-  },
-  inactiveCardMenuButton: {
-    padding: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 32,
-    minHeight: 32,
   },
 });

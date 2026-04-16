@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   statsLine: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   statUnit: {
