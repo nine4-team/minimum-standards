@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { firebaseAuth } from '../firebase/firebaseApp';
 import { migrateActivitiesToStandards } from '../utils/migrateActivitiesToStandards';
+import { reconcileActivityMetadata } from '../utils/reconcileActivityMetadata';
 
 /**
- * Runs one-time data migrations on app start.
- * Mount at the authenticated app root (e.g., BottomTabNavigator).
+ * Runs data migrations on app start. Mount at the authenticated app root.
+ * The one-shot migration runs first; reconcileActivityMetadata then catches
+ * any ongoing writes from pre-Activity-elimination TestFlight clients.
  */
 export function useMigration() {
   const hasRun = useRef(false);
@@ -14,8 +16,17 @@ export function useMigration() {
     if (!userId || hasRun.current) return;
     hasRun.current = true;
 
-    migrateActivitiesToStandards(userId).catch((err) => {
-      console.error('[useMigration] Migration failed:', err);
-    });
+    (async () => {
+      try {
+        await migrateActivitiesToStandards(userId);
+      } catch (err) {
+        console.error('[useMigration] One-shot migration failed:', err);
+      }
+      try {
+        await reconcileActivityMetadata(userId);
+      } catch (err) {
+        console.error('[useMigration] Activity reconcile failed:', err);
+      }
+    })();
   }, []);
 }
