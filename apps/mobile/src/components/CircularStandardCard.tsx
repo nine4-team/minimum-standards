@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle, G } from 'react-native-svg';
+import Svg, { Circle, G, Line } from 'react-native-svg';
 import type { Standard } from '@minimum-standards/shared-model';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
@@ -24,7 +24,8 @@ export interface CircularStandardCardProps {
 
 const RING_SIZE = 120;
 const STROKE = 9;
-const PACE_DOT_RADIUS = 6;
+const PACE_TICK_STROKE = 1.5;
+const PACE_TICK_OVERSHOOT = 1;
 
 export function CircularStandardCard({
   activityName,
@@ -59,14 +60,20 @@ export function CircularStandardCard({
     currentNowMs >= periodStartMs &&
     currentNowMs < periodEndMs;
 
-  let paceDot: { x: number; y: number } | null = null;
+  let paceTick: { x1: number; y1: number; x2: number; y2: number } | null = null;
   if (hasTimeWindow && clampedProgress < 100) {
     const elapsed = Math.max(0, Math.min(currentNowMs - periodStartMs, periodEndMs - periodStartMs));
     const timePercent = (elapsed / (periodEndMs - periodStartMs)) * 100;
     const angle = (timePercent / 100) * 2 * Math.PI - Math.PI / 2;
-    paceDot = {
-      x: center + radius * Math.cos(angle),
-      y: center + radius * Math.sin(angle),
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const inner = radius - STROKE / 2 - PACE_TICK_OVERSHOOT;
+    const outer = radius + STROKE / 2 + PACE_TICK_OVERSHOOT;
+    paceTick = {
+      x1: center + inner * cos,
+      y1: center + inner * sin,
+      x2: center + outer * cos,
+      y2: center + outer * sin,
     };
   }
 
@@ -96,7 +103,7 @@ export function CircularStandardCard({
           accessibilityLabel={`More options for ${activityName}`}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MaterialIcons name="more-horiz" size={18} color={theme.button.icon.icon} />
+          <MaterialIcons name="more-horiz" size={18} color={theme.text.secondary} />
         </TouchableOpacity>
       )}
 
@@ -123,12 +130,15 @@ export function CircularStandardCard({
               strokeDashoffset={dashOffset}
             />
           </G>
-          {paceDot && (
-            <Circle
-              cx={paceDot.x}
-              cy={paceDot.y}
-              r={PACE_DOT_RADIUS}
-              fill={theme.text.primary}
+          {paceTick && (
+            <Line
+              x1={paceTick.x1}
+              y1={paceTick.y1}
+              x2={paceTick.x2}
+              y2={paceTick.y2}
+              stroke={theme.text.primary}
+              strokeWidth={PACE_TICK_STROKE}
+              strokeLinecap="round"
             />
           )}
         </Svg>
