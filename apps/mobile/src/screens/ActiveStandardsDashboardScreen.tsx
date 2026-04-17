@@ -1,7 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  FlatList,
-  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -26,6 +24,7 @@ import { ErrorBanner } from '../components/ErrorBanner';
 import { CircularStandardCard } from '../components/CircularStandardCard';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { BottomSheetConfirmation } from '../components/BottomSheetConfirmation';
+import { DraggableStandardsGrid } from '../components/DraggableStandardsGrid';
 import { useTheme } from '../theme/useTheme';
 import { BUTTON_BORDER_RADIUS, CARD_LIST_GAP, SCREEN_PADDING, getScreenContainerStyle } from '@nine4/ui-kit';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -69,6 +68,7 @@ export function StandardsScreen({
     deleteStandard,
     deleteLogEntry,
     updateStandard,
+    saveStandardOrder,
   } = useStandards();
 
   // State for active standard action bottom sheet (T037–T041)
@@ -78,7 +78,6 @@ export function StandardsScreen({
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
 
   const { pendingScrollToStandardId, setPendingScrollToStandardId, standardsSort, setStandardsSort } = useUIPreferencesStore();
-  const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
   const handleLogPress = useCallback(
@@ -183,11 +182,12 @@ export function StandardsScreen({
     setActiveMenuStandard(null);
   }, [activeMenuStandard, deleteStandard]);
 
-  const renderGridCard = useCallback(
-    ({ item }: { item: DashboardStandard }) => {
+  const renderCard = useCallback(
+    (item: DashboardStandard, isDragging: boolean) => {
       const { standard, progress } = item;
       return (
         <CircularStandardCard
+          style={{ width: '100%', opacity: isDragging ? 0.3 : 1 }}
           standard={standard}
           activityName={standard.name}
           currentTotalFormatted={progress?.currentTotalFormatted ?? '0'}
@@ -207,6 +207,19 @@ export function StandardsScreen({
     [handleActiveMenuOpen, handleLogPress, nowMs, highlightedStandardId]
   );
 
+  const handleReorder = useCallback(
+    async (orderedIds: string[]) => {
+      try {
+        await saveStandardOrder(orderedIds);
+        setStandardsSort('manual');
+      } catch (err) {
+        Alert.alert('Error', 'Failed to save order');
+        console.error('Failed to save order:', err);
+      }
+    },
+    [saveStandardOrder, setStandardsSort]
+  );
+
   const sortedAndFilteredStandards = useMemo(() => {
     const sortStandards = (a: DashboardStandard, b: DashboardStandard) => {
       if (standardsSort === 'completion') {
@@ -214,24 +227,27 @@ export function StandardsScreen({
         const bProgress = b.progress?.progressPercent ?? 0;
         return aProgress - bProgress;
       }
+      if (standardsSort === 'manual') {
+        const aIdx = a.standard.orderIndex ?? Number.MAX_SAFE_INTEGER;
+        const bIdx = b.standard.orderIndex ?? Number.MAX_SAFE_INTEGER;
+        if (aIdx !== bIdx) return aIdx - bIdx;
+        return a.standard.createdAtMs - b.standard.createdAtMs;
+      }
       return a.standard.name.localeCompare(b.standard.name);
     };
 
     return [...dashboardStandards].sort(sortStandards);
   }, [dashboardStandards, standardsSort]);
 
-  // Scroll to a newly created standard's card when it appears in the list
+  // Highlight a newly created standard when it appears in the grid
   useEffect(() => {
     if (!pendingScrollToStandardId) return;
-    const index = sortedAndFilteredStandards.findIndex(
+    const found = sortedAndFilteredStandards.some(
       (entry) => entry.standard.id === pendingScrollToStandardId
     );
-    if (index === -1) return; // standard hasn't appeared in data yet; effect will re-run when it does
+    if (!found) return; // standard hasn't appeared yet; effect will re-run when it does
     setPendingScrollToStandardId(null);
     setHighlightedStandardId(pendingScrollToStandardId);
-    setTimeout(() => {
-      flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
-    }, 300);
     setTimeout(() => {
       setHighlightedStandardId(null);
     }, 2000);
@@ -279,19 +295,12 @@ export function StandardsScreen({
     }
 
     return (
-      <FlatList
-        ref={flatListRef}
-        testID="dashboard-list"
-        data={sortedAndFilteredStandards}
-        renderItem={renderGridCard}
-        keyExtractor={(item) => item.standard.id}
-        contentContainerStyle={styles.listContent}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
-        onScrollToIndexFailed={() => {}}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refreshProgress} />
-        }
+      <DraggableStandardsGrid
+        items={sortedAndFilteredStandards}
+        onReorder={handleReorder}
+        refreshing={loading}
+        onRefresh={refreshProgress}
+        renderCard={renderCard}
       />
     );
   }, [
@@ -299,14 +308,15 @@ export function StandardsScreen({
     loading,
     onLaunchBuilder,
     refreshProgress,
-    renderGridCard,
+    renderCard,
+    handleReorder,
     theme,
     sortedAndFilteredStandards,
   ]);
 
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
-      <View style={[styles.header, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
+      <View style={[styles.header, { backgroundColor: theme.background.screen, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
         {backButtonLabel ? (
           <TouchableOpacity onPress={onBack} accessibilityRole="button">
             <Text style={[styles.backButton, { color: theme.primary.main }]}>{backButtonLabel}</Text>
@@ -348,9 +358,11 @@ export function StandardsScreen({
         items={[
           {
             key: 'sort',
-            label: standardsSort === 'alpha' ? 'Sort by Completion' : 'Sort Alphabetically',
+            label: standardsSort === 'completion' ? 'Sort Alphabetically' : 'Sort by Completion',
             icon: 'sort',
-            onPress: () => setStandardsSort(standardsSort === 'alpha' ? 'completion' : 'alpha'),
+            onPress: () => {
+              setStandardsSort(standardsSort === 'completion' ? 'alpha' : 'completion');
+            },
           },
           {
             key: 'manage-standards',
@@ -526,13 +538,5 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  listContent: {
-    padding: SCREEN_PADDING,
-    gap: CARD_LIST_GAP,
-  },
-  gridRow: {
-    gap: 0,
-    justifyContent: 'flex-start',
   },
 });
