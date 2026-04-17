@@ -533,5 +533,6 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     gap: 0,
+    justifyContent: 'flex-start',
   },
 });

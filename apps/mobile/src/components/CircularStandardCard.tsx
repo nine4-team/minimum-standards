@@ -164,7 +164,7 @@ export function CircularStandardCard({
 
 const styles = StyleSheet.create({
   tile: {
-    flex: 1,
+    width: '50%',
     paddingVertical: 12,
     paddingHorizontal: 4,
     alignItems: 'center',
