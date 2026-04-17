@@ -6,6 +6,7 @@ import type { TimeRange } from '../components/RangeFilterDrawer';
 export type ChartType = 'Daily Volume' | 'Daily Progress' | 'Period Progress' | 'Standards Progress' | 'Cumulative Volume';
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type StandardsLayout = 'list' | 'grid';
+export type ScorecardSort = 'alpha' | 'completion';
 
 interface UIPreferencesState {
   preferredActivityChart: ChartType;
@@ -22,6 +23,10 @@ interface UIPreferencesState {
   toggleTimeBarForStandard: (standardId: string) => void;
   showInactiveStandards: boolean;
   setShowInactiveStandards: (show: boolean) => void;
+  standardsSort: ScorecardSort;
+  setStandardsSort: (sort: ScorecardSort) => void;
+  scorecardSort: ScorecardSort;
+  setScorecardSort: (sort: ScorecardSort) => void;
   scorecardTimeRange: TimeRange;
   setScorecardTimeRange: (range: TimeRange) => void;
   /** Transient: set after creating a standard so the dashboard can scroll to it. Not persisted. */
@@ -52,6 +57,10 @@ export const useUIPreferencesStore = create<UIPreferencesState>()(
       }),
       showInactiveStandards: false,
       setShowInactiveStandards: (show) => set({ showInactiveStandards: show }),
+      standardsSort: 'completion',
+      setStandardsSort: (sort) => set({ standardsSort: sort }),
+      scorecardSort: 'alpha',
+      setScorecardSort: (sort) => set({ scorecardSort: sort }),
       scorecardTimeRange: 'All',
       setScorecardTimeRange: (range) => set({ scorecardTimeRange: range }),
       pendingScrollToStandardId: null,

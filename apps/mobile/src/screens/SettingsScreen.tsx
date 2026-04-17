@@ -96,7 +96,7 @@ export function SettingsScreen() {
           >
             <View style={styles.optionLabelContainer}>
               <MaterialIcons name="share" size={22} color={theme.text.primary} style={styles.optionIcon} />
-              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Snapshots</Text>
+              <Text style={[styles.optionLabel, { color: theme.text.primary }]}>Manage Snapshots</Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={theme.text.secondary} />
           </TouchableOpacity>

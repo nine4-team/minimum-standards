@@ -38,6 +38,8 @@ export function ScorecardSummaryScreen({
 
   const scorecardTimeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
   const setScorecardTimeRange = useUIPreferencesStore((s) => s.setScorecardTimeRange);
+  const scorecardSort = useUIPreferencesStore((s) => s.scorecardSort);
+  const setScorecardSort = useUIPreferencesStore((s) => s.setScorecardSort);
   const showInactiveStandards = useUIPreferencesStore((s) => s.showInactiveStandards);
   const setShowInactiveStandards = useUIPreferencesStore((s) => s.setShowInactiveStandards);
 
@@ -131,6 +133,12 @@ export function ScorecardSummaryScreen({
         onRequestClose={() => setHeaderMenuVisible(false)}
         title="Options"
         items={[
+          {
+            key: 'sort',
+            label: scorecardSort === 'alpha' ? 'Sort by Completion' : 'Sort Alphabetically',
+            icon: 'sort',
+            onPress: () => setScorecardSort(scorecardSort === 'alpha' ? 'completion' : 'alpha'),
+          },
           {
             key: 'time-range',
             label: `Time Range: ${scorecardTimeRange}`,

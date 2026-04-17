@@ -37,6 +37,7 @@ export function useScorecardSummary(): {
   const userId = firebaseAuth.currentUser?.uid ?? null;
   const { standards, loading: standardsLoading, error: standardsError } = useStandards();
   const scorecardTimeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
+  const scorecardSort = useUIPreferencesStore((s) => s.scorecardSort);
   const showInactiveStandards = useUIPreferencesStore((s) => s.showInactiveStandards);
 
   const [persistedRowsByStandard, setPersistedRowsByStandard] = useState<
@@ -154,8 +155,9 @@ export function useScorecardSummary(): {
       standards,
       mergedRowsByStandard: filteredRowsByStandard,
       includeInactive: showInactiveStandards,
+      sort: scorecardSort,
     });
-  }, [standards, filteredRowsByStandard, showInactiveStandards]);
+  }, [standards, filteredRowsByStandard, showInactiveStandards, scorecardSort]);
 
   const sections = useMemo(() => {
     const active = cards.filter((c) => c.isActive);

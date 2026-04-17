@@ -56,8 +56,9 @@ export function buildStandardSummaryCards(params: {
   standards: Standard[];
   mergedRowsByStandard: Record<string, MergedActivityHistoryRow[]>;
   includeInactive: boolean;
+  sort?: 'alpha' | 'completion';
 }): StandardSummaryCard[] {
-  const { standards, mergedRowsByStandard, includeInactive } = params;
+  const { standards, mergedRowsByStandard, includeInactive, sort = 'alpha' } = params;
 
   const relevantStandards = includeInactive
     ? standards
@@ -94,9 +95,10 @@ export function buildStandardSummaryCards(params: {
     });
   }
 
-  // Active first, then alphabetically within each group
+  // Active first, then sort within each group
   cards.sort((a, b) => {
     if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+    if (sort === 'completion') return b.percentMet - a.percentMet;
     return a.standardName.localeCompare(b.standardName);
   });
 

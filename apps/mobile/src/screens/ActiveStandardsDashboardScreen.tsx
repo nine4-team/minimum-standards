@@ -31,8 +31,6 @@ import { useTheme } from '../theme/useTheme';
 import { BUTTON_BORDER_RADIUS, CARD_LIST_GAP, SCREEN_PADDING, getScreenContainerStyle } from '@nine4/ui-kit';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-type SortOption = 'completion' | 'alpha';
-
 export interface StandardsScreenProps {
   onBack?: () => void;
   onLaunchBuilder: () => void;
@@ -55,7 +53,6 @@ export function StandardsScreen({
   const insets = useSafeAreaInsets();
   const [selectedStandard, setSelectedStandard] = useState<Standard | null>(null);
   const [logModalVisible, setLogModalVisible] = useState(false);
-  const [sortOption, setSortOption] = useState<SortOption>('completion');
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const {
     dashboardStandards,
@@ -81,7 +78,7 @@ export function StandardsScreen({
   const [activeDeactivateConfirmVisible, setActiveDeactivateConfirmVisible] = useState(false);
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
 
-  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, pendingScrollToStandardId, setPendingScrollToStandardId, standardsLayout } = useUIPreferencesStore();
+  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, pendingScrollToStandardId, setPendingScrollToStandardId, standardsLayout, standardsSort, setStandardsSort } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
@@ -242,18 +239,16 @@ export function StandardsScreen({
 
   const sortedAndFilteredStandards = useMemo(() => {
     const sortStandards = (a: DashboardStandard, b: DashboardStandard) => {
-      if (sortOption === 'completion') {
+      if (standardsSort === 'completion') {
         const aProgress = a.progress?.progressPercent ?? 0;
         const bProgress = b.progress?.progressPercent ?? 0;
         return aProgress - bProgress;
       }
-      const aName = a.standard.name;
-      const bName = b.standard.name;
-      return aName.localeCompare(bName);
+      return a.standard.name.localeCompare(b.standard.name);
     };
 
     return [...dashboardStandards].sort(sortStandards);
-  }, [dashboardStandards, sortOption]);
+  }, [dashboardStandards, standardsSort]);
 
   // Scroll to a newly created standard's card when it appears in the list
   useEffect(() => {
@@ -393,20 +388,15 @@ export function StandardsScreen({
         title="Options"
         items={[
           {
-            key: 'sort-completion',
-            label: 'Sort by Completion',
-            icon: sortOption === 'completion' ? 'check' : undefined,
-            onPress: () => setSortOption('completion'),
-          },
-          {
-            key: 'sort-alpha',
-            label: 'Sort Alphabetically',
-            icon: sortOption === 'alpha' ? 'check' : undefined,
-            onPress: () => setSortOption('alpha'),
+            key: 'sort',
+            label: standardsSort === 'alpha' ? 'Sort by Completion' : 'Sort Alphabetically',
+            icon: 'sort',
+            onPress: () => setStandardsSort(standardsSort === 'alpha' ? 'completion' : 'alpha'),
           },
           {
             key: 'manage-standards',
             label: 'Manage Standards',
+            icon: 'tune',
             onPress: () => {
               navigation.navigate(
                 SETTINGS_TAB_ROUTE_NAME as any,
@@ -665,6 +655,6 @@ const styles = StyleSheet.create({
     gap: CARD_LIST_GAP,
   },
   gridRow: {
-    gap: CARD_LIST_GAP,
+    gap: 0,
   },
 });
