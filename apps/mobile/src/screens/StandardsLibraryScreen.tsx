@@ -192,7 +192,7 @@ export function StandardsLibraryScreen({
 
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
-      <View style={[styles.header, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
+      <View style={[styles.header, { backgroundColor: theme.background.screen, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
         {onBack ? (
           <TouchableOpacity onPress={onBack} style={styles.headerBackButton} accessibilityRole="button" accessibilityLabel="Go back">
             <MaterialIcons name="arrow-back" size={24} color={theme.text.primary} />
@@ -207,7 +207,7 @@ export function StandardsLibraryScreen({
       <ErrorBanner error={error} onRetry={handleRetry} />
 
       {/* Search Input */}
-      <View style={[styles.searchContainer, { borderBottomColor: theme.border.secondary, backgroundColor: theme.background.chrome }]}>
+      <View style={[styles.searchContainer, { borderBottomColor: theme.border.secondary, backgroundColor: theme.background.screen }]}>
         <View style={styles.searchRow}>
           <TextInput
             style={[

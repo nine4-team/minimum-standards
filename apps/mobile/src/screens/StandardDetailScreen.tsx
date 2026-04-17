@@ -252,7 +252,7 @@ export function StandardDetailScreen({
 
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
-      <View style={[styles.header, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
+      <View style={[styles.header, { backgroundColor: theme.background.screen, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
         <TouchableOpacity onPress={onBack} accessibilityRole="button">
           <Text style={[styles.backButton, { color: theme.primary.main }]}>←</Text>
         </TouchableOpacity>

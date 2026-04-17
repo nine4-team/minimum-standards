@@ -76,7 +76,7 @@ export function SnapshotsScreen() {
           style={[
             styles.header,
             {
-              backgroundColor: theme.background.chrome,
+              backgroundColor: theme.background.screen,
               borderBottomColor: theme.border.secondary,
               paddingTop: Math.max(insets.top, 12),
             },
@@ -101,7 +101,7 @@ export function SnapshotsScreen() {
         style={[
           styles.header,
           {
-            backgroundColor: theme.background.chrome,
+            backgroundColor: theme.background.screen,
             borderBottomColor: theme.border.secondary,
             paddingTop: Math.max(insets.top, 12),
           },
