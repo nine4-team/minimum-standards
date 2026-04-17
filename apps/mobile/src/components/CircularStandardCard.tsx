@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View, type ViewStyle } from 'react-native';
 import Svg, { Circle, G, Line } from 'react-native-svg';
 import type { Standard } from '@minimum-standards/shared-model';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -13,6 +13,7 @@ export interface CircularStandardCardProps {
   targetValueFormatted: string;
   progressPercent: number;
   unit: string;
+  style?: ViewStyle;
   periodStartMs?: number;
   periodEndMs?: number;
   nowMs?: number;
@@ -40,6 +41,7 @@ export function CircularStandardCard({
   onCardPress,
   onMenuPress,
   highlighted,
+  style,
 }: CircularStandardCardProps) {
   const theme = useTheme();
 
@@ -92,6 +94,7 @@ export function CircularStandardCard({
       accessibilityLabel={`Log progress for ${activityName}`}
       style={({ pressed }) => [
         styles.tile,
+        style,
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >

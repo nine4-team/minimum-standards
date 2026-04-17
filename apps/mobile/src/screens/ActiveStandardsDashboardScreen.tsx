@@ -210,8 +210,8 @@ export function StandardsScreen({
   const handleReorder = useCallback(
     async (orderedIds: string[]) => {
       try {
-        await saveStandardOrder(orderedIds);
         setStandardsSort('manual');
+        await saveStandardOrder(orderedIds);
       } catch (err) {
         Alert.alert('Error', 'Failed to save order');
         console.error('Failed to save order:', err);

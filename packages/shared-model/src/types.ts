@@ -56,6 +56,7 @@ export type Standard = SoftDelete &
     periodStartPreference?: PeriodStartPreference;
     configEras?: ConfigEra[];
     notes: string | null;
+    orderIndex?: number;
     /** @deprecated Kept for migration compatibility. Will be removed in a future release. */
     activityId?: string;
   };

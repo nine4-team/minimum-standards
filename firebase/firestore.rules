@@ -81,6 +81,7 @@ service cloud.firestore {
         'name',
         'unit',
         'notes',
+        'categoryId',
         'createdAt',
         'updatedAt',
         'deletedAt'
@@ -105,6 +106,7 @@ service cloud.firestore {
         'name',
         'unit',
         'notes',
+        'categoryId',
         'updatedAt',
         'deletedAt'
       ])
@@ -150,12 +152,14 @@ service cloud.firestore {
         'periodStartPreference',
         'quickAddValues',
         'notes',
+        'categoryId',
         'activityId',
         'archivedAt',
         'createdAt',
         'updatedAt',
         'deletedAt',
-        'configEras'
+        'configEras',
+        'orderIndex'
       ])
       && ('deletedAt' in request.resource.data)
       && (
@@ -201,6 +205,10 @@ service cloud.firestore {
       && (
         !('configEras' in request.resource.data)
         || (request.resource.data.configEras is list && request.resource.data.configEras.size() <= 50)
+      )
+      && (
+        !('orderIndex' in request.resource.data)
+        || (request.resource.data.orderIndex is number && request.resource.data.orderIndex >= 0)
       );
     }
 

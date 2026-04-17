@@ -102,6 +102,7 @@ exports.standardSchema = zod_1.z.object({
     periodStartPreference: periodStartPreferenceSchema.optional(),
     configEras: zod_1.z.array(exports.configEraSchema).optional(),
     notes: zod_1.z.string().max(1000).nullable().default(null),
+    orderIndex: zod_1.z.number().int().nonnegative().optional(),
     activityId: zod_1.z.string().min(1).optional(), // Deprecated: kept for migration
     createdAtMs: timestampMsSchema,
     updatedAtMs: timestampMsSchema,

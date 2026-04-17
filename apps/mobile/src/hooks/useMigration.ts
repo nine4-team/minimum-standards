@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { firebaseAuth } from '../firebase/firebaseApp';
 import { migrateActivitiesToStandards } from '../utils/migrateActivitiesToStandards';
 import { reconcileActivityMetadata } from '../utils/reconcileActivityMetadata';
+import { migrateCategoryIdCleanup } from '../utils/migrateCategoryIdCleanup';
 
 /**
  * Runs data migrations on app start. Mount at the authenticated app root.
@@ -21,6 +22,11 @@ export function useMigration() {
         await migrateActivitiesToStandards(userId);
       } catch (err) {
         console.error('[useMigration] One-shot migration failed:', err);
+      }
+      try {
+        await migrateCategoryIdCleanup(userId);
+      } catch (err) {
+        console.error('[useMigration] categoryId cleanup failed:', err);
       }
       try {
         await reconcileActivityMetadata(userId);

@@ -269,6 +269,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }>, "many">>;
     notes: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    orderIndex: z.ZodOptional<z.ZodNumber>;
     activityId: z.ZodOptional<z.ZodString>;
     createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
     updatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
@@ -322,6 +323,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    orderIndex?: number | undefined;
     activityId?: string | undefined;
 }, {
     unit: string;
@@ -372,6 +374,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    orderIndex?: number | undefined;
     activityId?: string | undefined;
 }>, {
     unit: string;
@@ -422,6 +425,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    orderIndex?: number | undefined;
     activityId?: string | undefined;
 }, {
     unit: string;
@@ -472,6 +476,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
             weekStartDay: number;
         } | undefined;
     }[] | undefined;
+    orderIndex?: number | undefined;
     activityId?: string | undefined;
 }>;
 export declare const activityLogSchema: z.ZodObject<{

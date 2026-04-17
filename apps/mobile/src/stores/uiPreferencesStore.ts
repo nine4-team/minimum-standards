@@ -5,7 +5,7 @@ import type { TimeRange } from '../components/RangeFilterDrawer';
 
 export type ChartType = 'Daily Volume' | 'Daily Progress' | 'Period Progress' | 'Standards Progress' | 'Cumulative Volume';
 export type ThemePreference = 'light' | 'dark' | 'system';
-export type ScorecardSort = 'alpha' | 'completion';
+export type ScorecardSort = 'alpha' | 'completion' | 'manual';
 
 interface UIPreferencesState {
   preferredActivityChart: ChartType;

@@ -19,6 +19,7 @@ export type FirestoreStandardData = {
   deletedAt: FirebaseFirestoreTypes.Timestamp | null;
   periodStartPreference?: Standard['periodStartPreference'];
   configEras?: ConfigEra[];
+  orderIndex?: number;
 };
 
 /**
@@ -55,6 +56,7 @@ export function fromFirestoreStandard(
     createdAtMs: data.createdAt?.toMillis() ?? Date.now(),
     updatedAtMs: data.updatedAt?.toMillis() ?? Date.now(),
     deletedAtMs: data.deletedAt?.toMillis() ?? null,
+    orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : undefined,
   }) as Standard;
 }
 

@@ -105,6 +105,7 @@ export interface UseStandardsResult {
   deleteLogEntry: (input: DeleteLogInput) => Promise<void>;
   restoreLogEntry: (input: RestoreLogInput) => Promise<void>;
   canLogStandard: (standardId: string) => boolean;
+  saveStandardOrder: (orderedIds: string[]) => Promise<void>;
 }
 
 function sortByUpdatedAtDesc(list: Standard[]): Standard[] {
@@ -663,6 +664,26 @@ export function useStandards(): UseStandardsResult {
     [userId, standards, canLogStandard, triggerActivityHistoryRecompute]
   );
 
+  const saveStandardOrder = useCallback(
+    async (orderedIds: string[]): Promise<void> => {
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      await Promise.all(
+        orderedIds.map((standardId, index) => {
+          const standardRef = doc(
+            collection(doc(firebaseFirestore, 'users', userId), 'standards'),
+            standardId
+          );
+          return retryFirestoreWrite(async () => {
+            await standardRef.update({ orderIndex: index, updatedAt: serverTimestamp() });
+          });
+        })
+      );
+    },
+    [userId]
+  );
+
   const loading = standardsLoading;
   const error = standardsError;
 
@@ -685,5 +706,6 @@ export function useStandards(): UseStandardsResult {
     deleteLogEntry,
     restoreLogEntry,
     canLogStandard,
+    saveStandardOrder,
   };
 }
