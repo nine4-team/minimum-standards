@@ -100,7 +100,7 @@ export function StandardCard({
               <Text style={[localStyles.activityName, { color: theme.text.primary }]} numberOfLines={1}>
                 {activityName}
               </Text>
-              <Text style={[localStyles.volumePeriodText, { color: theme.text.primary }]} numberOfLines={1}>
+              <Text style={[localStyles.volumePeriodText, { color: theme.text.secondary }]} numberOfLines={1}>
                 {volumePeriodText}
               </Text>
               {sessionParamsText !== null && (
@@ -174,9 +174,9 @@ const localStyles = StyleSheet.create({
     elevation: 2,
   },
   cardContent: { gap: 0 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, padding: 16 },
-  titleBlock: { flex: 1, gap: 4 },
-  activityName: { fontSize: 16, fontWeight: '600' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
+  titleBlock: { flex: 1, gap: 6 },
+  activityName: { fontSize: 17, fontWeight: '600', letterSpacing: -0.2 },
   volumePeriodText: { fontSize: 14, fontWeight: '500' },
   sessionParamsText: { fontSize: 13 },
   headerActions: { alignItems: 'flex-end', justifyContent: 'flex-start' },
