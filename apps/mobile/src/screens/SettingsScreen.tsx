@@ -10,14 +10,14 @@ import { AuthError } from '../utils/errors';
 import { logAuthErrorToCrashlytics } from '../utils/crashlytics';
 import { useTheme } from '../theme/useTheme';
 import { getCardBorderStyle, getCardBaseStyle, getSectionTitleStyle, getScreenContainerStyle, getScreenHeaderStyle } from '@nine4/ui-kit';
-import { useUIPreferencesStore, ThemePreference, StandardsLayout } from '../stores/uiPreferencesStore';
+import { useUIPreferencesStore, ThemePreference } from '../stores/uiPreferencesStore';
 
 export function SettingsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { signOut } = useAuthStore();
-  const { themePreference, setThemePreference, standardsLayout, setStandardsLayout } = useUIPreferencesStore();
+  const { themePreference, setThemePreference } = useUIPreferencesStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,27 +42,10 @@ export function SettingsScreen() {
     { label: 'Auto', value: 'system' },
   ];
 
-  const layoutOptions: { label: string; value: StandardsLayout }[] = [
-    { label: 'List', value: 'list' },
-    { label: 'Grid', value: 'grid' },
-  ];
-
   return (
     <View style={[styles.container, getScreenContainerStyle(theme)]}>
       <View style={[styles.header, getScreenHeaderStyle(theme, insets)]}>
-        <View style={styles.headerSpacer} />
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Settings</Text>
-        <TouchableOpacity
-          style={styles.signOutIconContainer}
-          onPress={handleSignOut}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color={theme.button.primary.background} />
-          ) : (
-            <MaterialIcons name="logout" size={24} color={theme.button.primary.background} />
-          )}
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -133,42 +116,31 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        <View style={[
-          styles.card,
-          getCardBaseStyle({ radius: 12 }),
-          getCardBorderStyle(theme),
-          { backgroundColor: theme.background.surface, padding: 8 }
-        ]}>
-          <View style={[styles.segmentedControl, { backgroundColor: theme.background.screen }]}>
-            {layoutOptions.map((option) => {
-              const selected = standardsLayout === option.value;
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.segment,
-                    selected && { backgroundColor: theme.background.surface, shadowColor: theme.shadow },
-                  ]}
-                  onPress={() => setStandardsLayout(option.value)}
-                >
-                  <Text style={[
-                    styles.segmentLabel,
-                    { color: selected ? theme.text.primary : theme.text.secondary },
-                    selected && styles.segmentLabelSelected,
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
         {error && (
           <View style={[styles.errorContainer, { backgroundColor: theme.background.card, shadowColor: theme.shadow }]}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
+
+        <TouchableOpacity
+          style={[
+            styles.signOutButton,
+            getCardBaseStyle({ radius: 12 }),
+            getCardBorderStyle(theme),
+            { backgroundColor: theme.background.surface }
+          ]}
+          onPress={handleSignOut}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={theme.button.primary.background} />
+          ) : (
+            <>
+              <MaterialIcons name="logout" size={20} color={theme.text.secondary} style={styles.signOutIcon} />
+              <Text style={[styles.signOutLabel, { color: theme.text.secondary }]}>Sign Out</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -180,22 +152,26 @@ const styles = StyleSheet.create({
   },
   header: {
     // Base style comes from getScreenHeaderStyle helper
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   headerTitle: {
-    flex: 1,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
-  headerSpacer: {
-    width: 60,
-  },
-  signOutIconContainer: {
-    width: 60,
-    alignItems: 'flex-end',
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingRight: 4,
+    paddingVertical: 14,
+    marginBottom: 24,
+  },
+  signOutIcon: {
+    marginRight: 8,
+  },
+  signOutLabel: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   content: {
     flex: 1,

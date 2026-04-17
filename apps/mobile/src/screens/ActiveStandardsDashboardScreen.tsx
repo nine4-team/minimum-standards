@@ -23,7 +23,6 @@ import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { trackStandardEvent } from '../utils/analytics';
 import { LogEntryModal } from '../components/LogEntryModal';
 import { ErrorBanner } from '../components/ErrorBanner';
-import { StandardProgressCard } from '../components/StandardProgressCard';
 import { CircularStandardCard } from '../components/CircularStandardCard';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { BottomSheetConfirmation } from '../components/BottomSheetConfirmation';
@@ -78,7 +77,7 @@ export function StandardsScreen({
   const [activeDeactivateConfirmVisible, setActiveDeactivateConfirmVisible] = useState(false);
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
 
-  const { showTimeBar, setShowTimeBar, hiddenTimeBarStandardIds, toggleTimeBarForStandard, pendingScrollToStandardId, setPendingScrollToStandardId, standardsLayout, standardsSort, setStandardsSort } = useUIPreferencesStore();
+  const { pendingScrollToStandardId, setPendingScrollToStandardId, standardsSort, setStandardsSort } = useUIPreferencesStore();
   const flatListRef = useRef<FlatList<DashboardStandard>>(null);
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
@@ -184,35 +183,6 @@ export function StandardsScreen({
     setActiveMenuStandard(null);
   }, [activeMenuStandard, deleteStandard]);
 
-  const renderCard = useCallback(
-    ({ item }: { item: DashboardStandard }) => {
-      const standardId = item.standard.id;
-      const isOverriddenForStandard = hiddenTimeBarStandardIds.includes(standardId);
-      const effectiveShowTimeBar = isOverriddenForStandard ? !showTimeBar : showTimeBar;
-      return (
-        <StandardCard
-          entry={item}
-          onLogPress={() => handleLogPress(item)}
-          onCardPress={() => handleLogPress(item)}
-          onMenuPress={() => handleActiveMenuOpen(item.standard)}
-          nowMs={nowMs}
-          showTimeBar={effectiveShowTimeBar}
-          onToggleTimeBar={() => toggleTimeBarForStandard(standardId)}
-          highlighted={item.standard.id === highlightedStandardId}
-        />
-      );
-    },
-    [
-      handleActiveMenuOpen,
-      handleLogPress,
-      nowMs,
-      showTimeBar,
-      hiddenTimeBarStandardIds,
-      toggleTimeBarForStandard,
-      highlightedStandardId,
-    ]
-  );
-
   const renderGridCard = useCallback(
     ({ item }: { item: DashboardStandard }) => {
       const { standard, progress } = item;
@@ -308,18 +278,16 @@ export function StandardsScreen({
       );
     }
 
-    const isGrid = standardsLayout === 'grid';
     return (
       <FlatList
         ref={flatListRef}
         testID="dashboard-list"
-        key={isGrid ? 'grid' : 'list'}
         data={sortedAndFilteredStandards}
-        renderItem={isGrid ? renderGridCard : renderCard}
+        renderItem={renderGridCard}
         keyExtractor={(item) => item.standard.id}
         contentContainerStyle={styles.listContent}
-        numColumns={isGrid ? 2 : 1}
-        columnWrapperStyle={isGrid ? styles.gridRow : undefined}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
         onScrollToIndexFailed={() => {}}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refreshProgress} />
@@ -331,9 +299,7 @@ export function StandardsScreen({
     loading,
     onLaunchBuilder,
     refreshProgress,
-    renderCard,
     renderGridCard,
-    standardsLayout,
     theme,
     sortedAndFilteredStandards,
   ]);
@@ -346,14 +312,7 @@ export function StandardsScreen({
             <Text style={[styles.backButton, { color: theme.primary.main }]}>{backButtonLabel}</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            onPress={() => setShowTimeBar(!showTimeBar)}
-            style={styles.headerLeftButton}
-            accessibilityRole="button"
-            accessibilityLabel={showTimeBar ? 'Hide all time bars' : 'Show all time bars'}
-          >
-            <MaterialIcons name="hourglass-empty" size={24} color={showTimeBar ? theme.button.icon.icon : theme.text.tertiary} />
-          </TouchableOpacity>
+          <View style={styles.headerLeftButton} />
         )}
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
           Standards
@@ -475,88 +434,6 @@ export function StandardsScreen({
 
     </View>
   );
-}
-
-function StandardCard({
-  entry,
-  onLogPress,
-  onCardPress,
-  onMenuPress,
-  nowMs,
-  showTimeBar,
-  onToggleTimeBar,
-  highlighted,
-}: {
-  entry: DashboardStandard;
-  onLogPress: () => void;
-  onCardPress?: () => void;
-  onMenuPress?: () => void;
-  nowMs: number;
-  showTimeBar?: boolean;
-  onToggleTimeBar?: () => void;
-  highlighted?: boolean;
-}) {
-  const { standard, progress } = entry;
-
-  // Use standard.name directly
-  const activityName = standard.name;
-  
-  // Use period label from progress (computed with windowReferenceMs for auto-advance)
-  // Fallback to empty string if progress is null (shouldn't happen in normal flow)
-  const periodLabel = progress?.periodLabel ?? '';
-  
-  // Get numeric summaries
-  const currentTotal = progress?.currentTotal ?? 0;
-  const targetValue = progress?.targetValue ?? standard.minimum;
-  const currentTotalFormatted = progress?.currentTotalFormatted ?? '0';
-  const targetValueFormatted = Math.round(targetValue).toString();
-  
-  const currentSessions = progress?.currentSessions ?? 0;
-  const targetSessions = progress?.targetSessions ?? standard.sessionConfig.sessionsPerCadence;
-  const sessionLabel = standard.sessionConfig.sessionLabel;
-  
-  const status = progress?.status ?? 'In Progress';
-  const progressPercent = progress?.progressPercent ?? 0;
-  const periodStartMs = progress?.periodStartMs;
-  const periodEndMs = progress?.periodEndMs;
-  const theme = useTheme();
-
-  const card = (
-    <StandardProgressCard
-      standard={standard}
-      activityName={activityName}
-      periodLabel={periodLabel}
-      currentTotal={currentTotal}
-      currentTotalFormatted={currentTotalFormatted}
-      targetValue={targetValue}
-      targetValueFormatted={targetValueFormatted}
-      progressPercent={progressPercent}
-      status={status}
-      currentSessions={currentSessions}
-      targetSessions={targetSessions}
-      sessionLabel={sessionLabel}
-      unit={standard.unit}
-      variant="compact"
-      onLogPress={onLogPress}
-      onCardPress={onCardPress}
-      onMenuPress={onMenuPress}
-      periodStartMs={periodStartMs}
-      periodEndMs={periodEndMs}
-      nowMs={nowMs}
-      showTimeBar={showTimeBar}
-      onToggleTimeBar={onToggleTimeBar}
-    />
-  );
-
-  if (highlighted) {
-    return (
-      <View style={{ borderRadius: 18, borderWidth: 2, borderColor: theme.button.primary.background }}>
-        {card}
-      </View>
-    );
-  }
-
-  return card;
 }
 
 const styles = StyleSheet.create({

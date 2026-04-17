@@ -43,8 +43,6 @@ export interface StandardProgressCardProps {
   periodStartMs?: number;
   periodEndMs?: number;
   nowMs?: number;
-  showTimeBar?: boolean;
-  onToggleTimeBar?: () => void;
 }
 
 
@@ -90,8 +88,6 @@ export function StandardProgressCard({
   periodStartMs,
   periodEndMs,
   nowMs,
-  showTimeBar: showTimeBarProp = true,
-  onToggleTimeBar,
 }: StandardProgressCardProps) {
   const theme = useTheme();
   const [menuVisible, setMenuVisible] = useState(false);
@@ -224,23 +220,6 @@ export function StandardProgressCard({
                 </Text>
               </TouchableOpacity>
             )}
-            {onToggleTimeBar && (
-              <TouchableOpacity
-                onPress={(e: any) => {
-                  e.stopPropagation();
-                  onToggleTimeBar();
-                }}
-                style={styles.timeBarToggle}
-                accessibilityRole="button"
-                accessibilityLabel={showTimeBarProp ? 'Hide time bar' : 'Show time bar'}
-              >
-                <MaterialIcons
-                  name="hourglass-empty"
-                  size={18}
-                  color={showTimeBarProp ? theme.button.icon.icon : theme.text.tertiary}
-                />
-              </TouchableOpacity>
-            )}
             {showMenu && (
               <TouchableOpacity
                 onPress={handleMenuPress}
@@ -261,7 +240,7 @@ export function StandardProgressCard({
           ]}
         >
           {/* Time progress bar */}
-          {showTimeBarProp && shouldShowTimeBar && remainingLabel && (
+          {shouldShowTimeBar && remainingLabel && (
             <View style={styles.timeBarSection}>
               <View style={styles.progressSummaries}>
                 <Text style={[styles.progressSummaryText, { color: theme.text.secondary }]}>
