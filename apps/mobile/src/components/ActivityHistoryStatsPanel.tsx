@@ -116,7 +116,7 @@ export function ActivityHistoryStatsPanel({
         <StatItem
           label="% Met"
           value={`${percentMet}%`}
-          valueColor={percentMet >= 90 ? theme.status.met.barComplete : theme.status.met.text}
+          valueColor={theme.status.met.text}
           onHelp={() => showHelp('% Met', 'Percentage of periods where the minimum standard was achieved. In-progress periods are excluded.')}
         />
         {/* 

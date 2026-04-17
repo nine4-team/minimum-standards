@@ -145,8 +145,8 @@ export const lightTheme: ColorTheme = {
       background: '#F5F3EF',
       text: '#987e55',
       bar: '#987e55',
-      barComplete: '#4A7C59',
-      barOverflow: '#34C77C',
+      barComplete: '#2ECC71',
+      barOverflow: '#987e55',
     },
     inProgress: {
       background: '#FFF8E1',
@@ -240,8 +240,8 @@ export const darkTheme: ColorTheme = {
       background: '#3D3224',
       text: '#987e55',
       bar: '#987e55',
-      barComplete: '#4A7C59',
-      barOverflow: '#3DD598',
+      barComplete: '#2ECC71',
+      barOverflow: '#987e55',
     },
     inProgress: {
       background: '#3E2E1A',
