@@ -18,11 +18,13 @@ import { BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
 import { StepHeader } from '../../navigation/CreateStandardFlow';
 import { CreateStandardFlowParamList, MainStackParamList } from '../../navigation/types';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
-import { useStandards } from '../../hooks/useStandards';
+import { useStandards, ActiveCapExceededError } from '../../hooks/useStandards';
+import { ArchiveToMakeRoomSheet } from '../../components/ArchiveToMakeRoomSheet';
 import { useUIPreferencesStore } from '../../stores/uiPreferencesStore';
 import { useTheme } from '../../theme/useTheme';
 import { trackStandardEvent } from '../../utils/analytics';
 import { CADENCE_PRESETS, isPresetCadence, CadencePreset } from '../../utils/cadenceUtils';
+import { useSaveEdit } from './useSaveEdit';
 
 type FlowNav = NativeStackNavigationProp<CreateStandardFlowParamList>;
 type MainNav = NativeStackNavigationProp<MainStackParamList>;
@@ -67,9 +69,10 @@ export function SetPeriodStep() {
   const insets = useSafeAreaInsets();
   const flowNavigation = useNavigation<FlowNav>();
   const mainNavigation = useNavigation<MainNav>();
-  const { createStandard } = useStandards();
+  const { createStandard, archiveStandard, activeStandards } = useStandards();
   const parentNavigation = flowNavigation.getParent<NativeStackNavigationProp<MainStackParamList>>();
   const setPendingScrollToStandardId = useUIPreferencesStore((s) => s.setPendingScrollToStandardId);
+  const { editingStandardId, handleSaveEdit, saving: savingEdit, saveError } = useSaveEdit(parentNavigation, mainNavigation);
 
   const cadence = useStandardsBuilderStore((s) => s.cadence);
   const setCadence = useStandardsBuilderStore((s) => s.setCadence);
@@ -98,6 +101,7 @@ export function SetPeriodStep() {
   // Submission state (T030)
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [capSheetVisible, setCapSheetVisible] = useState(false);
 
   // Learn more toggle (T029)
   const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
@@ -204,13 +208,37 @@ export function SetPeriodStep() {
         mainNavigation.goBack();
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      setErrorMessage(message);
+      if (err instanceof ActiveCapExceededError) {
+        setCapSheetVisible(true);
+      } else {
+        setErrorMessage(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
   }, [generatePayload, createStandard, parentNavigation, mainNavigation, setPendingScrollToStandardId]);
+
+  const handleArchiveAndRetry = useCallback(async (standardId: string) => {
+    setCapSheetVisible(false);
+    const payload = generatePayload();
+    if (!payload) return;
+    setSubmitting(true);
+    try {
+      await archiveStandard(standardId);
+      const newStandard = await createStandard(payload, { bypassCap: true });
+      trackStandardEvent('standard_create', { standardName: payload.name });
+      setPendingScrollToStandardId(newStandard.id);
+      if (parentNavigation) {
+        parentNavigation.goBack();
+      } else {
+        mainNavigation.goBack();
+      }
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [archiveStandard, createStandard, generatePayload, parentNavigation, mainNavigation, setPendingScrollToStandardId]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.chrome }]}>
@@ -440,15 +468,15 @@ export function SetPeriodStep() {
       </ScrollView>
 
       {/* Error message */}
-      {errorMessage && (
+      {(errorMessage || saveError) && (
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: theme.button.primary.background }]}>
-            {errorMessage}
+            {errorMessage || saveError}
           </Text>
         </View>
       )}
 
-      {/* Footer with Create Standard button */}
+      {/* Footer */}
       <View
         style={[
           styles.footer,
@@ -463,24 +491,30 @@ export function SetPeriodStep() {
           style={[
             styles.submitButton,
             {
-              backgroundColor: submitting
+              backgroundColor: (editingStandardId ? savingEdit : submitting)
                 ? theme.button.disabled.background
                 : theme.button.primary.background,
             },
           ]}
-          onPress={handleSubmit}
-          disabled={submitting}
+          onPress={editingStandardId ? handleSaveEdit : handleSubmit}
+          disabled={editingStandardId ? savingEdit : submitting}
           activeOpacity={0.7}
         >
-          {submitting ? (
+          {(editingStandardId ? savingEdit : submitting) ? (
             <ActivityIndicator size="small" color={theme.button.primary.text} />
           ) : (
             <Text style={[styles.submitButtonText, { color: theme.button.primary.text }]}>
-              Create Standard
+              {editingStandardId ? 'Save' : 'Create Standard'}
             </Text>
           )}
         </TouchableOpacity>
       </View>
+      <ArchiveToMakeRoomSheet
+        visible={capSheetVisible}
+        activeStandards={activeStandards}
+        onArchive={handleArchiveAndRetry}
+        onRequestClose={() => setCapSheetVisible(false)}
+      />
     </View>
   );
 }

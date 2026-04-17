@@ -8,6 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import Toggle from 'react-native-toggle-element';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +19,7 @@ import { StepHeader } from '../../navigation/CreateStandardFlow';
 import { CreateStandardFlowParamList, MainStackParamList } from '../../navigation/types';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
 import { useTheme } from '../../theme/useTheme';
+import { useSaveEdit } from './useSaveEdit';
 
 type FlowNav = NativeStackNavigationProp<CreateStandardFlowParamList>;
 type MainNav = NativeStackNavigationProp<MainStackParamList>;
@@ -28,6 +30,7 @@ export function SetVolumeStep() {
   const flowNavigation = useNavigation<FlowNav>();
   const mainNavigation = useNavigation<MainNav>();
   const parentNavigation = flowNavigation.getParent<NativeStackNavigationProp<MainStackParamList>>();
+  const { editingStandardId, handleSaveEdit, saving, saveError } = useSaveEdit(parentNavigation, mainNavigation);
 
   const goalTotal = useStandardsBuilderStore((s) => s.goalTotal);
   const setGoalTotal = useStandardsBuilderStore((s) => s.setGoalTotal);
@@ -334,7 +337,7 @@ export function SetVolumeStep() {
           )}
         </ScrollView>
 
-        {/* Footer with Next button */}
+        {/* Footer */}
         <View
           style={[
             styles.footer,
@@ -345,31 +348,70 @@ export function SetVolumeStep() {
             },
           ]}
         >
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              {
-                backgroundColor: canProceed
-                  ? theme.button.primary.background
-                  : theme.button.disabled.background,
-              },
-            ]}
-            onPress={handleNext}
-            disabled={!canProceed}
-          >
-            <Text
+          {editingStandardId ? (
+            <>
+              <TouchableOpacity
+                style={[
+                  styles.nextButton,
+                  {
+                    backgroundColor: canProceed && !saving
+                      ? theme.button.primary.background
+                      : theme.button.disabled.background,
+                  },
+                ]}
+                onPress={handleSaveEdit}
+                disabled={!canProceed || saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={theme.button.primary.text} />
+                ) : (
+                  <Text style={[styles.nextButtonText, { color: canProceed ? theme.button.primary.text : theme.button.disabled.text }]}>
+                    Save
+                  </Text>
+                )}
+              </TouchableOpacity>
+              {saveError && (
+                <Text style={[styles.errorText, { color: theme.button.primary.background }]}>
+                  {saveError}
+                </Text>
+              )}
+              <TouchableOpacity
+                style={styles.nextLink}
+                onPress={handleNext}
+                disabled={!canProceed}
+              >
+                <Text style={[styles.nextLinkText, { color: canProceed ? theme.link : theme.text.secondary }]}>
+                  Next →
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
               style={[
-                styles.nextButtonText,
+                styles.nextButton,
                 {
-                  color: canProceed
-                    ? theme.button.primary.text
-                    : theme.button.disabled.text,
+                  backgroundColor: canProceed
+                    ? theme.button.primary.background
+                    : theme.button.disabled.background,
                 },
               ]}
+              onPress={handleNext}
+              disabled={!canProceed}
             >
-              Next
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.nextButtonText,
+                  {
+                    color: canProceed
+                      ? theme.button.primary.text
+                      : theme.button.disabled.text,
+                  },
+                ]}
+              >
+                Next
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -488,5 +530,18 @@ const styles = StyleSheet.create({
   nextButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  nextLink: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  nextLinkText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
