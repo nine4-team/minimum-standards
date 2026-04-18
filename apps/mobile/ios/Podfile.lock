@@ -1214,6 +1214,9 @@ PODS:
   - Firebase/Firestore (12.6.0):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 12.6.0)
+  - Firebase/Functions (12.6.0):
+    - Firebase/CoreOnly
+    - FirebaseFunctions (~> 12.6.0)
   - Firebase/Messaging (12.6.0):
     - Firebase/CoreOnly
     - FirebaseMessaging (~> 12.6.0)
@@ -1265,6 +1268,14 @@ PODS:
     - gRPC-Core (~> 1.69.0)
     - leveldb-library (~> 1.22)
     - nanopb (~> 3.30910.0)
+  - FirebaseFunctions (12.6.0):
+    - FirebaseAppCheckInterop (~> 12.6.0)
+    - FirebaseAuthInterop (~> 12.6.0)
+    - FirebaseCore (~> 12.6.0)
+    - FirebaseCoreExtension (~> 12.6.0)
+    - FirebaseMessagingInterop (~> 12.6.0)
+    - FirebaseSharedSwift (~> 12.6.0)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
   - FirebaseInstallations (12.6.0):
     - FirebaseCore (~> 12.6.0)
     - GoogleUtilities/Environment (~> 8.1)
@@ -1279,6 +1290,7 @@ PODS:
     - GoogleUtilities/Reachability (~> 8.1)
     - GoogleUtilities/UserDefaults (~> 8.1)
     - nanopb (~> 3.30910.0)
+  - FirebaseMessagingInterop (12.6.0)
   - FirebaseRemoteConfigInterop (12.6.0)
   - FirebaseSessions (12.6.0):
     - FirebaseCore (~> 12.6.0)
@@ -2686,6 +2698,8 @@ PODS:
     - react-native-config/App (= 1.6.1)
   - react-native-config/App (1.6.1):
     - React-Core
+  - react-native-keep-awake (4.0.0):
+    - React
   - react-native-netinfo (11.4.1):
     - React-Core
   - react-native-safe-area-context (4.10.8):
@@ -2978,12 +2992,35 @@ PODS:
     - Firebase/Firestore (= 12.6.0)
     - React-Core
     - RNFBApp
+  - RNFBFunctions (23.8.8):
+    - DoubleConversion
+    - Firebase/Functions (= 12.6.0)
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.01.01.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - RNFBApp
+    - Yoga
   - RNFBMessaging (23.7.0):
     - Firebase/Messaging (= 12.6.0)
     - FirebaseCoreExtension
     - React-Core
     - RNFBApp
-  - RNGestureHandler (2.29.1):
+  - RNGestureHandler (2.20.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -3105,6 +3142,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-config (from `../node_modules/react-native-config`)
+  - react-native-keep-awake (from `../node_modules/react-native-keep-awake`)
   - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
@@ -3141,6 +3179,7 @@ DEPENDENCIES:
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
   - "RNFBCrashlytics (from `../node_modules/@react-native-firebase/crashlytics`)"
   - "RNFBFirestore (from `../node_modules/@react-native-firebase/firestore`)"
+  - "RNFBFunctions (from `../node_modules/@react-native-firebase/functions`)"
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - "RNGoogleSignin (from `../node_modules/@react-native-google-signin/google-signin`)"
@@ -3164,8 +3203,10 @@ SPEC REPOS:
     - FirebaseCrashlytics
     - FirebaseFirestore
     - FirebaseFirestoreInternal
+    - FirebaseFunctions
     - FirebaseInstallations
     - FirebaseMessaging
+    - FirebaseMessagingInterop
     - FirebaseRemoteConfigInterop
     - FirebaseSessions
     - FirebaseSharedSwift
@@ -3257,6 +3298,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-config:
     :path: "../node_modules/react-native-config"
+  react-native-keep-awake:
+    :path: "../node_modules/react-native-keep-awake"
   react-native-netinfo:
     :path: "../node_modules/@react-native-community/netinfo"
   react-native-safe-area-context:
@@ -3327,6 +3370,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-firebase/crashlytics"
   RNFBFirestore:
     :path: "../node_modules/@react-native-firebase/firestore"
+  RNFBFunctions:
+    :path: "../node_modules/@react-native-firebase/functions"
   RNFBMessaging:
     :path: "../node_modules/@react-native-firebase/messaging"
   RNGestureHandler:
@@ -3359,8 +3404,10 @@ SPEC CHECKSUMS:
   FirebaseCrashlytics: 3d6248c50726ee7832aef0e53cb84c9e64d9fa7e
   FirebaseFirestore: 51ce079b9ddcaa481644164eda649d362c2a6396
   FirebaseFirestoreInternal: 8b1d2b0a1b859b2ddbd63f448c416c5be7367405
+  FirebaseFunctions: c049fe05d03045fdd2b1ecd014c1345a841fc601
   FirebaseInstallations: 631b38da2e11a83daa4bfb482f79d286a5dfa7ad
   FirebaseMessaging: a61bc42dcab3f7a346d94bbb54dab2c9435b18b2
+  FirebaseMessagingInterop: b18f87820d64e2fffe8e00a9d5f5c2efd430b554
   FirebaseRemoteConfigInterop: 3443b8cb8fffd76bb3e03b2a84bfd3db952fcda4
   FirebaseSessions: 2e8f808347e665dff3e5843f275715f07045297d
   FirebaseSharedSwift: 79f27fff0addd15c3de19b87fba426f3cc2c964f
@@ -3408,6 +3455,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: f0c766c9dfb313c91b07457beb4e4ec9b2e02435
   React-microtasksnativemodule: 2b269ab96f8d54e52c4534d1cf8012879663a28c
   react-native-config: 8ebcf99c9ed605aea6ecea5ecb80416c63f0fbdc
+  react-native-keep-awake: 21ff40767cde4bd81021ffee12480aee4b5b91bb
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-safe-area-context: b72c4611af2e86d80a59ac76279043d8f75f454c
   React-nativeconfig: 565ebf4340d9ede95b523f0e3640f48286985ef5
@@ -3444,8 +3492,9 @@ SPEC CHECKSUMS:
   RNFBAuth: be889383e505e37ae425054a1163c22f3de8c596
   RNFBCrashlytics: 70521bbf68b69c16273ab01f901e2439f231993a
   RNFBFirestore: 4b00b018ad8aae8b4ff6460c1d3c7e6c7c6ee997
+  RNFBFunctions: 441985b90fb4975938f4ddb702bc21bfb4381650
   RNFBMessaging: 873220424f6f6aa5c787baf5c7099e1e2ba087c9
-  RNGestureHandler: c8ad2600d18590ae682c9b4103e797322c191cbc
+  RNGestureHandler: 987692c2cbd41ad765a9195675f96b65ab1c0c99
   RNGoogleSignin: 576a84dd0407b912e7a0adf07492de9feb79e5d9
   RNScreens: 4a5446dc4d922b2375df14c3a3f30bfc7719f6b1
   RNSVG: d2c24d5cfc0c836289f30055d42d7660c2a24c0e

@@ -21,6 +21,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import KeepAwake from 'react-native-keep-awake';
 import type { Standard } from '@minimum-standards/shared-model';
 import { calculatePeriodWindow } from '@minimum-standards/shared-model';
 import { useStandards } from '../hooks/useStandards';
@@ -151,17 +152,19 @@ export function LogEntryModal({
     return stopwatchAccumulatedMs + (stopwatchNowMs - stopwatchStartedAtMs);
   }, [stopwatchRunning, stopwatchStartedAtMs, stopwatchAccumulatedMs, stopwatchNowMs]);
 
-  // Format elapsed time as mm:ss or hh:mm:ss
+  // Format elapsed time as mm:ss.cc or hh:mm:ss.cc
   const formatElapsed = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
+    const centiseconds = Math.floor((ms % 1000) / 10);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
 
+    const cs = centiseconds.toString().padStart(2, '0');
     if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${cs}`;
     }
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${cs}`;
   };
 
   // Convert milliseconds to unit value (minutes or hours)
@@ -187,7 +190,7 @@ export function LogEntryModal({
     if (stopwatchRunning) {
       stopwatchIntervalRef.current = setInterval(() => {
         setStopwatchNowMs(Date.now());
-      }, 250);
+      }, 37);
       return () => {
         if (stopwatchIntervalRef.current) {
           clearInterval(stopwatchIntervalRef.current);
@@ -220,6 +223,7 @@ export function LogEntryModal({
   // Reset stopwatch when modal closes, standard changes, or entering edit mode
   useEffect(() => {
     if (!visible || !selectedStandard || isEditMode) {
+      KeepAwake.deactivate();
       setStopwatchRunning(false);
       setStopwatchStartedAtMs(null);
       setStopwatchAccumulatedMs(0);
@@ -243,6 +247,7 @@ export function LogEntryModal({
   // Stopwatch control handlers
   const handleStartStopwatch = () => {
     if (saving) return;
+    KeepAwake.activate();
     setStopwatchRunning(true);
     setStopwatchStartedAtMs(Date.now());
     setStopwatchNowMs(Date.now());
@@ -258,7 +263,8 @@ export function LogEntryModal({
 
   const handleStopStopwatch = () => {
     if (!stopwatchRunning || stopwatchStartedAtMs === null) return;
-    
+    KeepAwake.deactivate();
+
     const finalElapsedMs = stopwatchAccumulatedMs + (Date.now() - stopwatchStartedAtMs);
     setStopwatchRunning(false);
     setStopwatchAccumulatedMs(finalElapsedMs);
@@ -278,6 +284,7 @@ export function LogEntryModal({
   };
 
   const handleResetStopwatch = () => {
+    KeepAwake.deactivate();
     setStopwatchRunning(false);
     setStopwatchStartedAtMs(null);
     setStopwatchAccumulatedMs(0);
@@ -1368,9 +1375,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stopwatchDisplay: {
-    fontSize: 58,
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'android' ? 'RobotoMono' : 'Menlo',
+    fontSize: 64,
+    fontWeight: '300',
+    letterSpacing: -2,
+    fontVariant: ['tabular-nums'],
   },
   stopwatchButtonsRow: {
     flexDirection: 'row',
