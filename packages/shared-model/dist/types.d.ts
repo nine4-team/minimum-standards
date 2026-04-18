@@ -47,6 +47,7 @@ export type Standard = SoftDelete & AuditTimestamps & {
     configEras?: ConfigEra[];
     notes: string | null;
     orderIndex?: number;
+    hiddenFromGroup?: boolean;
     /** @deprecated Kept for migration compatibility. Will be removed in a future release. */
     activityId?: string;
 };

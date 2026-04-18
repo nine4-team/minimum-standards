@@ -210,3 +210,475 @@ exports.suggestStandards = functions.https.onCall(
   }
 );
 
+// ---------------------------------------------------------------------------
+// Accountability Groups — Group Management
+// ---------------------------------------------------------------------------
+
+const {
+  generateInviteCode,
+  validateGroupName,
+  validateDisplayName,
+  determineNewAdmin,
+  computeStreak,
+  computeMemberStats,
+} = require('./groupsLogic');
+
+const DEFAULT_MEMBER_CAP = 10;
+
+exports.createGroup = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const name = (request.data && request.data.name) || '';
+  const displayName = (request.data && request.data.displayName) || '';
+  const trimmedName = String(name).trim();
+  const trimmedDisplayName = String(displayName).trim();
+
+  const nameCheck = validateGroupName(trimmedName);
+  if (!nameCheck.valid) {
+    throw new functions.https.HttpsError('invalid-argument', nameCheck.error);
+  }
+  const dnCheck = validateDisplayName(trimmedDisplayName);
+  if (!dnCheck.valid) {
+    throw new functions.https.HttpsError('invalid-argument', dnCheck.error);
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+  const nowMs = Date.now();
+
+  // Write display name if not already set
+  await db.doc(`users/${uid}`).set({ displayName: trimmedDisplayName }, { merge: true });
+
+  // Generate a unique invite code
+  let inviteCode;
+  let attempts = 0;
+  while (attempts < 10) {
+    const candidate = generateInviteCode();
+    const existing = await db
+      .collection('accountabilityGroups')
+      .where('inviteCode', '==', candidate)
+      .limit(1)
+      .get();
+    if (existing.empty) {
+      inviteCode = candidate;
+      break;
+    }
+    attempts++;
+  }
+  if (!inviteCode) {
+    throw new functions.https.HttpsError('internal', 'Failed to generate invite code.');
+  }
+
+  const groupRef = db.collection('accountabilityGroups').doc();
+  await groupRef.set({
+    name: trimmedName,
+    createdByUid: uid,
+    memberCap: DEFAULT_MEMBER_CAP,
+    members: {
+      [uid]: { displayName: trimmedDisplayName, joinedAtMs: nowMs },
+    },
+    memberUids: [uid],
+    inviteCode,
+    createdAtMs: nowMs,
+    updatedAtMs: nowMs,
+  });
+
+  return { groupId: groupRef.id, inviteCode };
+});
+
+exports.joinGroup = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const inviteCode = String((request.data && request.data.inviteCode) || '').trim().toUpperCase();
+  const displayName = String((request.data && request.data.displayName) || '').trim();
+
+  if (!inviteCode) {
+    throw new functions.https.HttpsError('invalid-argument', 'Invite code is required.');
+  }
+  const dnCheck = validateDisplayName(displayName);
+  if (!dnCheck.valid) {
+    throw new functions.https.HttpsError('invalid-argument', dnCheck.error);
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+
+  const snap = await db
+    .collection('accountabilityGroups')
+    .where('inviteCode', '==', inviteCode)
+    .limit(1)
+    .get();
+
+  if (snap.empty) {
+    throw new functions.https.HttpsError('not-found', 'Invalid invite code.');
+  }
+
+  const groupDoc = snap.docs[0];
+  const group = groupDoc.data();
+
+  if (group.memberUids.includes(uid)) {
+    throw new functions.https.HttpsError('already-exists', 'You are already a member of this group.');
+  }
+
+  if (group.memberUids.length >= (group.memberCap || DEFAULT_MEMBER_CAP)) {
+    throw new functions.https.HttpsError('resource-exhausted', 'This group is full.');
+  }
+
+  const nowMs = Date.now();
+  await db.doc(`users/${uid}`).set({ displayName }, { merge: true });
+
+  await groupDoc.ref.update({
+    [`members.${uid}`]: { displayName, joinedAtMs: nowMs },
+    memberUids: admin.firestore.FieldValue.arrayUnion(uid),
+    updatedAtMs: nowMs,
+  });
+
+  return { groupId: groupDoc.id };
+});
+
+exports.leaveGroup = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const groupId = (request.data && request.data.groupId) || '';
+  if (!groupId) {
+    throw new functions.https.HttpsError('invalid-argument', 'groupId is required.');
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+  const groupRef = db.doc(`accountabilityGroups/${groupId}`);
+  const groupSnap = await groupRef.get();
+
+  if (!groupSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Group not found.');
+  }
+
+  const group = groupSnap.data();
+  if (!group.memberUids.includes(uid)) {
+    throw new functions.https.HttpsError('failed-precondition', 'You are not a member of this group.');
+  }
+
+  const remainingUids = group.memberUids.filter((id) => id !== uid);
+
+  if (remainingUids.length === 0) {
+    // Last member — delete the group
+    await groupRef.delete();
+    return { deleted: true };
+  }
+
+  const updates = {
+    [`members.${uid}`]: admin.firestore.FieldValue.delete(),
+    memberUids: remainingUids,
+    updatedAtMs: Date.now(),
+  };
+
+  // If admin is leaving, transfer to oldest remaining member
+  if (group.createdByUid === uid) {
+    updates.createdByUid = determineNewAdmin(group.members, remainingUids);
+  }
+
+  await groupRef.update(updates);
+  return { deleted: false };
+});
+
+exports.transferAdmin = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const groupId = (request.data && request.data.groupId) || '';
+  const newAdminUid = (request.data && request.data.newAdminUid) || '';
+
+  if (!groupId || !newAdminUid) {
+    throw new functions.https.HttpsError('invalid-argument', 'groupId and newAdminUid are required.');
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+  const groupRef = db.doc(`accountabilityGroups/${groupId}`);
+  const groupSnap = await groupRef.get();
+
+  if (!groupSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Group not found.');
+  }
+
+  const group = groupSnap.data();
+  if (group.createdByUid !== uid) {
+    throw new functions.https.HttpsError('permission-denied', 'Only the admin can transfer admin role.');
+  }
+  if (!group.memberUids.includes(newAdminUid)) {
+    throw new functions.https.HttpsError('failed-precondition', 'Target user is not a member.');
+  }
+
+  await groupRef.update({ createdByUid: newAdminUid, updatedAtMs: Date.now() });
+  return { success: true };
+});
+
+exports.removeMember = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const groupId = (request.data && request.data.groupId) || '';
+  const targetUid = (request.data && request.data.targetUid) || '';
+
+  if (!groupId || !targetUid) {
+    throw new functions.https.HttpsError('invalid-argument', 'groupId and targetUid are required.');
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+  const groupRef = db.doc(`accountabilityGroups/${groupId}`);
+  const groupSnap = await groupRef.get();
+
+  if (!groupSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Group not found.');
+  }
+
+  const group = groupSnap.data();
+  if (group.createdByUid !== uid) {
+    throw new functions.https.HttpsError('permission-denied', 'Only the admin can remove members.');
+  }
+  if (targetUid === uid) {
+    throw new functions.https.HttpsError('invalid-argument', 'Use leaveGroup to leave as admin.');
+  }
+  if (!group.memberUids.includes(targetUid)) {
+    throw new functions.https.HttpsError('failed-precondition', 'Target is not a member.');
+  }
+
+  await groupRef.update({
+    [`members.${targetUid}`]: admin.firestore.FieldValue.delete(),
+    memberUids: group.memberUids.filter((id) => id !== targetUid),
+    updatedAtMs: Date.now(),
+  });
+
+  return { success: true };
+});
+
+exports.updateDisplayName = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const displayName = String((request.data && request.data.displayName) || '').trim();
+  const dnCheck = validateDisplayName(displayName);
+  if (!dnCheck.valid) {
+    throw new functions.https.HttpsError('invalid-argument', dnCheck.error);
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+
+  // Update user doc
+  await db.doc(`users/${uid}`).set({ displayName }, { merge: true });
+
+  // Fan out to all groups the user belongs to
+  const groups = await db
+    .collection('accountabilityGroups')
+    .where('memberUids', 'array-contains', uid)
+    .get();
+
+  const batch = db.batch();
+  groups.forEach((groupDoc) => {
+    batch.update(groupDoc.ref, {
+      [`members.${uid}.displayName`]: displayName,
+      updatedAtMs: Date.now(),
+    });
+  });
+  await batch.commit();
+
+  return { success: true };
+});
+
+// ---------------------------------------------------------------------------
+// Accountability Groups — Data Access
+// ---------------------------------------------------------------------------
+
+exports.getMemberDashboard = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const groupId = (request.data && request.data.groupId) || '';
+  if (!groupId) {
+    throw new functions.https.HttpsError('invalid-argument', 'groupId is required.');
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+  const groupSnap = await db.doc(`accountabilityGroups/${groupId}`).get();
+
+  if (!groupSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Group not found.');
+  }
+
+  const group = groupSnap.data();
+  if (!group.memberUids.includes(uid)) {
+    throw new functions.https.HttpsError('permission-denied', 'You are not a member of this group.');
+  }
+
+  const memberResults = [];
+
+  for (const memberUid of group.memberUids) {
+    const memberInfo = group.members[memberUid] || {};
+
+    // Fetch active, non-deleted standards
+    const standardsSnap = await db
+      .collection(`users/${memberUid}/standards`)
+      .where('state', '==', 'active')
+      .where('deletedAt', '==', null)
+      .get();
+
+    const allStandards = [];
+    const visibleStandards = [];
+    standardsSnap.forEach((doc) => {
+      const data = doc.data();
+      allStandards.push({ id: doc.id, ...data });
+      if (!data.hiddenFromGroup) {
+        visibleStandards.push({ id: doc.id, ...data });
+      }
+    });
+
+    // Fetch activity history for streak + stats
+    const historySnap = await db
+      .collection(`users/${memberUid}/activityHistory`)
+      .orderBy('periodStartMs', 'desc')
+      .limit(200)
+      .get();
+
+    const historyDocs = [];
+    historySnap.forEach((doc) => {
+      const data = doc.data();
+      if (!data.deletedAtMs) {
+        historyDocs.push(data);
+      }
+    });
+
+    // Build a set of hidden standard IDs
+    const hiddenIds = new Set();
+    allStandards.forEach((s) => {
+      if (s.hiddenFromGroup) hiddenIds.add(s.id);
+    });
+
+    // Filter history to only visible standards
+    const visibleHistory = historyDocs.filter((h) => !hiddenIds.has(h.standardId));
+
+    const { metCount, totalCount, avgCompletion } = computeMemberStats(visibleHistory, visibleStandards);
+    const streak = computeStreak(visibleHistory, visibleStandards);
+
+    memberResults.push({
+      uid: memberUid,
+      displayName: memberInfo.displayName || 'Unknown',
+      joinedAtMs: memberInfo.joinedAtMs || 0,
+      isAdmin: group.createdByUid === memberUid,
+      stats: {
+        metCount,
+        totalCount,
+        streak,
+        avgCompletion,
+      },
+    });
+  }
+
+  return {
+    groupId,
+    groupName: group.name,
+    inviteCode: group.inviteCode,
+    adminUid: group.createdByUid,
+    members: memberResults,
+  };
+});
+
+exports.getMemberStandardDetail = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const groupId = (request.data && request.data.groupId) || '';
+  const memberUid = (request.data && request.data.memberUid) || '';
+  const standardId = (request.data && request.data.standardId) || '';
+
+  if (!groupId || !memberUid || !standardId) {
+    throw new functions.https.HttpsError('invalid-argument', 'groupId, memberUid, and standardId are required.');
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+
+  // Validate caller is in the group
+  const groupSnap = await db.doc(`accountabilityGroups/${groupId}`).get();
+  if (!groupSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Group not found.');
+  }
+
+  const group = groupSnap.data();
+  if (!group.memberUids.includes(uid)) {
+    throw new functions.https.HttpsError('permission-denied', 'You are not a member of this group.');
+  }
+  if (!group.memberUids.includes(memberUid)) {
+    throw new functions.https.HttpsError('failed-precondition', 'Target user is not in this group.');
+  }
+
+  // Fetch the standard
+  const standardSnap = await db.doc(`users/${memberUid}/standards/${standardId}`).get();
+  if (!standardSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Standard not found.');
+  }
+
+  const standard = standardSnap.data();
+  if (standard.hiddenFromGroup) {
+    throw new functions.https.HttpsError('permission-denied', 'This standard is hidden from the group.');
+  }
+  if (standard.deletedAt) {
+    throw new functions.https.HttpsError('not-found', 'Standard not found.');
+  }
+
+  // Fetch activity history for this standard
+  const historySnap = await db
+    .collection(`users/${memberUid}/activityHistory`)
+    .where('standardId', '==', standardId)
+    .orderBy('periodStartMs', 'desc')
+    .limit(50)
+    .get();
+
+  const history = [];
+  historySnap.forEach((doc) => {
+    const data = doc.data();
+    if (!data.deletedAtMs) {
+      history.push({
+        id: doc.id,
+        periodStartMs: data.periodStartMs,
+        periodEndMs: data.periodEndMs,
+        periodLabel: data.periodLabel,
+        periodKey: data.periodKey,
+        status: data.status,
+        progressPercent: data.progressPercent,
+        total: data.total,
+        currentSessions: data.currentSessions,
+        targetSessions: data.targetSessions,
+        standardSnapshot: data.standardSnapshot,
+      });
+    }
+  });
+
+  return {
+    standard: {
+      id: standardSnap.id,
+      name: standard.name,
+      minimum: standard.minimum,
+      unit: standard.unit,
+      cadence: standard.cadence,
+      state: standard.state,
+      summary: standard.summary,
+      sessionConfig: standard.sessionConfig,
+    },
+    history,
+  };
+});
+

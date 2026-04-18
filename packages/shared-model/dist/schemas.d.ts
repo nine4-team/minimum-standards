@@ -270,6 +270,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     }>, "many">>;
     notes: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     orderIndex: z.ZodOptional<z.ZodNumber>;
+    hiddenFromGroup: z.ZodOptional<z.ZodBoolean>;
     activityId: z.ZodOptional<z.ZodString>;
     createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
     updatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
@@ -324,6 +325,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }, {
     unit: string;
@@ -375,6 +377,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }>, {
     unit: string;
@@ -426,6 +429,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }, {
     unit: string;
@@ -477,6 +481,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }>;
 export declare const activityLogSchema: z.ZodObject<{

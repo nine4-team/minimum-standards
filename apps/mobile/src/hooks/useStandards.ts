@@ -84,6 +84,7 @@ export interface UpdateStandardInput {
   sessionConfig: StandardSessionConfig;
   periodStartPreference?: PeriodStartPreference;
   clearPeriodStartPreference?: boolean;
+  hiddenFromGroup?: boolean;
 }
 
 export interface UseStandardsResult {
@@ -299,6 +300,10 @@ export function useStandards(): UseStandardsResult {
 
       if (input.clearPeriodStartPreference) {
         payload.periodStartPreference = deleteField();
+      }
+
+      if (input.hiddenFromGroup !== undefined) {
+        payload.hiddenFromGroup = input.hiddenFromGroup;
       }
 
       // When config changes, append a new era so historical periods retain the old config

@@ -159,7 +159,8 @@ service cloud.firestore {
         'updatedAt',
         'deletedAt',
         'configEras',
-        'orderIndex'
+        'orderIndex',
+        'hiddenFromGroup'
       ])
       && ('deletedAt' in request.resource.data)
       && (
@@ -639,6 +640,15 @@ service cloud.firestore {
         && validSnapshotUpdate()
         && isUpdateWithServerTimestampAndStableCreatedAt();
       allow delete: if false;
+    }
+
+    // --- Accountability Groups ---
+    // Cloud Functions (admin SDK) handle all writes.
+    // Members can read their own group docs via array-contains on memberUids.
+    match /accountabilityGroups/{groupId} {
+      allow read: if isSignedIn()
+        && request.auth.uid in resource.data.memberUids;
+      allow create, update, delete: if false;
     }
 
     match /shareLinks/{shareLinkId} {

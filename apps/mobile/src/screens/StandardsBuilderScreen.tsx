@@ -102,6 +102,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
   const [sessionConfigError, setSessionConfigError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [hiddenFromGroup, setHiddenFromGroup] = useState(false);
 
   const summaryPreview = getSummaryPreview();
   const isEditMode = !!standardId;
@@ -170,6 +171,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
     }
 
     setPeriodStartPreference(standardToEdit.periodStartPreference ?? null);
+    setHiddenFromGroup(standardToEdit.hiddenFromGroup === true);
     hasPrefilledRef.current = standardId;
   }, [
     isEditMode,
@@ -400,6 +402,7 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
           ...standardPayload,
           periodStartPreference: preference,
           clearPeriodStartPreference: shouldClearPeriodPreference,
+          hiddenFromGroup,
         });
         trackStandardEvent('standard_edit', {
           standardId,
@@ -914,6 +917,42 @@ export function StandardsBuilderScreen({ onBack, standardId }: StandardsBuilderS
             </View>
           )}
         </View>
+
+          {/* Group visibility toggle — only relevant in edit mode */}
+          {isEditMode && (
+            <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+              <TouchableOpacity
+                style={styles.toggleRow}
+                onPress={() => setHiddenFromGroup(!hiddenFromGroup)}
+                activeOpacity={0.6}
+              >
+                <Text style={[styles.toggleLabel, { color: theme.text.primary }]}>
+                  Visible to group
+                </Text>
+                <View
+                  style={[
+                    styles.toggle,
+                    {
+                      backgroundColor: !hiddenFromGroup ? theme.button.primary.background : theme.input.border,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.toggleThumb,
+                      {
+                        backgroundColor: theme.background.primary,
+                        transform: [{ translateX: !hiddenFromGroup ? 20 : 0 }],
+                      },
+                    ]}
+                  />
+                </View>
+              </TouchableOpacity>
+              <Text style={[styles.helperText, { color: theme.text.tertiary }]}>
+                When off, this standard is hidden from your group members.
+              </Text>
+            </View>
+          )}
         </ScrollView>
 
         <View style={[styles.stickyFooter, { backgroundColor: theme.background.chrome, borderTopColor: theme.border.secondary, paddingBottom: Math.max(insets.bottom, 16) }]}>

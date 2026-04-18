@@ -6,6 +6,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { BottomTabParamList, SETTINGS_TAB_ROUTE_NAME } from './types';
 import { StandardsStack } from './StandardsStack';
 import { ActivitiesStack } from './ActivitiesStack';
+import { GroupsStack } from './GroupsStack';
 import { SettingsStack } from './SettingsStack';
 import { useTheme } from '../theme/useTheme';
 import { useActivityHistoryEngine } from '../hooks/useActivityHistoryEngine';
@@ -20,12 +21,14 @@ function EmptyScreen() {
 const NAV_ICONS: Record<string, string> = {
   Standards: 'pending-actions',
   Scorecards: 'bar-chart',
+  Groups: 'group',
   [SETTINGS_TAB_ROUTE_NAME]: 'settings',
 };
 
 const NAV_LABELS: Record<string, string> = {
   Standards: 'Standards tab',
   Scorecards: 'Scorecards tab',
+  Groups: 'Groups tab',
   [SETTINGS_TAB_ROUTE_NAME]: 'Settings tab',
 };
 
@@ -201,6 +204,11 @@ export function BottomTabNavigator() {
         name="Scorecards"
         component={ActivitiesStack}
         options={{ tabBarAccessibilityLabel: 'Scorecards tab' }}
+      />
+      <Tab.Screen
+        name="Groups"
+        component={GroupsStack}
+        options={{ tabBarAccessibilityLabel: 'Groups tab' }}
       />
       <Tab.Screen
         name={SETTINGS_TAB_ROUTE_NAME}

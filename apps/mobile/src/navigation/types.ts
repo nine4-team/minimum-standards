@@ -47,10 +47,25 @@ export type SettingsStackParamList = {
   SnapshotEdit: { snapshotId: string };
 };
 
+export type GroupsStackParamList = {
+  GroupsList: undefined;
+  CreateGroup: undefined;
+  JoinGroup: undefined;
+  GroupDetail: { groupId: string };
+  MemberDashboard: { groupId: string; memberUid: string; displayName: string };
+  MemberStandardDetail: {
+    groupId: string;
+    memberUid: string;
+    standardId: string;
+    standardName: string;
+  };
+};
+
 // Bottom tab navigator param list
 export type BottomTabParamList = {
   Standards: NavigatorScreenParams<StandardsStackParamList>;
   Scorecards: NavigatorScreenParams<ScorecardStackParamList>;
+  Groups: NavigatorScreenParams<GroupsStackParamList>;
   SettingsTab: NavigatorScreenParams<SettingsStackParamList>;
   Create: undefined;
 };

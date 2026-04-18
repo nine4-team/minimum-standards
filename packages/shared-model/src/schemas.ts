@@ -108,6 +108,7 @@ export const standardSchema = z.object({
   configEras: z.array(configEraSchema).optional(),
   notes: z.string().max(1000).nullable().default(null),
   orderIndex: z.number().int().nonnegative().optional(),
+  hiddenFromGroup: z.boolean().optional(),
   activityId: z.string().min(1).optional(), // Deprecated: kept for migration
   createdAtMs: timestampMsSchema,
   updatedAtMs: timestampMsSchema,
