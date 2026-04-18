@@ -19,7 +19,7 @@ function EmptyScreen() {
 }
 
 const NAV_ICONS: Record<string, string> = {
-  Standards: 'pending-actions',
+  Standards: 'task-alt',
   Scorecards: 'bar-chart',
   Groups: 'group',
   [SETTINGS_TAB_ROUTE_NAME]: 'settings',
