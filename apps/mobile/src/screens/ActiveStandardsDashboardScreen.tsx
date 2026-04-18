@@ -77,7 +77,7 @@ export function StandardsScreen({
   const [activeDeactivateConfirmVisible, setActiveDeactivateConfirmVisible] = useState(false);
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
 
-  const { pendingScrollToStandardId, setPendingScrollToStandardId, standardsSort, setStandardsSort } = useUIPreferencesStore();
+  const { pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
 
   const handleLogPress = useCallback(
@@ -210,34 +210,24 @@ export function StandardsScreen({
   const handleReorder = useCallback(
     async (orderedIds: string[]) => {
       try {
-        setStandardsSort('manual');
         await saveStandardOrder(orderedIds);
       } catch (err) {
         Alert.alert('Error', 'Failed to save order');
         console.error('Failed to save order:', err);
       }
     },
-    [saveStandardOrder, setStandardsSort]
+    [saveStandardOrder]
   );
 
+  // Sort by orderIndex if set (user has dragged), otherwise alphabetical
   const sortedAndFilteredStandards = useMemo(() => {
-    const sortStandards = (a: DashboardStandard, b: DashboardStandard) => {
-      if (standardsSort === 'completion') {
-        const aProgress = a.progress?.progressPercent ?? 0;
-        const bProgress = b.progress?.progressPercent ?? 0;
-        return aProgress - bProgress;
-      }
-      if (standardsSort === 'manual') {
-        const aIdx = a.standard.orderIndex ?? Number.MAX_SAFE_INTEGER;
-        const bIdx = b.standard.orderIndex ?? Number.MAX_SAFE_INTEGER;
-        if (aIdx !== bIdx) return aIdx - bIdx;
-        return a.standard.createdAtMs - b.standard.createdAtMs;
-      }
+    return [...dashboardStandards].sort((a, b) => {
+      const aIdx = a.standard.orderIndex ?? Number.MAX_SAFE_INTEGER;
+      const bIdx = b.standard.orderIndex ?? Number.MAX_SAFE_INTEGER;
+      if (aIdx !== bIdx) return aIdx - bIdx;
       return a.standard.name.localeCompare(b.standard.name);
-    };
-
-    return [...dashboardStandards].sort(sortStandards);
-  }, [dashboardStandards, standardsSort]);
+    });
+  }, [dashboardStandards]);
 
   // Highlight a newly created standard when it appears in the grid
   useEffect(() => {
@@ -356,14 +346,6 @@ export function StandardsScreen({
         onRequestClose={() => setHeaderMenuVisible(false)}
         title="Options"
         items={[
-          {
-            key: 'sort',
-            label: standardsSort === 'completion' ? 'Sort Alphabetically' : 'Sort by Completion',
-            icon: 'sort',
-            onPress: () => {
-              setStandardsSort(standardsSort === 'completion' ? 'alpha' : 'completion');
-            },
-          },
           {
             key: 'manage-standards',
             label: 'Manage Standards',

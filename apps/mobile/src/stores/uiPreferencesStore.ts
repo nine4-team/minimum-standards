@@ -16,8 +16,6 @@ interface UIPreferencesState {
   setFocusModeEnabled: (enabled: boolean) => void;
   showInactiveStandards: boolean;
   setShowInactiveStandards: (show: boolean) => void;
-  standardsSort: ScorecardSort;
-  setStandardsSort: (sort: ScorecardSort) => void;
   scorecardSort: ScorecardSort;
   setScorecardSort: (sort: ScorecardSort) => void;
   scorecardTimeRange: TimeRange;
@@ -38,8 +36,6 @@ export const useUIPreferencesStore = create<UIPreferencesState>()(
       setFocusModeEnabled: (enabled) => set({ focusModeEnabled: enabled }),
       showInactiveStandards: false,
       setShowInactiveStandards: (show) => set({ showInactiveStandards: show }),
-      standardsSort: 'completion',
-      setStandardsSort: (sort) => set({ standardsSort: sort }),
       scorecardSort: 'alpha',
       setScorecardSort: (sort) => set({ scorecardSort: sort }),
       scorecardTimeRange: 'All',
