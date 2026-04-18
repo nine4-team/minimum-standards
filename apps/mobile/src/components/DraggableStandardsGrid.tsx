@@ -44,28 +44,60 @@ export function DraggableStandardsGrid({
   // The cell frame at drag start, stored in scroll-content coordinates
   const startCellFrameContent = useRef<CellFrame | null>(null);
   const dragActiveRef = useRef(false);
+  // True after a drag reorder — suppresses order resets from Firestore
+  // snapshots. Cleared when the parent passes a genuinely new order
+  // (i.e. the user switched sort mode).
+  const dragOwnedOrderRef = useRef(false);
   // Current scroll offset (to convert content coords → Animated.View coords)
   const scrollOffsetY = useRef(0);
 
   // Sync items from parent:
   // - During drag: skip (grid owns order)
-  // - Items added/removed: full reset with parent's order
-  // - Same items: refresh data (progress) but keep grid's order
+  // - Items added/removed: full reset
+  // - Order changed externally (sort mode switch): full reset
+  // - Same order, drag-owned: update data only, keep grid's order
   useEffect(() => {
     if (dragActiveRef.current) return;
+
     const currentIds = orderedItemsRef.current.map(i => i.standard.id);
     const incomingIds = items.map(i => i.standard.id);
     const sameSet =
       currentIds.length === incomingIds.length &&
       currentIds.every(id => incomingIds.includes(id));
+
     if (!sameSet) {
+      // Items added or removed — full reset
+      dragOwnedOrderRef.current = false;
       const copy = [...items];
       orderedItemsRef.current = copy;
       setOrderedItems(copy);
       return;
     }
-    // Same items — update data in current order, but only if
-    // something visible changed (skip orderIndex/updatedAtMs-only diffs)
+
+    // Same items — check if order changed externally
+    const sameOrder = currentIds.every((id, i) => id === incomingIds[i]);
+
+    if (!sameOrder && !dragOwnedOrderRef.current) {
+      // External sort change — accept parent's order
+      const copy = [...items];
+      orderedItemsRef.current = copy;
+      setOrderedItems(copy);
+      return;
+    }
+
+    if (!sameOrder && dragOwnedOrderRef.current) {
+      // Firestore snapshots arriving after a drag — keep grid's order,
+      // but refresh data (progress etc.)
+      const itemMap = new Map(items.map(i => [i.standard.id, i]));
+      const updated = orderedItemsRef.current.map(
+        old => itemMap.get(old.standard.id) ?? old
+      );
+      orderedItemsRef.current = updated;
+      setOrderedItems(updated);
+      return;
+    }
+
+    // Same order — update data if progress changed
     const itemMap = new Map(items.map(i => [i.standard.id, i]));
     let changed = false;
     const updated = orderedItemsRef.current.map(old => {
@@ -170,6 +202,9 @@ export function DraggableStandardsGrid({
           setDraggingIndex(null);
           dragTranslation.setValue({ x: 0, y: 0 });
           dragActiveRef.current = false;
+          dragOwnedOrderRef.current = true;
+          // Clear after saves settle so future external sort changes are respected
+          setTimeout(() => { dragOwnedOrderRef.current = false; }, 3000);
           onReorder(finalIds);
         }
       }
