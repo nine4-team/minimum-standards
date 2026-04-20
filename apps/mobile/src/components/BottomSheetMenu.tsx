@@ -77,8 +77,8 @@ export function BottomSheetMenu({ visible, onRequestClose, items, title }: Botto
 
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
-        const color = item.destructive ? theme.status.danger : theme.text.primary;
-        const iconColor = item.destructive ? theme.status.danger : theme.text.secondary;
+        const color = item.destructive ? theme.archive.text : theme.text.primary;
+        const iconColor = item.destructive ? theme.archive.text : theme.text.secondary;
         const hasSubItems = item.subItems && item.subItems.length > 0;
         const isExpanded = expandedKey === item.key;
 
