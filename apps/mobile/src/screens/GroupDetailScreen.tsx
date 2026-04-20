@@ -9,10 +9,10 @@ import {
   Share,
   Alert,
 } from 'react-native';
+import Svg, { Circle, G } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-// Note: Clipboard requires @react-native-clipboard/clipboard package (not installed yet)
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import { useMemberDashboard, MemberDashboardEntry } from '../hooks/useMemberDashboard';
@@ -81,8 +81,17 @@ export function GroupDetailScreen() {
     setKickTarget(null);
   };
 
+  const DIAL_SIZE = 52;
+  const DIAL_STROKE = 5;
+  const dialRadius = (DIAL_SIZE - DIAL_STROKE) / 2;
+  const dialCenter = DIAL_SIZE / 2;
+  const dialCircumference = 2 * Math.PI * dialRadius;
+
   const renderMember = ({ item }: { item: MemberDashboardEntry }) => {
     const isSelf = item.uid === currentUid;
+    const pct = Math.max(0, Math.min(item.stats.avgCompletion, 100));
+    const dialOffset = dialCircumference * (1 - pct / 100);
+    const dialColor = pct >= 100 ? theme.status.met.barComplete : theme.status.met.bar;
 
     return (
       <TouchableOpacity
@@ -99,6 +108,34 @@ export function GroupDetailScreen() {
           if (isAdmin && !isSelf) setKickTarget(item);
         }}
       >
+        <View style={styles.dialContainer}>
+          <Svg width={DIAL_SIZE} height={DIAL_SIZE}>
+            <G rotation={-90} origin={`${dialCenter}, ${dialCenter}`}>
+              <Circle
+                cx={dialCenter}
+                cy={dialCenter}
+                r={dialRadius}
+                stroke={theme.border.secondary}
+                strokeWidth={DIAL_STROKE}
+                fill="none"
+              />
+              <Circle
+                cx={dialCenter}
+                cy={dialCenter}
+                r={dialRadius}
+                stroke={dialColor}
+                strokeWidth={DIAL_STROKE}
+                strokeLinecap="round"
+                fill="none"
+                strokeDasharray={`${dialCircumference}, ${dialCircumference}`}
+                strokeDashoffset={dialOffset}
+              />
+            </G>
+          </Svg>
+          <Text style={[styles.dialLabel, { color: theme.text.primary }]}>
+            {Math.round(pct)}%
+          </Text>
+        </View>
         <View style={styles.memberInfo}>
           <View style={styles.memberNameRow}>
             <Text style={[styles.memberName, { color: theme.text.primary }]}>
@@ -113,28 +150,9 @@ export function GroupDetailScreen() {
               <Text style={[styles.youLabel, { color: theme.text.tertiary }]}>(you)</Text>
             )}
           </View>
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: theme.text.primary }]}>
-                {item.stats.metCount}/{item.stats.totalCount}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.text.tertiary }]}>Met</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.border.secondary }]} />
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: theme.text.primary }]}>
-                {item.stats.streak}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.text.tertiary }]}>Streak</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.border.secondary }]} />
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: theme.text.primary }]}>
-                {item.stats.avgCompletion}%
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.text.tertiary }]}>Avg</Text>
-            </View>
-          </View>
+          <Text style={[styles.memberSub, { color: theme.text.tertiary }]}>
+            {item.stats.metCount}/{item.stats.totalCount} met
+          </Text>
         </View>
         <MaterialIcons name="chevron-right" size={20} color={theme.text.tertiary} />
       </TouchableOpacity>
@@ -199,7 +217,7 @@ export function GroupDetailScreen() {
         </View>
       ) : data ? (
         <FlatList
-          data={data.members}
+          data={[...data.members].sort((a, b) => b.stats.avgCompletion - a.stats.avgCompletion)}
           keyExtractor={(item) => item.uid}
           renderItem={renderMember}
           contentContainerStyle={[
@@ -297,9 +315,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
-  memberInfo: { flex: 1, gap: 8 },
+  dialContainer: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  dialLabel: {
+    position: 'absolute',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  memberInfo: { flex: 1, gap: 2 },
   memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   memberName: { fontSize: 16, fontWeight: '600' },
+  memberSub: { fontSize: 13 },
   youLabel: { fontSize: 13 },
   adminBadge: {
     paddingHorizontal: 6,
@@ -307,13 +338,4 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   adminBadgeText: { fontSize: 11, fontWeight: '600' },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stat: { alignItems: 'center' },
-  statValue: { fontSize: 16, fontWeight: '700' },
-  statLabel: { fontSize: 11, marginTop: 2 },
-  statDivider: { width: 1, height: 24 },
 });

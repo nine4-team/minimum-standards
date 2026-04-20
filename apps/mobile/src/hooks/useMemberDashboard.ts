@@ -4,7 +4,6 @@ import * as groupsService from '../services/groupsService';
 export interface MemberStats {
   metCount: number;
   totalCount: number;
-  streak: number;
   avgCompletion: number;
 }
 

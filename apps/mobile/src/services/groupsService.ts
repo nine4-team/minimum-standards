@@ -74,7 +74,8 @@ export async function transferAdmin(groupId: string, newAdminUid: string): Promi
 
 export async function getMemberDashboard(groupId: string): Promise<MemberDashboardData> {
   try {
-    return await callFunction<MemberDashboardData>('getMemberDashboard', { groupId });
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+    return await callFunction<MemberDashboardData>('getMemberDashboard', { groupId, timezone });
   } catch (err: any) {
     const code = err?.code;
     if (code === 'functions/not-found') throw new Error('Group not found.');

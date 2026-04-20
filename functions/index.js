@@ -392,7 +392,6 @@ const {
   validateGroupName,
   validateDisplayName,
   determineNewAdmin,
-  computeStreak,
   computeMemberStats,
 } = require('./groupsLogic');
 
@@ -679,6 +678,7 @@ exports.getMemberDashboard = functions.https.onCall(async (request) => {
   }
 
   const groupId = (request.data && request.data.groupId) || '';
+  const timezone = (request.data && request.data.timezone) || 'UTC';
   if (!groupId) {
     throw new functions.https.HttpsError('invalid-argument', 'groupId is required.');
   }
@@ -719,32 +719,58 @@ exports.getMemberDashboard = functions.https.onCall(async (request) => {
       }
     });
 
-    // Fetch activity history for streak + stats
-    const historySnap = await db
-      .collection(`users/${memberUid}/activityHistory`)
-      .orderBy('periodStartMs', 'desc')
-      .limit(200)
+    // Compute current period progress from activityLogs
+    const nowMs = Date.now();
+    const standardWindows = visibleStandards.map((s) => {
+      const window = computePeriodWindow(nowMs, s.cadence, s.periodStartPreference, timezone);
+      return { ...s, periodStartMs: window.startMs, periodEndMs: window.endMs };
+    });
+
+    const earliestStartMs = standardWindows.reduce(
+      (min, s) => Math.min(min, s.periodStartMs),
+      nowMs
+    );
+
+    const earliestTimestamp = admin.firestore.Timestamp.fromMillis(earliestStartMs);
+    const logsSnap = await db
+      .collection(`users/${memberUid}/activityLogs`)
+      .where('occurredAt', '>=', earliestTimestamp)
+      .orderBy('occurredAt', 'desc')
       .get();
 
-    const historyDocs = [];
-    historySnap.forEach((doc) => {
+    const logs = [];
+    logsSnap.forEach((doc) => {
       const data = doc.data();
-      if (!data.deletedAtMs) {
-        historyDocs.push(data);
+      if (!data.deletedAt) {
+        logs.push({
+          standardId: data.standardId,
+          value: data.value,
+          occurredAtMs: data.occurredAt.toMillis(),
+        });
       }
     });
 
-    // Build a set of hidden standard IDs
-    const hiddenIds = new Set();
-    allStandards.forEach((s) => {
-      if (s.hiddenFromGroup) hiddenIds.add(s.id);
+    // Build synthetic history entries for computeMemberStats
+    const visibleHistory = standardWindows.map((s) => {
+      const windowLogs = logs.filter(
+        (log) =>
+          log.standardId === s.id &&
+          log.occurredAtMs >= s.periodStartMs &&
+          log.occurredAtMs < s.periodEndMs
+      );
+      const total = windowLogs.reduce((sum, log) => sum + log.value, 0);
+      const safeMinimum = Math.max(s.minimum, 0);
+      const ratio = safeMinimum === 0 ? 1 : Math.min(total / safeMinimum, 1);
+      const progressPercent = Number((ratio * 100).toFixed(2));
+
+      let status = 'In Progress';
+      if (total >= s.minimum) status = 'Met';
+      else if (nowMs >= s.periodEndMs) status = 'Missed';
+
+      return { standardId: s.id, status, progressPercent };
     });
 
-    // Filter history to only visible standards
-    const visibleHistory = historyDocs.filter((h) => !hiddenIds.has(h.standardId));
-
     const { metCount, totalCount, avgCompletion } = computeMemberStats(visibleHistory, visibleStandards);
-    const streak = computeStreak(visibleHistory, visibleStandards);
 
     memberResults.push({
       uid: memberUid,
@@ -754,7 +780,6 @@ exports.getMemberDashboard = functions.https.onCall(async (request) => {
       stats: {
         metCount,
         totalCount,
-        streak,
         avgCompletion,
       },
     });
