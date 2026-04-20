@@ -29,6 +29,89 @@ function getShareCodeFromRequest(req) {
   return last.trim().toUpperCase();
 }
 
+// ---------------------------------------------------------------------------
+// Group Join Page — serves OG-tagged HTML with deep link for group invites
+// ---------------------------------------------------------------------------
+
+exports.groupJoinPage = functions.https.onRequest(async (req, res) => {
+  try {
+    const parts = String(req.path || '')
+      .split('/')
+      .filter(Boolean);
+    const inviteCode = (parts[parts.length - 1] || '').trim().toUpperCase();
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const deepLink = `minimumstandards://group/join/${encodeURIComponent(inviteCode)}`;
+    const logoUrl = `${origin}/logo.png`;
+
+    let groupName = '';
+    let valid = false;
+
+    if (inviteCode) {
+      const snap = await admin
+        .firestore()
+        .collection('accountabilityGroups')
+        .where('inviteCode', '==', inviteCode)
+        .limit(1)
+        .get();
+
+      if (!snap.empty) {
+        const group = snap.docs[0].data();
+        groupName = group.name || 'Accountability Group';
+        valid = true;
+      }
+    }
+
+    const title = valid
+      ? `Join ${groupName} — Minimum Standards`
+      : 'Invalid Invite — Minimum Standards';
+    const description = valid
+      ? `Join ${groupName} on Minimum Standards!`
+      : 'This invite link is invalid or has expired.';
+
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)}</title>
+
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:image" content="${escapeHtml(logoUrl)}" />
+    <meta property="og:type" content="website" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${escapeHtml(logoUrl)}" />
+  </head>
+  <body style="font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial; padding: 24px;">
+    <h1 style="margin: 0 0 8px 0;">${escapeHtml(valid ? groupName : 'Invalid Invite')}</h1>
+    <p style="margin: 0 0 16px 0; color: #444;">${escapeHtml(description)}</p>
+    ${valid ? `
+    <a href="${escapeHtml(deepLink)}"
+       style="display:inline-block; padding: 12px 16px; background: #0B5FFF; color: white; border-radius: 10px; text-decoration: none; font-weight: 600;">
+      Open in Minimum Standards
+    </a>
+
+    <script>
+      setTimeout(function () {
+        window.location.href = ${JSON.stringify(deepLink)};
+      }, 250);
+    </script>` : ''}
+  </body>
+</html>`);
+  } catch (err) {
+    res.status(500).send('Failed to render group invite page.');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Share Page — serves OG-tagged HTML with deep link for snapshot sharing
+// ---------------------------------------------------------------------------
+
 exports.sharePage = functions.https.onRequest(async (req, res) => {
   try {
     const shareCode = getShareCodeFromRequest(req);
@@ -593,6 +676,88 @@ exports.getMemberDashboard = functions.https.onCall(async (request) => {
     adminUid: group.createdByUid,
     members: memberResults,
   };
+});
+
+exports.getMemberStandards = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+  }
+
+  const groupId = (request.data && request.data.groupId) || '';
+  const memberUid = (request.data && request.data.memberUid) || '';
+
+  if (!groupId || !memberUid) {
+    throw new functions.https.HttpsError('invalid-argument', 'groupId and memberUid are required.');
+  }
+
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+
+  const groupSnap = await db.doc(`accountabilityGroups/${groupId}`).get();
+  if (!groupSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Group not found.');
+  }
+
+  const group = groupSnap.data();
+  if (!group.memberUids.includes(uid)) {
+    throw new functions.https.HttpsError('permission-denied', 'You are not a member of this group.');
+  }
+  if (!group.memberUids.includes(memberUid)) {
+    throw new functions.https.HttpsError('failed-precondition', 'Target user is not in this group.');
+  }
+
+  // Fetch active, non-deleted, visible standards
+  const standardsSnap = await db
+    .collection(`users/${memberUid}/standards`)
+    .where('state', '==', 'active')
+    .where('deletedAt', '==', null)
+    .get();
+
+  const standards = [];
+  standardsSnap.forEach((doc) => {
+    const data = doc.data();
+    if (!data.hiddenFromGroup) {
+      standards.push({
+        id: doc.id,
+        name: data.name,
+        summary: data.summary,
+        minimum: data.minimum,
+        unit: data.unit,
+        cadence: data.cadence,
+      });
+    }
+  });
+
+  // Fetch latest activity history for each standard
+  const historySnap = await db
+    .collection(`users/${memberUid}/activityHistory`)
+    .orderBy('periodStartMs', 'desc')
+    .limit(200)
+    .get();
+
+  const latestByStandard = {};
+  historySnap.forEach((doc) => {
+    const data = doc.data();
+    if (!data.deletedAtMs && !latestByStandard[data.standardId]) {
+      latestByStandard[data.standardId] = {
+        status: data.status,
+        progressPercent: data.progressPercent,
+        total: data.total,
+      };
+    }
+  });
+
+  const result = standards.map((s) => {
+    const latest = latestByStandard[s.id] || {};
+    return {
+      ...s,
+      status: latest.status || 'Not Started',
+      progressPercent: latest.progressPercent || 0,
+      total: latest.total || 0,
+    };
+  });
+
+  return { standards: result };
 });
 
 exports.getMemberStandardDetail = functions.https.onCall(async (request) => {

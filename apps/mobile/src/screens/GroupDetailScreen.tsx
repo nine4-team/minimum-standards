@@ -18,6 +18,7 @@ import { useTheme } from '../theme/useTheme';
 import { useMemberDashboard, MemberDashboardEntry } from '../hooks/useMemberDashboard';
 import { firebaseAuth } from '../firebase/firebaseApp';
 import * as groupsService from '../services/groupsService';
+import { buildGroupJoinUrl } from '../utils/groupLinks';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { BottomSheetConfirmation } from '../components/BottomSheetConfirmation';
 import { SCREEN_PADDING, getScreenContainerStyle } from '@nine4/ui-kit';
@@ -48,16 +49,11 @@ export function GroupDetailScreen() {
 
   const isAdmin = data?.adminUid === currentUid;
 
-  const handleCopyCode = () => {
+  const handleShareLink = async () => {
     if (data?.inviteCode) {
-      Share.share({ message: data.inviteCode });
-    }
-  };
-
-  const handleShareCode = async () => {
-    if (data?.inviteCode) {
+      const url = buildGroupJoinUrl(data.inviteCode);
       await Share.share({
-        message: `Join "${data.groupName}" on Minimum Standards! Invite code: ${data.inviteCode}`,
+        message: `Join "${data.groupName}" on Minimum Standards!\n${url}`,
       });
     }
   };
@@ -150,15 +146,9 @@ export function GroupDetailScreen() {
       ? [
           {
             key: 'invite',
-            label: 'Share Invite Code',
+            label: 'Share Invite Link',
             icon: 'share',
-            onPress: handleShareCode,
-          },
-          {
-            key: 'copy',
-            label: `Copy Code: ${data?.inviteCode || ''}`,
-            icon: 'content-copy',
-            onPress: handleCopyCode,
+            onPress: handleShareLink,
           },
         ]
       : []),

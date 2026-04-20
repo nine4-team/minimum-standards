@@ -91,14 +91,6 @@ export function GroupsListScreen() {
                 Create Group
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('JoinGroup')}
-              style={[styles.secondaryButton, { borderColor: theme.border.primary }]}
-            >
-              <Text style={[styles.secondaryButtonText, { color: theme.text.primary }]}>
-                Join Group
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
       ) : (
@@ -120,13 +112,6 @@ export function GroupsListScreen() {
             >
               <MaterialIcons name="add" size={20} color={theme.button.primary.text} />
               <Text style={[styles.fabText, { color: theme.button.primary.text }]}>Create</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('JoinGroup')}
-              style={[styles.fabButton, { backgroundColor: theme.background.surface }]}
-            >
-              <MaterialIcons name="login" size={20} color={theme.text.primary} />
-              <Text style={[styles.fabText, { color: theme.text.primary }]}>Join</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -175,13 +160,6 @@ const styles = StyleSheet.create({
     borderRadius: BUTTON_BORDER_RADIUS,
   },
   primaryButtonText: { fontSize: 16, fontWeight: '600' },
-  secondaryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: BUTTON_BORDER_RADIUS,
-    borderWidth: 1,
-  },
-  secondaryButtonText: { fontSize: 16, fontWeight: '600' },
   listContent: { paddingHorizontal: SCREEN_PADDING, paddingTop: 8 },
   card: {
     flexDirection: 'row',

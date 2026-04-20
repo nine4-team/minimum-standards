@@ -52,23 +52,19 @@ export function MemberDashboardScreen() {
     setLoading(true);
     setError(null);
     try {
-      // Use getMemberDashboard to get full member data, then extract this member's standards
-      // We need a dedicated endpoint or use getMemberStandardDetail per standard.
-      // For now, we'll fetch the dashboard and show member's standards from there.
-      // The dashboard only returns aggregate stats, not individual standards.
-      // So we need to call getMemberStandardDetail indirectly.
-      // Actually, we need to get the list of standards first. Let's use a pattern
-      // where getMemberDashboard returns enough data. But per the design, it only returns stats.
-      // The member dashboard screen should show the standards grid. We'll need to get
-      // standards from a separate call. Let's create a batch approach using getMemberStandardDetail.
-
-      // For MVP: use getMemberDashboard to get stats, and show a simplified view.
-      // Full standard grid would require a new endpoint. For now, show the stats
-      // and let users tap to see details via getMemberStandardDetail.
-      const result = await groupsService.getMemberDashboard(groupId);
-      // We could enhance the backend to return standard details per member,
-      // but for now we show member's aggregate stats and a message.
-      setStandards([]);
+      const result = await groupsService.getMemberStandards(groupId, memberUid);
+      setStandards(
+        result.standards.map((s) => ({
+          id: s.id,
+          name: s.name,
+          summary: s.summary,
+          status: s.status,
+          progressPercent: s.progressPercent,
+          total: s.total,
+          minimum: s.minimum,
+          unit: s.unit,
+        }))
+      );
     } catch (err: any) {
       setError(err?.message || 'Failed to load member data.');
     } finally {

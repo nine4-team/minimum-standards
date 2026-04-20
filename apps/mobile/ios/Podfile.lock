@@ -2992,29 +2992,10 @@ PODS:
     - Firebase/Firestore (= 12.6.0)
     - React-Core
     - RNFBApp
-  - RNFBFunctions (23.8.8):
-    - DoubleConversion
+  - RNFBFunctions (23.7.0):
     - Firebase/Functions (= 12.6.0)
-    - glog
-    - hermes-engine
-    - RCT-Folly (= 2024.01.01.00)
-    - RCTRequired
-    - RCTTypeSafety
     - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
     - RNFBApp
-    - Yoga
   - RNFBMessaging (23.7.0):
     - Firebase/Messaging (= 12.6.0)
     - FirebaseCoreExtension
@@ -3492,7 +3473,7 @@ SPEC CHECKSUMS:
   RNFBAuth: be889383e505e37ae425054a1163c22f3de8c596
   RNFBCrashlytics: 70521bbf68b69c16273ab01f901e2439f231993a
   RNFBFirestore: 4b00b018ad8aae8b4ff6460c1d3c7e6c7c6ee997
-  RNFBFunctions: 441985b90fb4975938f4ddb702bc21bfb4381650
+  RNFBFunctions: 8fb0360eed7aa43319b3843ac8ca0221c23a7017
   RNFBMessaging: 873220424f6f6aa5c787baf5c7099e1e2ba087c9
   RNGestureHandler: 987692c2cbd41ad765a9195675f96b65ab1c0c99
   RNGoogleSignin: 576a84dd0407b912e7a0adf07492de9feb79e5d9

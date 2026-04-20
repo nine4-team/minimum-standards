@@ -40,6 +40,11 @@ export function extractShareCodeFromUrl(url: string): string | null {
     return null;
   }
 
+  // Don't match group join URLs
+  if (trimmed.includes('/group/join/')) {
+    return null;
+  }
+
   const params = parseQueryParams(trimmed);
   const queryCode = params.shareCode || params.code || params.snapshotCode;
   if (queryCode) {

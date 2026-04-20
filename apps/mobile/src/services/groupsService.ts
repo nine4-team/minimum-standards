@@ -83,6 +83,31 @@ export async function getMemberDashboard(groupId: string): Promise<MemberDashboa
   }
 }
 
+export interface MemberStandardSummary {
+  id: string;
+  name: string;
+  summary: string;
+  minimum: number;
+  unit: string;
+  status: string;
+  progressPercent: number;
+  total: number;
+}
+
+export async function getMemberStandards(
+  groupId: string,
+  memberUid: string
+): Promise<{ standards: MemberStandardSummary[] }> {
+  try {
+    return await callFunction('getMemberStandards', { groupId, memberUid });
+  } catch (err: any) {
+    const code = err?.code;
+    if (code === 'functions/not-found') throw new Error('Group not found.');
+    if (code === 'functions/permission-denied') throw new Error('You are not a member of this group.');
+    throw new Error(mapError(err));
+  }
+}
+
 export async function getMemberStandardDetail(
   groupId: string,
   memberUid: string,

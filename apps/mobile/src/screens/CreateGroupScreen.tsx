@@ -19,6 +19,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import { useDisplayName } from '../hooks/useDisplayName';
 import * as groupsService from '../services/groupsService';
+import { buildGroupJoinUrl } from '../utils/groupLinks';
 import { SCREEN_PADDING, BUTTON_BORDER_RADIUS, getScreenContainerStyle } from '@nine4/ui-kit';
 import type { GroupsStackParamList } from '../navigation/types';
 
@@ -65,17 +66,11 @@ export function CreateGroupScreen() {
     }
   };
 
-  const handleCopyCode = () => {
+  const handleShareLink = async () => {
     if (createdInviteCode) {
-      // Share the code so the user can copy from the share sheet
-      Share.share({ message: createdInviteCode });
-    }
-  };
-
-  const handleShareCode = async () => {
-    if (createdInviteCode) {
+      const url = buildGroupJoinUrl(createdInviteCode);
       await Share.share({
-        message: `Join my accountability group "${groupName}" on Minimum Standards! Invite code: ${createdInviteCode}`,
+        message: `Join my accountability group "${groupName}" on Minimum Standards!\n${url}`,
       });
     }
   };
@@ -112,29 +107,17 @@ export function CreateGroupScreen() {
             {groupName}
           </Text>
           <Text style={[styles.successText, { color: theme.text.secondary }]}>
-            Share this invite code with your group:
+            Share the invite link with your group.
           </Text>
-          <View style={[styles.codeContainer, { backgroundColor: theme.background.card }]}>
-            <Text style={[styles.codeText, { color: theme.text.primary }]}>
-              {createdInviteCode}
+          <TouchableOpacity
+            onPress={handleShareLink}
+            style={[styles.shareButton, { backgroundColor: theme.button.primary.background }]}
+          >
+            <MaterialIcons name="share" size={18} color={theme.button.primary.text} />
+            <Text style={[styles.shareButtonText, { color: theme.button.primary.text }]}>
+              Share Invite Link
             </Text>
-          </View>
-          <View style={styles.codeActions}>
-            <TouchableOpacity
-              onPress={handleCopyCode}
-              style={[styles.codeButton, { borderColor: theme.border.primary }]}
-            >
-              <MaterialIcons name="content-copy" size={16} color={theme.text.primary} />
-              <Text style={[styles.codeButtonText, { color: theme.text.primary }]}>Copy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleShareCode}
-              style={[styles.codeButton, { backgroundColor: theme.button.primary.background }]}
-            >
-              <MaterialIcons name="share" size={16} color={theme.button.primary.text} />
-              <Text style={[styles.codeButtonText, { color: theme.button.primary.text }]}>Share</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleDone} style={styles.doneLink}>
             <Text style={[styles.doneLinkText, { color: theme.text.secondary }]}>Go to group</Text>
           </TouchableOpacity>
@@ -266,25 +249,16 @@ const styles = StyleSheet.create({
   },
   successTitle: { fontSize: 22, fontWeight: '700', marginTop: 4 },
   successText: { fontSize: 15, textAlign: 'center' },
-  codeContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  codeText: { fontSize: 28, fontWeight: '700', letterSpacing: 4 },
-  codeActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  codeButton: {
+  shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderRadius: BUTTON_BORDER_RADIUS,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    marginTop: 8,
   },
-  codeButtonText: { fontSize: 14, fontWeight: '600' },
+  shareButtonText: { fontSize: 16, fontWeight: '600' },
   doneLink: { marginTop: 16 },
   doneLinkText: { fontSize: 15 },
 });

@@ -10,7 +10,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { SETTINGS_TAB_ROUTE_NAME } from '../navigation/types';
 import type { Standard } from '@minimum-standards/shared-model';
 import { useActiveStandardsDashboard } from '../hooks/useActiveStandardsDashboard';
 import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
@@ -51,7 +50,6 @@ export function StandardsScreen({
   const insets = useSafeAreaInsets();
   const [selectedStandard, setSelectedStandard] = useState<Standard | null>(null);
   const [logModalVisible, setLogModalVisible] = useState(false);
-  const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const {
     dashboardStandards,
     loading,
@@ -317,14 +315,7 @@ export function StandardsScreen({
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
           Standards
         </Text>
-        <TouchableOpacity
-          onPress={() => setHeaderMenuVisible(true)}
-          style={styles.headerMenuButton}
-          accessibilityRole="button"
-          accessibilityLabel="More options"
-        >
-          <MaterialIcons name="more-horiz" size={24} color={theme.text.secondary} />
-        </TouchableOpacity>
+        <View style={styles.headerMenuButton} />
       </View>
 
       <ErrorBanner error={error} onRetry={handleRetry} />
@@ -339,25 +330,6 @@ export function StandardsScreen({
         onDeleteLogEntry={async (logEntryId, standardId, occurredAtMs) => {
           await deleteLogEntry({ logEntryId, standardId, occurredAtMs });
         }}
-      />
-
-      <BottomSheetMenu
-        visible={headerMenuVisible}
-        onRequestClose={() => setHeaderMenuVisible(false)}
-        title="Options"
-        items={[
-          {
-            key: 'manage-standards',
-            label: 'Manage Standards',
-            icon: 'tune',
-            onPress: () => {
-              navigation.navigate(
-                SETTINGS_TAB_ROUTE_NAME as any,
-                { screen: 'StandardsLibrary' } as any
-              );
-            },
-          },
-        ]}
       />
 
       {/* Active standard action bottom sheet (T037) */}

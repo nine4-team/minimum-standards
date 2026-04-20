@@ -50,7 +50,6 @@ export type SettingsStackParamList = {
 export type GroupsStackParamList = {
   GroupsList: undefined;
   CreateGroup: undefined;
-  JoinGroup: undefined;
   GroupDetail: { groupId: string };
   MemberDashboard: { groupId: string; memberUid: string; displayName: string };
   MemberStandardDetail: {
