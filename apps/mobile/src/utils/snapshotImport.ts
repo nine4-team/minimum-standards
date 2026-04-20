@@ -244,6 +244,37 @@ export async function importSnapshotForUser({
     };
   }
 
+  const result = await importStandardsForUser({ userId, payload: normalizedPayload });
+
+  await installRef.set({
+    snapshotId: snapshotDoc.id,
+    ownerUserId: snapshotData.ownerUserId,
+    installedAt: serverTimestamp(),
+  });
+
+  return {
+    snapshotId: snapshotDoc.id,
+    ownerUserId: snapshotData.ownerUserId,
+    isOwnSnapshot: false,
+    alreadyInstalled: false,
+    createdCounts: {
+      standards: result.createdCount,
+    },
+  };
+}
+
+/**
+ * Core import logic: deduplicates against the user's existing standards,
+ * re-activates archived matches, and batch-creates new ones.
+ * Used by both snapshot import and group member import flows.
+ */
+export async function importStandardsForUser({
+  userId,
+  payload,
+}: {
+  userId: string;
+  payload: SnapshotPayloadV2;
+}): Promise<{ createdCount: number }> {
   const standardsQuery = query(
     collection(doc(firebaseFirestore, 'users', userId), 'standards'),
     where('deletedAt', '==', null)
@@ -267,10 +298,9 @@ export async function importSnapshotForUser({
 
   const batch = firebaseFirestore.batch();
 
-  let createdStandardCount = 0;
+  let createdCount = 0;
   const updatedStandardIds = new Set<string>();
 
-  // Build a key for matching existing standards by name + cadence + minimum + unit
   function standardKey(name: string, cadence: any, minimum: number, unit: string): string {
     const normalizedUnit = normalizeUnitToPlural(unit).toLowerCase();
     return `${normalizeName(name)}|${cadence.interval}|${cadence.unit}|${minimum}|${normalizedUnit}`;
@@ -282,8 +312,7 @@ export async function importSnapshotForUser({
     existingStandardKeyMap.set(key, std);
   }
 
-  normalizedPayload.standards.forEach((standard) => {
-    // Try to find an existing standard with matching name/cadence/minimum/unit
+  payload.standards.forEach((standard) => {
     const key = standardKey(standard.name, standard.cadence, standard.minimum, standard.unit);
     const existing = existingStandardKeyMap.get(key);
 
@@ -326,24 +355,10 @@ export async function importSnapshotForUser({
       updatedAt: serverTimestamp(),
       deletedAt: null,
     });
-    createdStandardCount += 1;
-  });
-
-  batch.set(installRef, {
-    snapshotId: snapshotDoc.id,
-    ownerUserId: snapshotData.ownerUserId,
-    installedAt: serverTimestamp(),
+    createdCount += 1;
   });
 
   await batch.commit();
 
-  return {
-    snapshotId: snapshotDoc.id,
-    ownerUserId: snapshotData.ownerUserId,
-    isOwnSnapshot: false,
-    alreadyInstalled: false,
-    createdCounts: {
-      standards: createdStandardCount,
-    },
-  };
+  return { createdCount };
 }

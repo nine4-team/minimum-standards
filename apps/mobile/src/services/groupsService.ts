@@ -87,9 +87,13 @@ export async function getMemberDashboard(groupId: string): Promise<MemberDashboa
 export interface MemberStandardSummary {
   id: string;
   name: string;
+  notes: string | null;
   summary: string;
   minimum: number;
   unit: string;
+  cadence: { interval: number; unit: 'day' | 'week' | 'month' };
+  sessionConfig: { sessionLabel: string; sessionsPerCadence: number; volumePerSession: number } | null;
+  periodStartPreference?: { mode: 'default' | 'weekDay'; weekStartDay?: number };
   status: string;
   progressPercent: number;
   total: number;

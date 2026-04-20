@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -13,24 +14,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import * as groupsService from '../services/groupsService';
+import type { MemberStandardSummary } from '../services/groupsService';
 import { CircularStandardCard } from '../components/CircularStandardCard';
 import { SCREEN_PADDING, CARD_LIST_GAP, getScreenContainerStyle } from '@nine4/ui-kit';
+import { firebaseAuth } from '../firebase/firebaseApp';
+import { importStandardsForUser } from '../utils/snapshotImport';
+import type { SnapshotPayloadV2 } from '../types/snapshots';
 import type { GroupsStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<GroupsStackParamList>;
-
-interface MemberStandard {
-  id: string;
-  name: string;
-  summary: string;
-  status: string;
-  progressPercent: number;
-  total: number;
-  minimum: number;
-  unit: string;
-  periodStartMs?: number;
-  periodEndMs?: number;
-}
 
 export function MemberDashboardScreen() {
   const theme = useTheme();
@@ -43,9 +35,13 @@ export function MemberDashboardScreen() {
     displayName: string;
   };
 
-  const [standards, setStandards] = useState<MemberStandard[]>([]);
+  const [standards, setStandards] = useState<MemberStandardSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     loadStandards();
@@ -56,24 +52,79 @@ export function MemberDashboardScreen() {
     setError(null);
     try {
       const result = await groupsService.getMemberStandards(groupId, memberUid);
-      setStandards(
-        result.standards.map((s) => ({
-          id: s.id,
-          name: s.name,
-          summary: s.summary,
-          status: s.status,
-          progressPercent: s.progressPercent,
-          total: s.total,
-          minimum: s.minimum,
-          unit: s.unit,
-          periodStartMs: s.periodStartMs,
-          periodEndMs: s.periodEndMs,
-        }))
-      );
+      setStandards(result.standards);
     } catch (err: any) {
       setError(err?.message || 'Failed to load member data.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleImport = () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+
+    Alert.alert(
+      'Import Standards',
+      `Import ${count} standard${count > 1 ? 's' : ''} from ${displayName}? Duplicates will be skipped.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Import', onPress: doImport },
+      ]
+    );
+  };
+
+  const doImport = async () => {
+    const userId = firebaseAuth.currentUser?.uid;
+    if (!userId) return;
+
+    const selected = standards.filter((s) => selectedIds.has(s.id));
+    const payload: SnapshotPayloadV2 = {
+      version: 2,
+      standards: selected.map((s) => ({
+        id: s.id,
+        name: s.name,
+        notes: s.notes,
+        minimum: s.minimum,
+        unit: s.unit,
+        cadence: s.cadence,
+        sessionConfig: s.sessionConfig ?? {
+          sessionLabel: 'session',
+          sessionsPerCadence: 1,
+          volumePerSession: s.minimum,
+        },
+        ...(s.periodStartPreference ? { periodStartPreference: s.periodStartPreference as any } : {}),
+      })),
+    };
+
+    setImporting(true);
+    try {
+      const result = await importStandardsForUser({ userId, payload });
+      exitSelectMode();
+      Alert.alert(
+        'Done',
+        result.createdCount > 0
+          ? `${result.createdCount} standard${result.createdCount > 1 ? 's' : ''} imported.`
+          : 'All selected standards already exist — nothing new was added.'
+      );
+    } catch (err: any) {
+      Alert.alert('Import Failed', err?.message || 'Something went wrong.');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -90,13 +141,48 @@ export function MemberDashboardScreen() {
           },
         ]}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerLeftButton}>
-          <MaterialIcons name="arrow-back" size={24} color={theme.text.primary} />
+        <TouchableOpacity
+          onPress={selectMode ? exitSelectMode : () => navigation.goBack()}
+          style={styles.headerLeftButton}
+        >
+          <MaterialIcons
+            name={selectMode ? 'close' : 'arrow-back'}
+            size={24}
+            color={theme.text.primary}
+          />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text.primary }]} numberOfLines={1}>
-          {displayName}
+          {selectMode ? `${selectedIds.size} selected` : displayName}
         </Text>
-        <View style={styles.headerSpacer} />
+        {selectMode ? (
+          <TouchableOpacity
+            onPress={handleImport}
+            disabled={selectedIds.size === 0 || importing}
+            style={styles.headerRightButton}
+          >
+            {importing ? (
+              <ActivityIndicator size="small" color={theme.link} />
+            ) : (
+              <Text
+                style={[
+                  styles.headerAction,
+                  { color: selectedIds.size > 0 ? theme.link : theme.text.tertiary },
+                ]}
+              >
+                Import
+              </Text>
+            )}
+          </TouchableOpacity>
+        ) : standards.length > 0 ? (
+          <TouchableOpacity
+            onPress={() => setSelectMode(true)}
+            style={styles.headerRightButton}
+          >
+            <MaterialIcons name="file-download" size={24} color={theme.text.primary} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       {loading ? (
@@ -123,35 +209,67 @@ export function MemberDashboardScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={[
-            styles.grid,
+            styles.gridWrapper,
             { paddingBottom: insets.bottom + 16 },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {standards.map((item) => (
-            <View key={item.id} style={styles.cell}>
-              <CircularStandardCard
-                style={{ width: '100%' }}
-                standard={{ name: item.name, unit: item.unit, minimum: item.minimum, sessionConfig: undefined as any }}
-                activityName={item.name}
-                currentTotalFormatted={item.total.toString()}
-                targetValueFormatted={Math.round(item.minimum).toString()}
-                progressPercent={item.progressPercent}
-                unit={item.unit}
-                periodStartMs={item.periodStartMs}
-                periodEndMs={item.periodEndMs}
-                nowMs={nowMs}
-              />
-            </View>
-          ))}
+          {selectMode && (
+            <Text style={[styles.selectHint, { color: theme.text.secondary }]}>
+              Tap standards to select them, then import to add them to yours.
+            </Text>
+          )}
+          <View style={styles.grid}>
+          {standards.map((item) => {
+            const isSelected = selectedIds.has(item.id);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.cell}
+                activeOpacity={selectMode ? 0.7 : 1}
+                onPress={selectMode ? () => toggleSelect(item.id) : undefined}
+                disabled={!selectMode}
+              >
+                {selectMode && (
+                  <View
+                    style={[
+                      styles.checkBadge,
+                      {
+                        backgroundColor: isSelected ? theme.link : theme.background.card,
+                        borderColor: isSelected ? theme.link : theme.border.primary,
+                      },
+                    ]}
+                  >
+                    {isSelected && (
+                      <MaterialIcons name="check" size={14} color="#fff" />
+                    )}
+                  </View>
+                )}
+                <CircularStandardCard
+                  style={{ width: '100%', ...(selectMode && isSelected ? { opacity: 0.85 } : {}) }}
+                  standard={{ name: item.name, unit: item.unit, minimum: item.minimum, sessionConfig: undefined as any }}
+                  activityName={item.name}
+                  currentTotalFormatted={item.total.toString()}
+                  targetValueFormatted={Math.round(item.minimum).toString()}
+                  progressPercent={item.progressPercent}
+                  unit={item.unit}
+                  periodStartMs={item.periodStartMs}
+                  periodEndMs={item.periodEndMs}
+                  nowMs={nowMs}
+                />
+              </TouchableOpacity>
+            );
+          })}
+          </View>
         </ScrollView>
       )}
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {},
+  screen: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -161,6 +279,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   headerLeftButton: { width: 64, alignItems: 'flex-start' },
+  headerRightButton: { width: 64, alignItems: 'flex-end', justifyContent: 'center' },
+  headerAction: { fontSize: 16, fontWeight: '600' },
   headerSpacer: { width: 64 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorContainer: {
@@ -181,13 +301,33 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 15, textAlign: 'center' },
   emptySubtext: { fontSize: 13, textAlign: 'center' },
-  grid: {
+  gridWrapper: {
     padding: SCREEN_PADDING,
+  },
+  selectHint: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     rowGap: CARD_LIST_GAP,
   },
   cell: {
     width: '50%',
+    position: 'relative',
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

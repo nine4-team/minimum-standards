@@ -84,7 +84,7 @@ export function SuggestorInputStep() {
         />
 
         {error ? (
-          <Text style={[styles.errorText, { color: theme.status.missed }]}>{error}</Text>
+          <Text style={[styles.errorText, { color: theme.status.missed.text }]}>{error}</Text>
         ) : null}
       </View>
 

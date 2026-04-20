@@ -182,7 +182,7 @@ exports.groupJoinPage = functions.https.onRequest(async (req, res) => {
     <p style="margin: 0 0 16px 0; color: #444;">${escapeHtml(description)}</p>
     ${valid ? `
     <a href="${escapeHtml(deepLink)}"
-       style="display:inline-block; padding: 12px 16px; background: #0B5FFF; color: white; border-radius: 10px; text-decoration: none; font-weight: 600;">
+       style="display:inline-block; padding: 12px 16px; background: #987e55; color: white; border-radius: 10px; text-decoration: none; font-weight: 600;">
       Open in Minimum Standards
     </a>
 
@@ -273,7 +273,7 @@ exports.sharePage = functions.https.onRequest(async (req, res) => {
     <p style="margin: 0 0 16px 0; color: #444;">${escapeHtml(description)}</p>
 
     <a href="${escapeHtml(deepLink)}"
-       style="display:inline-block; padding: 12px 16px; background: #0B5FFF; color: white; border-radius: 10px; text-decoration: none; font-weight: 600;">
+       style="display:inline-block; padding: 12px 16px; background: #987e55; color: white; border-radius: 10px; text-decoration: none; font-weight: 600;">
       Open in Minimum Standards
     </a>
 
@@ -364,7 +364,11 @@ exports.suggestStandards = functions.https.onCall(
         messages: [{ role: 'user', content: trimmed }],
       });
 
-      const text = message.content[0].text;
+      let text = message.content[0].text.trim();
+      // Strip markdown code fences if the model wraps its response
+      if (text.startsWith('```')) {
+        text = text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+      }
       const parsed = JSON.parse(text);
 
       if (!Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
@@ -839,10 +843,12 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
     standards.push({
       id: doc.id,
       name: data.name,
+      notes: data.notes || null,
       summary: data.summary,
       minimum: data.minimum,
       unit: data.unit,
       cadence: data.cadence,
+      sessionConfig: data.sessionConfig || null,
       periodStartPreference: data.periodStartPreference,
     });
   });
@@ -901,10 +907,13 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
     return {
       id: s.id,
       name: s.name,
+      notes: s.notes,
       summary: s.summary,
       minimum: s.minimum,
       unit: s.unit,
       cadence: s.cadence,
+      sessionConfig: s.sessionConfig,
+      periodStartPreference: s.periodStartPreference,
       status,
       progressPercent,
       total,
