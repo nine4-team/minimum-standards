@@ -103,7 +103,7 @@ export function GroupsListScreen() {
                   r={dialRadius}
                   stroke={dialColor}
                   strokeWidth={DIAL_STROKE}
-                  strokeLinecap="round"
+                  strokeLinecap="butt"
                   fill="none"
                   strokeDasharray={`${dialCircumference}, ${dialCircumference}`}
                   strokeDashoffset={dialOffset}

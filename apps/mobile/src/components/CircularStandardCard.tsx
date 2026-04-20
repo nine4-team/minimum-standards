@@ -127,7 +127,7 @@ export function CircularStandardCard({
               r={radius}
               stroke={progressBarColor}
               strokeWidth={STROKE}
-              strokeLinecap="round"
+              strokeLinecap="butt"
               fill="none"
               strokeDasharray={`${circumference}, ${circumference}`}
               strokeDashoffset={dashOffset}
@@ -141,7 +141,7 @@ export function CircularStandardCard({
               y2={paceTick.y2}
               stroke={theme.text.primary}
               strokeWidth={PACE_TICK_STROKE}
-              strokeLinecap="round"
+              strokeLinecap="butt"
             />
           )}
         </Svg>
