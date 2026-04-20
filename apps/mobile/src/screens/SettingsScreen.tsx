@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,6 +11,7 @@ import { logAuthErrorToCrashlytics } from '../utils/crashlytics';
 import { useTheme } from '../theme/useTheme';
 import { getCardBorderStyle, getCardBaseStyle, getSectionTitleStyle, getScreenContainerStyle, getScreenHeaderStyle } from '@nine4/ui-kit';
 import { useUIPreferencesStore, ThemePreference } from '../stores/uiPreferencesStore';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 export function SettingsScreen() {
   const theme = useTheme();
@@ -18,8 +19,34 @@ export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
   const { signOut } = useAuthStore();
   const { themePreference, setThemePreference } = useUIPreferencesStore();
+  const { displayName, loading: displayNameLoading, setDisplayName } = useDisplayName();
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleStartEditName = () => {
+    setNameInput(displayName || '');
+    setEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === displayName) {
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    try {
+      await setDisplayName(trimmed);
+      setEditingName(false);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update display name.');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -49,6 +76,53 @@ export function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <View style={[
+          styles.card,
+          getCardBaseStyle({ radius: 12 }),
+          getCardBorderStyle(theme),
+          { backgroundColor: theme.background.surface }
+        ]}>
+          {editingName ? (
+            <View style={styles.optionRow}>
+              <View style={styles.optionLabelContainer}>
+                <MaterialIcons name="person" size={22} color={theme.text.primary} style={styles.optionIcon} />
+                <TextInput
+                  style={[styles.nameInput, { color: theme.text.primary, borderColor: theme.input.border }]}
+                  value={nameInput}
+                  onChangeText={setNameInput}
+                  maxLength={40}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveName}
+                  onBlur={handleSaveName}
+                  editable={!savingName}
+                  placeholder="Display name"
+                  placeholderTextColor={theme.input.placeholder}
+                />
+              </View>
+              {savingName ? (
+                <ActivityIndicator size="small" color={theme.text.secondary} />
+              ) : (
+                <TouchableOpacity onPress={handleSaveName}>
+                  <MaterialIcons name="check" size={24} color={theme.text.secondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.optionRow} onPress={handleStartEditName}>
+              <View style={styles.optionLabelContainer}>
+                <MaterialIcons name="person" size={22} color={theme.text.primary} style={styles.optionIcon} />
+                <View>
+                  <Text style={[styles.optionLabel, { color: theme.text.primary }]}>
+                    {displayNameLoading ? '...' : displayName || 'Set Display Name'}
+                  </Text>
+                </View>
+              </View>
+              <MaterialIcons name="edit" size={20} color={theme.text.secondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={[
           styles.card,
           getCardBaseStyle({ radius: 12 }),
@@ -205,6 +279,13 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  nameInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    borderBottomWidth: 1,
+    paddingVertical: 4,
   },
   segmentedControl: {
     flexDirection: 'row',
