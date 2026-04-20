@@ -201,14 +201,14 @@ export function BottomTabNavigator() {
         options={{ tabBarAccessibilityLabel: 'Standards tab' }}
       />
       <Tab.Screen
-        name="Scorecards"
-        component={ActivitiesStack}
-        options={{ tabBarAccessibilityLabel: 'Scorecards tab' }}
-      />
-      <Tab.Screen
         name="Groups"
         component={GroupsStack}
         options={{ tabBarAccessibilityLabel: 'Groups tab' }}
+      />
+      <Tab.Screen
+        name="Scorecards"
+        component={ActivitiesStack}
+        options={{ tabBarAccessibilityLabel: 'Scorecards tab' }}
       />
       <Tab.Screen
         name={SETTINGS_TAB_ROUTE_NAME}
