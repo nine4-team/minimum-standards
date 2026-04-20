@@ -7,6 +7,96 @@ admin.initializeApp();
 
 const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 
+/**
+ * Compute the current period window for a standard based on its cadence and timezone.
+ * Mirrors the shared-model calculatePeriodWindow logic without luxon.
+ * Uses Intl.DateTimeFormat to resolve local dates in the given timezone.
+ */
+function computePeriodWindow(nowMs, cadence, periodStartPreference, timezone) {
+  // Get the local date parts in the user's timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+    hour: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(new Date(nowMs)).map((p) => [p.type, p.value])
+  );
+  const year = parseInt(parts.year);
+  const month = parseInt(parts.month) - 1; // 0-indexed
+  const day = parseInt(parts.day);
+
+  // Create a Date that represents midnight in the user's timezone
+  // by computing the offset between UTC and the timezone
+  function midnightInTz(y, m, d) {
+    // Create a UTC date, then adjust for timezone offset
+    const utcGuess = new Date(Date.UTC(y, m, d, 12, 0, 0)); // noon UTC as starting point
+    const tzParts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+        .formatToParts(utcGuess)
+        .map((p) => [p.type, p.value])
+    );
+    const tzHour = parseInt(tzParts.hour);
+    const tzMinute = parseInt(tzParts.minute);
+    const tzDay = parseInt(tzParts.day);
+    const tzMonth = parseInt(tzParts.month) - 1;
+    const tzYear = parseInt(tzParts.year);
+
+    // Offset = local time - UTC time (in ms)
+    const localMs = new Date(Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMinute)).getTime();
+    const utcMs = utcGuess.getTime();
+    const offsetMs = localMs - utcMs;
+
+    // Midnight in timezone = midnight UTC minus offset
+    return new Date(Date.UTC(y, m, d) - offsetMs).getTime();
+  }
+
+  if (cadence.unit === 'day') {
+    const startMs = midnightInTz(year, month, day);
+    const endMs = midnightInTz(year, month, day + cadence.interval);
+    return { startMs, endMs };
+  }
+
+  if (cadence.unit === 'week') {
+    let weekStartDay = 1; // Monday (luxon convention: 1=Mon..7=Sun)
+    if (
+      periodStartPreference &&
+      periodStartPreference.mode === 'weekDay' &&
+      periodStartPreference.weekStartDay
+    ) {
+      weekStartDay = periodStartPreference.weekStartDay;
+    }
+    // Map JS getDay (0=Sun..6=Sat) to luxon weekday (1=Mon..7=Sun)
+    const dayNameToLuxon = { Sun: 7, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const currentWeekday = dayNameToLuxon[parts.weekday] || 1;
+    const daysBack = (currentWeekday - weekStartDay + 7) % 7;
+    const startDay = day - daysBack;
+    const startMs = midnightInTz(year, month, startDay);
+    const endMs = midnightInTz(year, month, startDay + 7 * cadence.interval);
+    return { startMs, endMs };
+  }
+
+  if (cadence.unit === 'month') {
+    const startMs = midnightInTz(year, month, 1);
+    const endMs = midnightInTz(year, month + cadence.interval, 1);
+    return { startMs, endMs };
+  }
+
+  throw new Error(`Unsupported cadence unit: ${cadence.unit}`);
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -611,17 +701,18 @@ exports.getMemberDashboard = functions.https.onCall(async (request) => {
   for (const memberUid of group.memberUids) {
     const memberInfo = group.members[memberUid] || {};
 
-    // Fetch active, non-deleted standards
+    // Fetch all standards then filter in code — Firestore where('field', '==', null)
+    // doesn't match docs where the field is missing entirely.
     const standardsSnap = await db
       .collection(`users/${memberUid}/standards`)
-      .where('state', '==', 'active')
-      .where('deletedAt', '==', null)
       .get();
 
     const allStandards = [];
     const visibleStandards = [];
     standardsSnap.forEach((doc) => {
       const data = doc.data();
+      if (data.state !== 'active') return;
+      if (data.deletedAt) return;
       allStandards.push({ id: doc.id, ...data });
       if (!data.hiddenFromGroup) {
         visibleStandards.push({ id: doc.id, ...data });
@@ -685,6 +776,7 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
 
   const groupId = (request.data && request.data.groupId) || '';
   const memberUid = (request.data && request.data.memberUid) || '';
+  const timezone = (request.data && request.data.timezone) || 'UTC';
 
   if (!groupId || !memberUid) {
     throw new functions.https.HttpsError('invalid-argument', 'groupId and memberUid are required.');
@@ -706,54 +798,93 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
     throw new functions.https.HttpsError('failed-precondition', 'Target user is not in this group.');
   }
 
-  // Fetch active, non-deleted, visible standards
+  // Fetch all standards then filter in code — Firestore where('field', '==', null)
+  // doesn't match docs where the field is missing entirely, so filtering in code
+  // is more reliable across docs created at different schema versions.
   const standardsSnap = await db
     .collection(`users/${memberUid}/standards`)
-    .where('state', '==', 'active')
-    .where('deletedAt', '==', null)
     .get();
 
   const standards = [];
   standardsSnap.forEach((doc) => {
     const data = doc.data();
-    if (!data.hiddenFromGroup) {
-      standards.push({
-        id: doc.id,
-        name: data.name,
-        summary: data.summary,
-        minimum: data.minimum,
-        unit: data.unit,
-        cadence: data.cadence,
+    if (data.state !== 'active') return;
+    if (data.deletedAt) return;
+    if (data.hiddenFromGroup) return;
+    standards.push({
+      id: doc.id,
+      name: data.name,
+      summary: data.summary,
+      minimum: data.minimum,
+      unit: data.unit,
+      cadence: data.cadence,
+      periodStartPreference: data.periodStartPreference,
+    });
+  });
+
+  // Compute current period windows and fetch logs to calculate live progress
+  const nowMs = Date.now();
+  const standardWindows = standards.map((s) => {
+    const window = computePeriodWindow(nowMs, s.cadence, s.periodStartPreference, timezone);
+    return { ...s, periodStartMs: window.startMs, periodEndMs: window.endMs };
+  });
+
+  // Find the earliest period start across all standards to scope the logs query
+  const earliestStartMs = standardWindows.reduce(
+    (min, s) => Math.min(min, s.periodStartMs),
+    nowMs
+  );
+
+  // Fetch activity logs since the earliest period start.
+  // The Firestore field is 'occurredAt' (a Timestamp), not 'occurredAtMs'.
+  const earliestTimestamp = admin.firestore.Timestamp.fromMillis(earliestStartMs);
+  const logsSnap = await db
+    .collection(`users/${memberUid}/activityLogs`)
+    .where('occurredAt', '>=', earliestTimestamp)
+    .orderBy('occurredAt', 'desc')
+    .get();
+
+  const logs = [];
+  logsSnap.forEach((doc) => {
+    const data = doc.data();
+    if (!data.deletedAt) {
+      logs.push({
+        standardId: data.standardId,
+        value: data.value,
+        occurredAtMs: data.occurredAt.toMillis(),
       });
     }
   });
 
-  // Fetch latest activity history for each standard
-  const historySnap = await db
-    .collection(`users/${memberUid}/activityHistory`)
-    .orderBy('periodStartMs', 'desc')
-    .limit(200)
-    .get();
+  // Compute progress for each standard from logs within its period window
+  const result = standardWindows.map((s) => {
+    const windowLogs = logs.filter(
+      (log) =>
+        log.standardId === s.id &&
+        log.occurredAtMs >= s.periodStartMs &&
+        log.occurredAtMs < s.periodEndMs
+    );
+    const total = windowLogs.reduce((sum, log) => sum + log.value, 0);
+    const safeMinimum = Math.max(s.minimum, 0);
+    const ratio = safeMinimum === 0 ? 1 : Math.min(total / safeMinimum, 1);
+    const progressPercent = Number((ratio * 100).toFixed(2));
 
-  const latestByStandard = {};
-  historySnap.forEach((doc) => {
-    const data = doc.data();
-    if (!data.deletedAtMs && !latestByStandard[data.standardId]) {
-      latestByStandard[data.standardId] = {
-        status: data.status,
-        progressPercent: data.progressPercent,
-        total: data.total,
-      };
-    }
-  });
+    let status = 'In Progress';
+    if (total >= s.minimum) status = 'Met';
+    else if (nowMs >= s.periodEndMs) status = 'Missed';
 
-  const result = standards.map((s) => {
-    const latest = latestByStandard[s.id] || {};
     return {
-      ...s,
-      status: latest.status || 'Not Started',
-      progressPercent: latest.progressPercent || 0,
-      total: latest.total || 0,
+      id: s.id,
+      name: s.name,
+      summary: s.summary,
+      minimum: s.minimum,
+      unit: s.unit,
+      cadence: s.cadence,
+      status,
+      progressPercent,
+      total,
+      periodStartMs: s.periodStartMs,
+      periodEndMs: s.periodEndMs,
     };
   });
 

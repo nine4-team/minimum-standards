@@ -92,6 +92,8 @@ export interface MemberStandardSummary {
   status: string;
   progressPercent: number;
   total: number;
+  periodStartMs?: number;
+  periodEndMs?: number;
 }
 
 export async function getMemberStandards(
@@ -99,7 +101,8 @@ export async function getMemberStandards(
   memberUid: string
 ): Promise<{ standards: MemberStandardSummary[] }> {
   try {
-    return await callFunction('getMemberStandards', { groupId, memberUid });
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+    return await callFunction('getMemberStandards', { groupId, memberUid, timezone });
   } catch (err: any) {
     const code = err?.code;
     if (code === 'functions/not-found') throw new Error('Group not found.');

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -13,7 +13,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../theme/useTheme';
 import * as groupsService from '../services/groupsService';
-import { SCREEN_PADDING, getScreenContainerStyle } from '@nine4/ui-kit';
+import { CircularStandardCard } from '../components/CircularStandardCard';
+import { SCREEN_PADDING, CARD_LIST_GAP, getScreenContainerStyle } from '@nine4/ui-kit';
 import type { GroupsStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<GroupsStackParamList>;
@@ -27,6 +28,8 @@ interface MemberStandard {
   total: number;
   minimum: number;
   unit: string;
+  periodStartMs?: number;
+  periodEndMs?: number;
 }
 
 export function MemberDashboardScreen() {
@@ -63,6 +66,8 @@ export function MemberDashboardScreen() {
           total: s.total,
           minimum: s.minimum,
           unit: s.unit,
+          periodStartMs: s.periodStartMs,
+          periodEndMs: s.periodEndMs,
         }))
       );
     } catch (err: any) {
@@ -72,50 +77,7 @@ export function MemberDashboardScreen() {
     }
   };
 
-  const renderStandard = ({ item }: { item: MemberStandard }) => {
-    const statusColor =
-      item.status === 'Met'
-        ? theme.status.met.barComplete
-        : item.status === 'In Progress'
-        ? theme.status.inProgress.bar
-        : theme.status.missed.bar;
-
-    return (
-      <TouchableOpacity
-        style={[styles.standardCard, { backgroundColor: theme.background.card }]}
-        activeOpacity={0.7}
-        onPress={() =>
-          navigation.navigate('MemberStandardDetail', {
-            groupId,
-            memberUid,
-            standardId: item.id,
-            standardName: item.name,
-          })
-        }
-      >
-        <View style={styles.standardHeader}>
-          <Text style={[styles.standardName, { color: theme.text.primary }]}>{item.name}</Text>
-          <Text style={[styles.standardSummary, { color: theme.text.tertiary }]}>{item.summary}</Text>
-        </View>
-        <View style={styles.progressRow}>
-          <View style={[styles.progressBarBg, { backgroundColor: theme.border.secondary }]}>
-            <View
-              style={[
-                styles.progressBarFill,
-                {
-                  backgroundColor: statusColor,
-                  width: `${Math.min(item.progressPercent, 100)}%`,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.progressText, { color: theme.text.secondary }]}>
-            {Math.round(item.progressPercent)}%
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const nowMs = Date.now();
 
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
@@ -159,16 +121,30 @@ export function MemberDashboardScreen() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={standards}
-          keyExtractor={(item) => item.id}
-          renderItem={renderStandard}
+        <ScrollView
           contentContainerStyle={[
-            styles.listContent,
+            styles.grid,
             { paddingBottom: insets.bottom + 16 },
           ]}
           showsVerticalScrollIndicator={false}
-        />
+        >
+          {standards.map((item) => (
+            <View key={item.id} style={styles.cell}>
+              <CircularStandardCard
+                style={{ width: '100%' }}
+                standard={{ name: item.name, unit: item.unit, minimum: item.minimum, sessionConfig: undefined as any }}
+                activityName={item.name}
+                currentTotalFormatted={item.total.toString()}
+                targetValueFormatted={Math.round(item.minimum).toString()}
+                progressPercent={item.progressPercent}
+                unit={item.unit}
+                periodStartMs={item.periodStartMs}
+                periodEndMs={item.periodEndMs}
+                nowMs={nowMs}
+              />
+            </View>
+          ))}
+        </ScrollView>
       )}
     </View>
   );
@@ -205,30 +181,13 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 15, textAlign: 'center' },
   emptySubtext: { fontSize: 13, textAlign: 'center' },
-  listContent: { paddingHorizontal: SCREEN_PADDING, paddingTop: 8 },
-  standardCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    gap: 8,
-  },
-  standardHeader: { gap: 2 },
-  standardName: { fontSize: 16, fontWeight: '600' },
-  standardSummary: { fontSize: 13 },
-  progressRow: {
+  grid: {
+    padding: SCREEN_PADDING,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    flexWrap: 'wrap',
+    rowGap: CARD_LIST_GAP,
   },
-  progressBarBg: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
+  cell: {
+    width: '50%',
   },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressText: { fontSize: 13, fontWeight: '600', width: 36, textAlign: 'right' },
 });
