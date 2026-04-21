@@ -184,27 +184,16 @@ export function GroupsListScreen() {
           </View>
         </View>
       ) : (
-        <>
-          <FlatList
-            data={groups}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: insets.bottom + 80 },
-            ]}
-            showsVerticalScrollIndicator={false}
-          />
-          <View style={[styles.fab, { bottom: insets.bottom + 80 }]}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('CreateGroup')}
-              style={[styles.fabButton, { backgroundColor: theme.button.primary.background }]}
-            >
-              <MaterialIcons name="add" size={20} color={theme.button.primary.text} />
-              <Text style={[styles.fabText, { color: theme.button.primary.text }]}>Create</Text>
-            </TouchableOpacity>
-          </View>
-        </>
+        <FlatList
+          data={groups}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: insets.bottom + 80 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </View>
   );
@@ -281,24 +270,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cardLeader: { fontSize: 13, marginTop: 4 },
-  fab: {
-    position: 'absolute',
-    right: SCREEN_PADDING,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  fabButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  fabText: { fontSize: 14, fontWeight: '600' },
 });

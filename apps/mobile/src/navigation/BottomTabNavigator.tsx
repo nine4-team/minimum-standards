@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Pressable, View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { Pressable, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { BottomTabParamList, SETTINGS_TAB_ROUTE_NAME } from './types';
@@ -38,73 +38,59 @@ function CreateMenu({ navigation, theme }: { navigation: any; theme: any }) {
   return (
     <View>
       {open && (
+        <>
+        <Pressable
+          onPress={() => setOpen(false)}
+          style={createMenuStyles.backdrop}
+          accessibilityLabel="Dismiss menu"
+        />
         <View
-          style={{
-            position: 'absolute',
-            bottom: 60,
-            right: 0,
-            backgroundColor: theme.background.surface,
-            borderRadius: 12,
-            paddingVertical: 4,
-            shadowColor: '#000',
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: -4 },
-            elevation: 10,
-            minWidth: 150,
-          }}
+          style={[
+            createMenuStyles.menu,
+            { backgroundColor: theme.background.surface },
+          ]}
         >
           <TouchableOpacity
             onPress={() => {
               setOpen(false);
               navigation.navigate('CreateStandardFlow');
             }}
-            style={fabMenuStyles.menuItem}
+            style={createMenuStyles.menuItem}
           >
             <MaterialIcons name="task-alt" size={18} color={theme.text.primary} />
-            <Text style={[fabMenuStyles.menuText, { color: theme.text.primary }]}>Standard</Text>
+            <Text style={[createMenuStyles.menuText, { color: theme.text.primary }]}>Standard</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
               setOpen(false);
               navigation.navigate('Groups', { screen: 'CreateGroup' });
             }}
-            style={fabMenuStyles.menuItem}
+            style={createMenuStyles.menuItem}
           >
             <MaterialIcons name="group" size={18} color={theme.text.primary} />
-            <Text style={[fabMenuStyles.menuText, { color: theme.text.primary }]}>Group</Text>
+            <Text style={[createMenuStyles.menuText, { color: theme.text.primary }]}>Group</Text>
           </TouchableOpacity>
         </View>
+        </>
       )}
       <Pressable
         onPress={() => setOpen((v) => !v)}
         accessibilityRole="button"
         accessibilityLabel="Create"
-        style={({ pressed }) => ({
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          backgroundColor: theme.background.surface,
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOpacity: 0.1,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 8,
-          opacity: pressed ? 0.9 : 1,
-          transform: [{ scale: pressed ? 0.95 : 1 }],
-        })}
+        style={({ pressed }) => [
+          createMenuStyles.fabOuter,
+          {
+            backgroundColor: theme.background.surface,
+            opacity: pressed ? 0.9 : 1,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
+          },
+        ]}
       >
         <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: theme.button.primary.background,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          style={[
+            createMenuStyles.fabInner,
+            { backgroundColor: theme.button.primary.background },
+          ]}
         >
           <MaterialIcons
             name={open ? 'close' : 'add'}
@@ -117,7 +103,27 @@ function CreateMenu({ navigation, theme }: { navigation: any; theme: any }) {
   );
 }
 
-const fabMenuStyles = StyleSheet.create({
+const createMenuStyles = StyleSheet.create({
+  backdrop: {
+    position: 'absolute',
+    top: -1000,
+    bottom: -20,
+    left: -1000,
+    right: -1000,
+  },
+  menu: {
+    position: 'absolute',
+    bottom: 60,
+    right: 0,
+    borderRadius: 12,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 10,
+    minWidth: 150,
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -128,6 +134,25 @@ const fabMenuStyles = StyleSheet.create({
   menuText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  fabOuter: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  fabInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
