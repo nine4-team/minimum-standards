@@ -19,11 +19,7 @@ export type CreateStandardFlowParamList = {
 
 // Suggestor flow param list
 export type SuggestorFlowParamList = {
-  SuggestorInput: undefined;
-  SuggestorActivity: {
-    suggestions: Array<{ name: string; units: string[] }>;
-  };
-  SuggestorUnit: { activityName: string; units: string[] };
+  SuggestorChat: undefined;
 };
 
 // Individual tab stack param lists

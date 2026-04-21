@@ -387,6 +387,119 @@ exports.suggestStandards = functions.https.onCall(
   }
 );
 
+// --- suggestStandardsChat (conversational) ---
+
+const CHAT_SYSTEM_PROMPT = `You help people create recurring minimum commitments ("standards") for self-improvement.
+
+Your job: understand what the user wants to achieve, then suggest specific measurable activities they can track.
+
+REASONING FRAMEWORK:
+Before suggesting or asking questions, think through these steps silently:
+1. What fundamentally drives this outcome? What are the underlying principles?
+2. What are the key variables that would change your recommendations for different people?
+3. Ask questions that resolve those variables. Each question should meaningfully change what you'd suggest.
+4. Each suggestion should represent a different viable path to the goal, not variations of the same path.
+
+RULES:
+1. Always ask at least 2 clarifying questions before suggesting. Your questions should target the key variables you identified.
+2. Ask ONE question at a time. Provide 3-5 quick-reply options as chips.
+3. Never ask more than 5 questions total. After receiving 5 answers, you MUST suggest.
+4. If the user says "just suggest something" or seems impatient, go to SUGGEST mode immediately.
+5. Keep questions short and single-axis (don't ask two things at once).
+
+RESPONSE FORMAT — respond with valid JSON only, no markdown fences:
+
+Clarify:
+{"type":"clarify","question":"...","chips":["Option A","Option B","Option C"]}
+
+Suggest (3-5 activities, each with 1-3 countable unit options):
+{"type":"suggest","suggestions":[{"name":"Activity Name","units":["unit1","unit2"]}]}
+
+Units must be countable and specific. Each activity should have unit options that are meaningfully different from each other.`;
+
+exports.suggestStandardsChat = functions.https.onCall(
+  { secrets: [anthropicApiKey] },
+  async (request) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const messages = request.data && request.data.messages;
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 10) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Messages must be an array of 1-10 items.'
+      );
+    }
+
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'user' || !String(last.content).trim()) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Last message must be a non-empty user message.'
+      );
+    }
+
+    // Rate limit only on first message of a conversation
+    if (messages.length === 1) {
+      const allowed = await checkRateLimit(request.auth.uid);
+      if (!allowed) {
+        throw new functions.https.HttpsError(
+          'resource-exhausted',
+          'Daily suggestion limit reached. Try again tomorrow.'
+        );
+      }
+    }
+
+    try {
+      const client = new Anthropic({ apiKey: anthropicApiKey.value() });
+
+      // Build messages array for the API (only role + content)
+      const apiMessages = messages.map((m) => ({
+        role: m.role,
+        content: String(m.content).trim(),
+      }));
+
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 512,
+        temperature: 0.7,
+        system: CHAT_SYSTEM_PROMPT,
+        messages: apiMessages,
+      });
+
+      let text = response.content[0].text.trim();
+      if (text.startsWith('```')) {
+        text = text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+      }
+      const parsed = JSON.parse(text);
+
+      if (parsed.type === 'clarify') {
+        if (!parsed.question || typeof parsed.question !== 'string') {
+          throw new Error('Invalid clarify response');
+        }
+        return { type: 'clarify', question: parsed.question, chips: parsed.chips || [] };
+      }
+
+      if (parsed.type === 'suggest') {
+        if (!Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
+          throw new Error('Empty suggestions');
+        }
+        return { type: 'suggest', suggestions: parsed.suggestions };
+      }
+
+      throw new Error('Unknown response type');
+    } catch (err) {
+      if (err instanceof functions.https.HttpsError) throw err;
+      console.error('suggestStandardsChat error:', err);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Something went wrong. Please try again.'
+      );
+    }
+  }
+);
+
 // ---------------------------------------------------------------------------
 // Accountability Groups — Group Management
 // ---------------------------------------------------------------------------

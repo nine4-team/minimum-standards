@@ -114,7 +114,7 @@ export function SelectActivityStep() {
           )}
         </View>
 
-        {/* Suggestor entry point */}
+        {/* Suggestor entry point — disabled, feature cut for now
         <TouchableOpacity
           style={styles.suggestorLink}
           onPress={() => {
@@ -130,6 +130,7 @@ export function SelectActivityStep() {
             Not sure what to track? Help me decide
           </Text>
         </TouchableOpacity>
+        */}
 
         {/* Name field */}
         <View style={styles.fieldSection}>

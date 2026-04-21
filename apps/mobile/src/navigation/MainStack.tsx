@@ -24,11 +24,13 @@ export function MainStack() {
         component={CreateStandardFlow}
         options={{ presentation: 'fullScreenModal' }}
       />
+      {/* Suggestor disabled — feature cut for now
       <Stack.Screen
         name="SuggestorFlow"
         component={SuggestorFlow}
         options={{ presentation: 'fullScreenModal' }}
       />
+      */}
     </Stack.Navigator>
   );
 }
