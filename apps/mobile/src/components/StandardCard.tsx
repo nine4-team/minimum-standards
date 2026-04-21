@@ -1,9 +1,10 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Dimensions } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Standard, formatUnitWithCount } from '@minimum-standards/shared-model';
 import { useTheme } from '../theme/useTheme';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { getCardBorderStyle, getCardBaseStyle } from '@nine4/ui-kit';
+import { BottomSheetMenu } from './BottomSheetMenu';
 
 export function StandardCard({
   standard,
@@ -28,8 +29,6 @@ export function StandardCard({
 }) {
   const theme = useTheme();
   const [menuVisible, setMenuVisible] = useState(false);
-  const [menuButtonLayout, setMenuButtonLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const menuButtonRef = useRef<View>(null);
   const isActive = standard.state === 'active' && standard.archivedAtMs === null;
 
   const activityName = standard.name;
@@ -61,10 +60,7 @@ export function StandardCard({
 
   const handleMenuPress = useCallback((e: any) => {
     e.stopPropagation();
-    menuButtonRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-      setMenuButtonLayout({ x, y, width, height });
-      setMenuVisible(true);
-    });
+    setMenuVisible(true);
   }, []);
 
   const handleEditPress = useCallback(() => {
@@ -124,11 +120,9 @@ export function StandardCard({
                         <View style={[localStyles.toggleThumb, { backgroundColor: theme.background.primary, transform: [{ translateX: isActive ? 20 : 0 }] }]} />
                       </View>
                     </TouchableOpacity>
-                    <View ref={menuButtonRef}>
-                      <TouchableOpacity onPress={handleMenuPress} style={localStyles.menuButton} accessibilityRole="button" accessibilityLabel={`More options for ${activityName}`}>
-                        <MaterialIcons name="more-horiz" size={20} color={theme.text.secondary} />
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity onPress={handleMenuPress} style={localStyles.menuButton} accessibilityRole="button" accessibilityLabel={`More options for ${activityName}`}>
+                      <MaterialIcons name="more-horiz" size={20} color={theme.text.secondary} />
+                    </TouchableOpacity>
                   </>
                 )}
               </View>
@@ -138,29 +132,26 @@ export function StandardCard({
       </TouchableOpacity>
 
       {showActions && (
-        <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
-          <TouchableOpacity style={localStyles.menuOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
-            {menuButtonLayout && (() => {
-              const screenWidth = Dimensions.get('window').width;
-              const menuWidth = 200;
-              const buttonRightEdge = menuButtonLayout.x + menuButtonLayout.width;
-              let menuLeft = buttonRightEdge - menuWidth;
-              menuLeft = Math.max(16, Math.min(menuLeft, screenWidth - menuWidth - 16));
-              return (
-                <View style={[localStyles.menuContainer, { backgroundColor: theme.background.modal, top: menuButtonLayout.y + menuButtonLayout.height + 4, left: menuLeft }]} onStartShouldSetResponder={() => true}>
-                  <TouchableOpacity onPress={handleEditPress} style={[localStyles.menuItem, { borderBottomColor: theme.border.secondary }]} accessibilityRole="button" accessibilityLabel={`Edit ${activityName}`}>
-                    <MaterialIcons name="edit" size={20} color={theme.button.icon.icon} />
-                    <Text style={[localStyles.menuItemText, { color: theme.button.icon.icon }]}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleDeletePress} style={localStyles.menuItem} accessibilityRole="button" accessibilityLabel={`Delete ${activityName}`}>
-                    <MaterialIcons name="delete" size={20} color={theme.button.icon.icon} />
-                    <Text style={[localStyles.menuItemText, { color: theme.button.icon.icon }]}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })()}
-          </TouchableOpacity>
-        </Modal>
+        <BottomSheetMenu
+          visible={menuVisible}
+          onRequestClose={() => setMenuVisible(false)}
+          title={activityName}
+          items={[
+            {
+              key: 'edit',
+              label: 'Edit',
+              icon: 'edit',
+              onPress: handleEditPress,
+            },
+            {
+              key: 'delete',
+              label: 'Delete',
+              icon: 'delete',
+              destructive: true,
+              onPress: handleDeletePress,
+            },
+          ]}
+        />
       )}
     </>
   );
@@ -185,9 +176,5 @@ const localStyles = StyleSheet.create({
   toggle: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
   toggleThumb: { width: 26, height: 26, borderRadius: 13, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 },
   menuButton: { padding: 6, alignItems: 'center', justifyContent: 'center', minWidth: 32, minHeight: 32 },
-  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  menuContainer: { position: 'absolute', borderRadius: 12, minWidth: 200, shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5, overflow: 'hidden' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1 },
-  menuItemText: { fontSize: 16, fontWeight: '500' },
 });
 

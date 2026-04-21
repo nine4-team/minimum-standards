@@ -418,36 +418,4 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  menuButton: {
-    padding: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 32,
-    minHeight: 32,
-  },
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  menuContainer: {
-    position: 'absolute',
-    borderRadius: 12,
-    minWidth: 200,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-  },
-  menuItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
 });
