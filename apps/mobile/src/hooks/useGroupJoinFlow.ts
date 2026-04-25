@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Alert, Linking, TextInput } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Linking } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
 import { useGroupJoinStore } from '../stores/groupJoinStore';
 import { extractGroupInviteCodeFromUrl } from '../utils/groupLinks';
 import { useDisplayName } from './useDisplayName';
 import * as groupsService from '../services/groupsService';
-import { navigationRef } from '../navigation/navigationRef';
+import { navigationRef, waitForNavigationReady } from '../navigation/navigationRef';
 
-function navigateToGroupDetail(groupId: string) {
-  if (!navigationRef.isReady()) {
+async function navigateToGroupDetail(groupId: string) {
+  const ready = await waitForNavigationReady();
+  if (!ready) {
     return;
   }
   navigationRef.navigate('Main', {
@@ -23,12 +24,24 @@ function navigateToGroupDetail(groupId: string) {
   });
 }
 
-export function useGroupJoinFlow() {
+export interface GroupJoinFlowState {
+  /** True while the user must supply a display name to complete the join. */
+  namePromptVisible: boolean;
+  /** True while the join request is in flight. */
+  isJoining: boolean;
+  /** Submit the supplied name and complete the join. */
+  submitName: (name: string) => void;
+  /** Dismiss the prompt and discard the pending invite. */
+  cancelNamePrompt: () => void;
+}
+
+export function useGroupJoinFlow(): GroupJoinFlowState {
   const { user } = useAuthStore();
   const { pendingInviteCode, setPendingInviteCode, clearPendingInviteCode } =
     useGroupJoinStore();
   const { displayName, loading: displayNameLoading } = useDisplayName();
   const [isJoining, setIsJoining] = useState(false);
+  const [namePromptVisible, setNamePromptVisible] = useState(false);
 
   // Listen for deep links containing group invite codes
   useEffect(() => {
@@ -53,56 +66,65 @@ export function useGroupJoinFlow() {
     return () => listener.remove();
   }, [setPendingInviteCode]);
 
-  // Process pending invite code when user is signed in
-  useEffect(() => {
-    if (!user?.uid || !pendingInviteCode || isJoining || displayNameLoading) {
-      return;
-    }
-
-    const joinWithCode = async (inviteCode: string, name: string) => {
+  const joinWithCode = useCallback(
+    async (inviteCode: string, name: string) => {
       setIsJoining(true);
       try {
         const result = await groupsService.joinGroup(inviteCode, name);
         clearPendingInviteCode();
-        navigateToGroupDetail(result.groupId);
+        await navigateToGroupDetail(result.groupId);
       } catch (err: any) {
         clearPendingInviteCode();
         Alert.alert('Could not join group', err?.message || 'Something went wrong.');
       } finally {
         setIsJoining(false);
       }
-    };
+    },
+    [clearPendingInviteCode]
+  );
+
+  // Process pending invite code when user is signed in
+  useEffect(() => {
+    if (!user?.uid || !pendingInviteCode || isJoining || displayNameLoading) {
+      return;
+    }
 
     if (displayName) {
+      setNamePromptVisible(false);
       void joinWithCode(pendingInviteCode, displayName);
     } else {
-      // Prompt for display name before joining
-      Alert.prompt(
-        'Set your display name',
-        'Choose a name your group members will see.',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => clearPendingInviteCode(),
-          },
-          {
-            text: 'Join',
-            onPress: (name) => {
-              const trimmed = (name || '').trim();
-              if (!trimmed) {
-                clearPendingInviteCode();
-                Alert.alert('Name required', 'A display name is required to join a group.');
-                return;
-              }
-              void joinWithCode(pendingInviteCode, trimmed);
-            },
-          },
-        ],
-        'plain-text',
-        '',
-        'default'
-      );
+      setNamePromptVisible(true);
     }
-  }, [user?.uid, pendingInviteCode, isJoining, displayNameLoading, displayName, clearPendingInviteCode]);
+  }, [
+    user?.uid,
+    pendingInviteCode,
+    isJoining,
+    displayNameLoading,
+    displayName,
+    joinWithCode,
+  ]);
+
+  const submitName = useCallback(
+    (name: string) => {
+      const trimmed = (name || '').trim();
+      if (!trimmed) {
+        Alert.alert('Name required', 'A display name is required to join a group.');
+        return;
+      }
+      if (!pendingInviteCode) {
+        setNamePromptVisible(false);
+        return;
+      }
+      setNamePromptVisible(false);
+      void joinWithCode(pendingInviteCode, trimmed);
+    },
+    [pendingInviteCode, joinWithCode]
+  );
+
+  const cancelNamePrompt = useCallback(() => {
+    setNamePromptVisible(false);
+    clearPendingInviteCode();
+  }, [clearPendingInviteCode]);
+
+  return { namePromptVisible, isJoining, submitName, cancelNamePrompt };
 }

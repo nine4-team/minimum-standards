@@ -9,7 +9,7 @@ import { StandardPeriodActivityLogsScreen } from '../screens/StandardPeriodActiv
 import { LoadingScreen } from '../components/LoadingScreen';
 import { useAuthStore } from '../stores/authStore';
 import { useSnapshotImportFlow } from '../hooks/useSnapshotImportFlow';
-import { useGroupJoinFlow } from '../hooks/useGroupJoinFlow';
+import { GroupJoinPrompt } from '../components/GroupJoinPrompt';
 import { navigationRef } from './navigationRef';
 import { useTheme } from '../theme/useTheme';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
@@ -21,7 +21,6 @@ console.log('[AppNavigator] Module evaluation started');
 export function AppNavigator() {
   const { user, isInitialized } = useAuthStore();
   useSnapshotImportFlow();
-  useGroupJoinFlow();
   console.log('[AppNavigator] Render start', {
     isInitialized,
     hasUser: !!user,
@@ -69,6 +68,7 @@ export function AppNavigator() {
           component={StandardPeriodActivityLogsScreen}
         />
       </RootStack.Navigator>
+      <GroupJoinPrompt />
     </NavigationContainer>
   );
 }
