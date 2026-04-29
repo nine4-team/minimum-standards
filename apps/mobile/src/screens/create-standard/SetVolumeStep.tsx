@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -10,7 +9,6 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import Toggle from 'react-native-toggle-element';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -20,6 +18,7 @@ import { CreateStandardFlowParamList, MainStackParamList } from '../../navigatio
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
 import { useTheme } from '../../theme/useTheme';
 import { useSaveEdit } from './useSaveEdit';
+import { VolumeFields } from '../standard-fields/VolumeFields';
 
 type FlowNav = NativeStackNavigationProp<CreateStandardFlowParamList>;
 type MainNav = NativeStackNavigationProp<MainStackParamList>;
@@ -33,34 +32,11 @@ export function SetVolumeStep() {
   const { editingStandardId, handleSaveEdit, saving, saveError } = useSaveEdit(parentNavigation, mainNavigation);
 
   const goalTotal = useStandardsBuilderStore((s) => s.goalTotal);
-  const setGoalTotal = useStandardsBuilderStore((s) => s.setGoalTotal);
-  const getEffectiveUnit = useStandardsBuilderStore((s) => s.getEffectiveUnit);
   const breakdownEnabled = useStandardsBuilderStore((s) => s.breakdownEnabled);
-  const setBreakdownEnabled = useStandardsBuilderStore((s) => s.setBreakdownEnabled);
   const sessionsPerCadence = useStandardsBuilderStore((s) => s.sessionsPerCadence);
-  const setSessionsPerCadence = useStandardsBuilderStore((s) => s.setSessionsPerCadence);
   const volumePerSession = useStandardsBuilderStore((s) => s.volumePerSession);
-  const setVolumePerSession = useStandardsBuilderStore((s) => s.setVolumePerSession);
-  const defaultQuantity = useStandardsBuilderStore((s) => s.defaultQuantity);
-  const setDefaultQuantity = useStandardsBuilderStore((s) => s.setDefaultQuantity);
-
-  // Local string state for TextInput display
-  const [goalTotalText, setGoalTotalText] = useState(
-    goalTotal !== null ? String(goalTotal) : '',
-  );
-  const [sessionsText, setSessionsText] = useState(
-    sessionsPerCadence !== null ? String(sessionsPerCadence) : '',
-  );
-  const [volumePerSessionText, setVolumePerSessionText] = useState(
-    volumePerSession !== null ? String(volumePerSession) : '',
-  );
-  const [defaultQuantityText, setDefaultQuantityText] = useState(
-    defaultQuantity !== null ? String(defaultQuantity) : '',
-  );
 
   const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
-
-  const effectiveUnit = getEffectiveUnit();
 
   const handleClose = useCallback(() => {
     parentNavigation ? parentNavigation.goBack() : mainNavigation.goBack();
@@ -75,73 +51,6 @@ export function SetVolumeStep() {
     }
   }, [flowNavigation, handleClose]);
 
-  const handleGoalTotalChange = useCallback(
-    (text: string) => {
-      setGoalTotalText(text);
-      const parsed = parseFloat(text);
-      if (text === '' || isNaN(parsed)) {
-        setGoalTotal(null);
-      } else {
-        setGoalTotal(parsed);
-      }
-    },
-    [setGoalTotal],
-  );
-
-  const handleSessionsChange = useCallback(
-    (text: string) => {
-      setSessionsText(text);
-      const parsed = parseFloat(text);
-      if (text === '' || isNaN(parsed)) {
-        setSessionsPerCadence(null);
-      } else {
-        setSessionsPerCadence(parsed);
-      }
-    },
-    [setSessionsPerCadence],
-  );
-
-  const handleDefaultQuantityChange = useCallback(
-    (text: string) => {
-      setDefaultQuantityText(text);
-      const parsed = parseFloat(text);
-      if (text === '' || isNaN(parsed) || parsed <= 0) {
-        setDefaultQuantity(null);
-      } else {
-        setDefaultQuantity(parsed);
-      }
-    },
-    [setDefaultQuantity],
-  );
-
-  const handleVolumePerSessionChange = useCallback(
-    (text: string) => {
-      setVolumePerSessionText(text);
-      const parsed = parseFloat(text);
-      if (text === '' || isNaN(parsed)) {
-        setVolumePerSession(null);
-      } else {
-        setVolumePerSession(parsed);
-      }
-    },
-    [setVolumePerSession],
-  );
-
-  const handleBreakdownToggle = useCallback(
-    (enabled: boolean) => {
-      setBreakdownEnabled(enabled);
-      if (enabled) {
-        // Clear the direct goalTotal text since it's now auto-calculated
-        setGoalTotalText('');
-      } else {
-        // Restore goalTotal text from store value
-        const currentGoalTotal = useStandardsBuilderStore.getState().goalTotal;
-        setGoalTotalText(currentGoalTotal !== null ? String(currentGoalTotal) : '');
-      }
-    },
-    [setBreakdownEnabled],
-  );
-
   const canProceed = breakdownEnabled
     ? sessionsPerCadence !== null &&
       sessionsPerCadence > 0 &&
@@ -154,13 +63,6 @@ export function SetVolumeStep() {
       flowNavigation.navigate('SetPeriod');
     }
   }, [canProceed, flowNavigation]);
-
-  // Display value for goalTotal when breakdown is enabled (auto-calculated)
-  const displayGoalTotal = breakdownEnabled
-    ? goalTotal !== null
-      ? String(goalTotal)
-      : ''
-    : goalTotalText;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.chrome }]}>
@@ -226,158 +128,7 @@ export function SetVolumeStep() {
             )}
           </View>
 
-          {/* Unit label (read-only, inherited from activity) */}
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Unit</Text>
-            <View
-              style={[
-                styles.readOnlyField,
-                {
-                  backgroundColor: theme.background.surface,
-                  borderColor: theme.border.primary,
-                },
-              ]}
-            >
-              <Text style={[styles.readOnlyText, { color: theme.text.primary }]}>
-                {effectiveUnit || '—'}
-              </Text>
-            </View>
-          </View>
-
-          {/* T023: Volume target input */}
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>
-              Volume Target
-            </Text>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  color: theme.input.text,
-                  backgroundColor: breakdownEnabled
-                    ? theme.background.surface
-                    : theme.background.chrome,
-                  borderColor: theme.border.primary,
-                },
-              ]}
-              value={displayGoalTotal}
-              onChangeText={handleGoalTotalChange}
-              placeholder="e.g. 30"
-              placeholderTextColor={theme.input.placeholder}
-              keyboardType="numeric"
-              editable={!breakdownEnabled}
-            />
-            {breakdownEnabled && (
-              <Text style={[styles.fieldHint, { color: theme.text.secondary }]}>
-                Auto-calculated from sessions below
-              </Text>
-            )}
-          </View>
-
-          {/* T024: Session Breakdown Toggle */}
-          <View
-            style={[
-              styles.switchRow,
-              {
-                backgroundColor: theme.background.surface,
-                borderColor: theme.border.primary,
-              },
-            ]}
-          >
-            <Text style={[styles.switchLabel, { color: theme.text.primary }]}>
-              Break Volume into Sessions
-            </Text>
-            <Toggle
-              value={breakdownEnabled}
-              onPress={(val) => handleBreakdownToggle(val ?? !breakdownEnabled)}
-              trackBar={{
-                width: 50,
-                height: 30,
-                radius: 15,
-                activeBackgroundColor: theme.button.primary.background,
-                inActiveBackgroundColor: theme.border.primary,
-              }}
-              thumbButton={{
-                width: 26,
-                height: 26,
-                radius: 13,
-                activeBackgroundColor: '#FFFFFF',
-                inActiveBackgroundColor: '#FFFFFF',
-              }}
-            />
-          </View>
-
-          {/* T024: Session breakdown fields */}
-          {breakdownEnabled && (
-            <View style={styles.breakdownFields}>
-              <View style={styles.fieldContainer}>
-                <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>
-                  Sessions per period
-                </Text>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    {
-                      color: theme.input.text,
-                      backgroundColor: theme.background.chrome,
-                      borderColor: theme.border.primary,
-                    },
-                  ]}
-                  value={sessionsText}
-                  onChangeText={handleSessionsChange}
-                  placeholder="e.g. 3"
-                  placeholderTextColor={theme.input.placeholder}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>
-                  Volume per session
-                </Text>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    {
-                      color: theme.input.text,
-                      backgroundColor: theme.background.chrome,
-                      borderColor: theme.border.primary,
-                    },
-                  ]}
-                  value={volumePerSessionText}
-                  onChangeText={handleVolumePerSessionChange}
-                  placeholder="e.g. 10"
-                  placeholderTextColor={theme.input.placeholder}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Default quick-log quantity (optional) */}
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>
-              Default quick-log quantity (optional)
-            </Text>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  color: theme.input.text,
-                  backgroundColor: theme.background.chrome,
-                  borderColor: theme.border.primary,
-                },
-              ]}
-              value={defaultQuantityText}
-              onChangeText={handleDefaultQuantityChange}
-              placeholder={effectiveUnit ? `e.g. 1 ${effectiveUnit}` : 'e.g. 1'}
-              placeholderTextColor={theme.input.placeholder}
-              keyboardType="numeric"
-            />
-            <Text style={[styles.fieldHint, { color: theme.text.secondary }]}>
-              When set, a "+N" chip on the dashboard logs this amount in one tap.
-            </Text>
-          </View>
+          <VolumeFields />
         </ScrollView>
 
         {/* Footer */}
@@ -507,58 +258,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 8,
     paddingLeft: 24,
-  },
-  // Field styles
-  fieldContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  fieldHint: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  readOnlyField: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  readOnlyText: {
-    fontSize: 16,
-  },
-  textInput: {
-    fontSize: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  // Switch row styles (T024)
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  switchLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    flex: 1,
-    marginRight: 12,
-  },
-  // Breakdown fields
-  breakdownFields: {
-    marginTop: 4,
   },
   // Footer styles
   footer: {

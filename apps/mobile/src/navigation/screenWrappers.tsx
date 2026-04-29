@@ -58,7 +58,7 @@ export function StandardsScreenWrapper() {
         const standard = standards.find((s) => s.id === standardId);
         if (!standard) return;
         useStandardsBuilderStore.getState().loadFromStandard(standard);
-        (navigation as any).navigate('CreateStandardFlow');
+        (navigation as any).navigate('EditStandard');
       }}
       backButtonLabel={undefined}
     />
@@ -80,7 +80,7 @@ export function StandardsLibraryScreenSettingsWrapper() {
         const standard = standards.find((s) => s.id === standardId);
         if (!standard) return;
         useStandardsBuilderStore.getState().loadFromStandard(standard);
-        (navigation as any).navigate('CreateStandardFlow');
+        (navigation as any).navigate('EditStandard');
       }}
     />
   );

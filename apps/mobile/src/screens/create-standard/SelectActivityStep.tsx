@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -12,12 +11,12 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
 import { StepHeader } from '../../navigation/CreateStandardFlow';
 import { CreateStandardFlowParamList, MainStackParamList } from '../../navigation/types';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
 import { useTheme } from '../../theme/useTheme';
 import { useSaveEdit } from './useSaveEdit';
+import { NameUnitNotesFields } from '../standard-fields/NameUnitNotesFields';
 
 type FlowNav = NativeStackNavigationProp<CreateStandardFlowParamList>;
 type MainNav = NativeStackNavigationProp<MainStackParamList>;
@@ -31,12 +30,7 @@ export function SelectActivityStep() {
   const { editingStandardId, handleSaveEdit, saving, saveError } = useSaveEdit(parentNavigation, mainNavigation);
 
   const standardName = useStandardsBuilderStore((s) => s.name);
-  const setStandardName = useStandardsBuilderStore((s) => s.setName);
   const standardUnit = useStandardsBuilderStore((s) => s.unit);
-  const setStandardUnit = useStandardsBuilderStore((s) => s.setUnit);
-  const standardNotes = useStandardsBuilderStore((s) => s.notes);
-  const setStandardNotes = useStandardsBuilderStore((s) => s.setNotes);
-
   const resetBuilder = useStandardsBuilderStore((s) => s.reset);
 
   const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
@@ -132,71 +126,7 @@ export function SelectActivityStep() {
         </TouchableOpacity>
         */}
 
-        {/* Name field */}
-        <View style={styles.fieldSection}>
-          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Name</Text>
-          <TextInput
-            style={[
-              styles.fieldInput,
-              {
-                backgroundColor: theme.input.background,
-                borderColor: theme.input.border,
-                color: theme.input.text,
-                borderRadius: BUTTON_BORDER_RADIUS,
-              },
-            ]}
-            value={standardName}
-            onChangeText={setStandardName}
-            placeholder="e.g. Running, Reading, Cold Calls"
-            placeholderTextColor={theme.input.placeholder}
-            maxLength={120}
-            autoFocus
-          />
-        </View>
-
-        {/* Unit field */}
-        <View style={styles.fieldSection}>
-          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Unit</Text>
-          <TextInput
-            style={[
-              styles.fieldInput,
-              {
-                backgroundColor: theme.input.background,
-                borderColor: theme.input.border,
-                color: theme.input.text,
-                borderRadius: BUTTON_BORDER_RADIUS,
-              },
-            ]}
-            value={standardUnit}
-            onChangeText={setStandardUnit}
-            placeholder="e.g. minutes, miles, pages, calls"
-            placeholderTextColor={theme.input.placeholder}
-            autoCorrect={false}
-          />
-        </View>
-
-        {/* Notes field */}
-        <View style={styles.fieldSection}>
-          <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Notes (Optional)</Text>
-          <TextInput
-            style={[
-              styles.notesInput,
-              {
-                backgroundColor: theme.input.background,
-                borderColor: theme.input.border,
-                color: theme.input.text,
-                borderRadius: BUTTON_BORDER_RADIUS,
-              },
-            ]}
-            value={standardNotes ?? ''}
-            onChangeText={(text) => setStandardNotes(text || null)}
-            placeholder="Add notes about this standard..."
-            placeholderTextColor={theme.input.placeholder}
-            multiline
-            numberOfLines={3}
-            maxLength={1000}
-          />
-        </View>
+        <NameUnitNotesFields autoFocusName />
       </ScrollView>
 
       {/* Footer */}
@@ -340,30 +270,6 @@ const styles = StyleSheet.create({
   suggestorLinkText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  // Field styles
-  fieldSection: {
-    marginTop: 20,
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  fieldInput: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  notesInput: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    minHeight: 80,
-    textAlignVertical: 'top',
   },
   // Footer styles
   footer: {

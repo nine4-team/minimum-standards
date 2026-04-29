@@ -71,6 +71,7 @@ export type MainStackParamList = {
         initialRoute?: 'SelectActivity' | 'SetVolume';
       })
     | undefined;
+  EditStandard: undefined;
   SuggestorFlow: NavigatorScreenParams<SuggestorFlowParamList> | undefined;
 };
 

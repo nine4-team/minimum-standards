@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainStackParamList } from './types';
 import { BottomTabNavigator } from './BottomTabNavigator';
 import { CreateStandardFlow } from './CreateStandardFlow';
+import { EditStandardScreen } from '../screens/EditStandardScreen';
 import { SuggestorFlow } from './SuggestorFlow';
 import { useTheme } from '../theme/useTheme';
 
@@ -22,6 +23,11 @@ export function MainStack() {
       <Stack.Screen
         name="CreateStandardFlow"
         component={CreateStandardFlow}
+        options={{ presentation: 'fullScreenModal' }}
+      />
+      <Stack.Screen
+        name="EditStandard"
+        component={EditStandardScreen}
         options={{ presentation: 'fullScreenModal' }}
       />
       {/* Suggestor disabled — feature cut for now
