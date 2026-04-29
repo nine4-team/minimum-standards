@@ -25,8 +25,6 @@ export type SuggestorFlowParamList = {
 // Individual tab stack param lists
 export type StandardsStackParamList = {
   ActiveStandardsDashboard: undefined;
-  StandardsBuilder: { standardId?: string };
-  StandardDetail: { standardId: string };
 };
 
 export type ScorecardStackParamList = {

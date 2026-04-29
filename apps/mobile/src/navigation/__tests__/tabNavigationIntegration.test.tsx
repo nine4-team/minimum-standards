@@ -22,8 +22,8 @@ jest.mock('../BottomTabNavigator', () => ({
       } else if (tab === SETTINGS_TAB_ROUTE_NAME) {
         setCurrentScreen(SETTINGS_STACK_ROOT_SCREEN_NAME);
       } else if (tab === 'Create') {
-        // "+" button navigates to StandardsBuilder without switching tab
-        setCurrentScreen('StandardsBuilder');
+        // "+" button navigates to CreateStandardFlow without switching tab
+        setCurrentScreen('CreateStandardFlow');
       }
     };
 
@@ -65,12 +65,12 @@ jest.mock('../BottomTabNavigator', () => ({
             TouchableOpacity,
             {
               testID: 'navigate-to-builder-button',
-              onPress: () => handleNavigate('StandardsBuilder'),
+              onPress: () => handleNavigate('CreateStandardFlow'),
             },
             React.createElement(Text, null, 'Navigate to Builder')
           )
         ),
-      currentScreen === 'StandardsBuilder' &&
+      currentScreen === 'CreateStandardFlow' &&
         React.createElement(
           View,
           { testID: 'standards-builder-screen' },

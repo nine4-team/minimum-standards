@@ -1,10 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StandardsStackParamList } from './types';
-import {
-  StandardsScreenWrapper,
-  StandardsBuilderScreenWrapper,
-  StandardDetailScreenWrapper,
-} from './screenWrappers';
+import { StandardsScreenWrapper } from './screenWrappers';
 import { useTheme } from '../theme/useTheme';
 
 const Stack = createNativeStackNavigator<StandardsStackParamList>();
@@ -21,8 +17,6 @@ export function StandardsStack() {
       }}
     >
       <Stack.Screen name="ActiveStandardsDashboard" component={StandardsScreenWrapper} />
-      <Stack.Screen name="StandardsBuilder" component={StandardsBuilderScreenWrapper} />
-      <Stack.Screen name="StandardDetail" component={StandardDetailScreenWrapper} />
     </Stack.Navigator>
   );
 }

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { Standard } from '@minimum-standards/shared-model';
 import {
   StandardsStackParamList,
   ScorecardStackParamList,
@@ -9,9 +8,7 @@ import {
 } from './types';
 import { ActivityHistoryScreen } from '../screens/ActivityHistoryScreen';
 import { ScorecardSummaryScreen } from '../screens/ScorecardSummaryScreen';
-import { StandardsBuilderScreen } from '../screens/StandardsBuilderScreen';
 import { StandardsScreen } from '../screens/ActiveStandardsDashboardScreen';
-import { StandardDetailScreen } from '../screens/StandardDetailScreen';
 import { StandardsLibraryScreen } from '../screens/StandardsLibraryScreen';
 import { useStandards } from '../hooks/useStandards';
 import { useStandardsBuilderStore } from '../stores/standardsBuilderStore';
@@ -41,18 +38,6 @@ export function ScorecardDetailScreenWrapper() {
     <ActivityHistoryScreen
       standardId={standardId}
       onBack={() => navigation.goBack()}
-    />
-  );
-}
-
-export function StandardsBuilderScreenWrapper() {
-  const navigation = useNavigation<StandardsNavigationProp>();
-  const route = useRoute();
-  const standardId = (route.params as { standardId?: string })?.standardId;
-  return (
-    <StandardsBuilderScreen
-      onBack={() => navigation.goBack()}
-      standardId={standardId}
     />
   );
 }
@@ -101,26 +86,3 @@ export function StandardsLibraryScreenSettingsWrapper() {
   );
 }
 
-export function StandardDetailScreenWrapper({ route }: { route: { params: { standardId: string } } }) {
-  const navigation = useNavigation<StandardsNavigationProp>();
-  const { standards } = useStandards();
-  const standard = standards.find((s) => s.id === route.params.standardId);
-
-  const handleEdit = (standardToEdit: Standard) => {
-    if (standardToEdit) {
-      useStandardsBuilderStore.getState().loadFromStandard(standardToEdit);
-      (navigation as any).navigate('CreateStandardFlow');
-    }
-  };
-
-  const handleArchive = (_standardId: string) => {};
-
-  return (
-    <StandardDetailScreen
-      standardId={route.params.standardId}
-      onBack={() => navigation.goBack()}
-      onEdit={handleEdit}
-      onArchive={handleArchive}
-    />
-  );
-}
