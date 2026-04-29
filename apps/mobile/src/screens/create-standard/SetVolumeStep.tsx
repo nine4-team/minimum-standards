@@ -51,7 +51,7 @@ export function SetVolumeStep() {
     }
   }, [flowNavigation, handleClose]);
 
-  const canProceed = breakdownEnabled
+  const canSaveEdit = breakdownEnabled
     ? sessionsPerCadence !== null &&
       sessionsPerCadence > 0 &&
       volumePerSession !== null &&
@@ -59,10 +59,8 @@ export function SetVolumeStep() {
     : goalTotal !== null && goalTotal > 0;
 
   const handleNext = useCallback(() => {
-    if (canProceed) {
-      flowNavigation.navigate('SetPeriod');
-    }
-  }, [canProceed, flowNavigation]);
+    flowNavigation.navigate('SetPeriod');
+  }, [flowNavigation]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.chrome }]}>
@@ -148,18 +146,18 @@ export function SetVolumeStep() {
                 style={[
                   styles.nextButton,
                   {
-                    backgroundColor: canProceed && !saving
+                    backgroundColor: canSaveEdit && !saving
                       ? theme.button.primary.background
                       : theme.button.disabled.background,
                   },
                 ]}
                 onPress={handleSaveEdit}
-                disabled={!canProceed || saving}
+                disabled={!canSaveEdit || saving}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color={theme.button.primary.text} />
                 ) : (
-                  <Text style={[styles.nextButtonText, { color: canProceed ? theme.button.primary.text : theme.button.disabled.text }]}>
+                  <Text style={[styles.nextButtonText, { color: canSaveEdit ? theme.button.primary.text : theme.button.disabled.text }]}>
                     Save
                   </Text>
                 )}
@@ -169,41 +167,16 @@ export function SetVolumeStep() {
                   {saveError}
                 </Text>
               )}
-              <TouchableOpacity
-                style={styles.nextLink}
-                onPress={handleNext}
-                disabled={!canProceed}
-              >
-                <Text style={[styles.nextLinkText, { color: canProceed ? theme.link : theme.text.secondary }]}>
-                  Next →
-                </Text>
+              <TouchableOpacity style={styles.nextLink} onPress={handleNext}>
+                <Text style={[styles.nextLinkText, { color: theme.link }]}>Next →</Text>
               </TouchableOpacity>
             </>
           ) : (
             <TouchableOpacity
-              style={[
-                styles.nextButton,
-                {
-                  backgroundColor: canProceed
-                    ? theme.button.primary.background
-                    : theme.button.disabled.background,
-                },
-              ]}
+              style={[styles.nextButton, { backgroundColor: theme.button.primary.background }]}
               onPress={handleNext}
-              disabled={!canProceed}
             >
-              <Text
-                style={[
-                  styles.nextButtonText,
-                  {
-                    color: canProceed
-                      ? theme.button.primary.text
-                      : theme.button.disabled.text,
-                  },
-                ]}
-              >
-                Next
-              </Text>
+              <Text style={[styles.nextButtonText, { color: theme.button.primary.text }]}>Next</Text>
             </TouchableOpacity>
           )}
         </View>
