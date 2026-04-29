@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import Toggle from 'react-native-toggle-element';
+import { BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
 import { useTheme } from '../../theme/useTheme';
 
@@ -108,24 +109,7 @@ export function VolumeFields() {
   return (
     <>
       <View style={styles.fieldContainer}>
-        <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Unit</Text>
-        <View
-          style={[
-            styles.readOnlyField,
-            {
-              backgroundColor: theme.background.surface,
-              borderColor: theme.border.primary,
-            },
-          ]}
-        >
-          <Text style={[styles.readOnlyText, { color: theme.text.primary }]}>
-            {effectiveUnit || '—'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.fieldContainer}>
-        <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Volume Target</Text>
+        <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Volume target</Text>
         <TextInput
           style={[
             styles.textInput,
@@ -161,7 +145,7 @@ export function VolumeFields() {
         ]}
       >
         <Text style={[styles.switchLabel, { color: theme.text.primary }]}>
-          Break Volume into Sessions
+          Break volume into sessions
         </Text>
         <Toggle
           value={breakdownEnabled}
@@ -184,7 +168,7 @@ export function VolumeFields() {
       </View>
 
       {breakdownEnabled && (
-        <View style={styles.breakdownFields}>
+        <>
           <View style={styles.fieldContainer}>
             <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>
               Sessions per period
@@ -226,7 +210,7 @@ export function VolumeFields() {
               keyboardType="numeric"
             />
           </View>
-        </View>
+        </>
       )}
 
       <View style={styles.fieldContainer}>
@@ -270,20 +254,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
-  readOnlyField: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  readOnlyText: {
-    fontSize: 16,
-  },
   textInput: {
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: BUTTON_BORDER_RADIUS,
     borderWidth: 1,
   },
   switchRow: {
@@ -291,10 +266,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 20,
+    marginTop: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: BUTTON_BORDER_RADIUS,
     borderWidth: 1,
   },
   switchLabel: {
@@ -302,8 +277,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     marginRight: 12,
-  },
-  breakdownFields: {
-    marginTop: 4,
   },
 });

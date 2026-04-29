@@ -146,8 +146,7 @@ export function PeriodFields() {
 
   return (
     <>
-      <View style={styles.periodSection}>
-        <Text style={[styles.sectionLabel, { color: theme.text.primary }]}>Choose a Period</Text>
+      <View style={styles.periodOptionsContainer}>
         {PERIOD_OPTIONS.map((option) => {
           const isActive = selectedPreset === option.key;
           return (
@@ -185,17 +184,16 @@ export function PeriodFields() {
       </View>
 
       {selectedPreset === 'custom' && (
-        <View style={styles.customSection}>
-          <Text style={[styles.sectionLabel, { color: theme.text.primary }]}>Custom Interval</Text>
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Custom interval</Text>
           <View style={styles.customRow}>
-            <Text style={[styles.customLabel, { color: theme.text.secondary }]}>Every</Text>
+            <Text style={[styles.customInline, { color: theme.text.secondary }]}>Every</Text>
             <TextInput
               style={[
                 styles.customInput,
                 {
                   color: theme.input.text,
                   borderColor: theme.border.primary,
-                  borderRadius: BUTTON_BORDER_RADIUS,
                 },
               ]}
               value={customInterval}
@@ -239,10 +237,18 @@ export function PeriodFields() {
       )}
 
       {selectedPreset === 'weekly' && (
-        <View style={styles.weekdaySection}>
-          <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: theme.text.primary }]}>
-              Set Custom Start Day
+        <>
+          <View
+            style={[
+              styles.switchRow,
+              {
+                backgroundColor: theme.background.surface,
+                borderColor: theme.border.primary,
+              },
+            ]}
+          >
+            <Text style={[styles.switchLabel, { color: theme.text.primary }]}>
+              Set custom start day
             </Text>
             <Toggle
               value={showSpecificDays}
@@ -298,22 +304,26 @@ export function PeriodFields() {
               })}
             </View>
           )}
-        </View>
+        </>
       )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  periodSection: {
-    marginTop: 20,
-    paddingHorizontal: 16,
-    gap: 10,
+  fieldContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
   },
-  sectionLabel: {
-    fontSize: 16,
+  fieldLabel: {
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  periodOptionsContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 10,
   },
   periodOption: {
     flexDirection: 'row',
@@ -327,17 +337,12 @@ const styles = StyleSheet.create({
   periodOptionText: {
     fontSize: 16,
   },
-  customSection: {
-    marginTop: 20,
-    paddingHorizontal: 16,
-    gap: 10,
-  },
   customRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  customLabel: {
+  customInline: {
     fontSize: 15,
   },
   customInput: {
@@ -347,6 +352,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderWidth: 1,
+    borderRadius: BUTTON_BORDER_RADIUS,
   },
   unitPicker: {
     flexDirection: 'row',
@@ -363,24 +369,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  weekdaySection: {
-    marginTop: 20,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  toggleRow: {
+  switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: BUTTON_BORDER_RADIUS,
+    borderWidth: 1,
   },
-  toggleLabel: {
+  switchLabel: {
     fontSize: 15,
     fontWeight: '500',
+    flex: 1,
+    marginRight: 12,
   },
   weekdayRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
   },
   weekdayButton: {
     paddingHorizontal: 10,

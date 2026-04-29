@@ -19,37 +19,35 @@ export function NameUnitNotesFields({ autoFocusName = false }: NameUnitNotesFiel
 
   return (
     <>
-      <View style={styles.fieldSection}>
-        <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Name</Text>
+      <View style={styles.fieldContainer}>
+        <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Name</Text>
         <TextInput
           style={[
-            styles.fieldInput,
+            styles.textInput,
             {
               backgroundColor: theme.input.background,
               borderColor: theme.input.border,
               color: theme.input.text,
-              borderRadius: BUTTON_BORDER_RADIUS,
             },
           ]}
           value={standardName}
           onChangeText={setStandardName}
-          placeholder="e.g. Running, Reading, Cold Calls"
+          placeholder="e.g. running, reading, cold calls"
           placeholderTextColor={theme.input.placeholder}
           maxLength={120}
           autoFocus={autoFocusName}
         />
       </View>
 
-      <View style={styles.fieldSection}>
-        <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Unit</Text>
+      <View style={styles.fieldContainer}>
+        <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Unit</Text>
         <TextInput
           style={[
-            styles.fieldInput,
+            styles.textInput,
             {
               backgroundColor: theme.input.background,
               borderColor: theme.input.border,
               color: theme.input.text,
-              borderRadius: BUTTON_BORDER_RADIUS,
             },
           ]}
           value={standardUnit}
@@ -60,8 +58,8 @@ export function NameUnitNotesFields({ autoFocusName = false }: NameUnitNotesFiel
         />
       </View>
 
-      <View style={styles.fieldSection}>
-        <Text style={[styles.fieldLabel, { color: theme.text.primary }]}>Notes (Optional)</Text>
+      <View style={styles.fieldContainer}>
+        <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>Notes (optional)</Text>
         <TextInput
           style={[
             styles.notesInput,
@@ -69,7 +67,6 @@ export function NameUnitNotesFields({ autoFocusName = false }: NameUnitNotesFiel
               backgroundColor: theme.input.background,
               borderColor: theme.input.border,
               color: theme.input.text,
-              borderRadius: BUTTON_BORDER_RADIUS,
             },
           ]}
           value={standardNotes ?? ''}
@@ -86,26 +83,28 @@ export function NameUnitNotesFields({ autoFocusName = false }: NameUnitNotesFiel
 }
 
 const styles = StyleSheet.create({
-  fieldSection: {
-    marginTop: 20,
-    paddingHorizontal: 16,
-    gap: 8,
+  fieldContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
   },
   fieldLabel: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
+    marginBottom: 6,
   },
-  fieldInput: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  textInput: {
     fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: BUTTON_BORDER_RADIUS,
+    borderWidth: 1,
   },
   notesInput: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
     fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: BUTTON_BORDER_RADIUS,
+    borderWidth: 1,
     minHeight: 80,
     textAlignVertical: 'top',
   },
