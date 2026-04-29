@@ -156,8 +156,8 @@ export const standardConverter: FirestoreDataConverter<Standard> = {
       ...(model.periodStartPreference && model.periodStartPreference.mode !== 'default'
         ? { periodStartPreference: model.periodStartPreference }
         : {}),
-      ...(Array.isArray(model.quickAddValues) && model.quickAddValues.length > 0
-        ? { quickAddValues: model.quickAddValues }
+      ...(typeof model.defaultQuantity === 'number' && model.defaultQuantity > 0
+        ? { defaultQuantity: model.defaultQuantity }
         : {}),
       ...(model.categoryId != null ? { categoryId: model.categoryId } : {}),
       archivedAt: model.archivedAtMs == null ? null : msToTimestamp(model.archivedAtMs),
@@ -180,11 +180,12 @@ export const standardConverter: FirestoreDataConverter<Standard> = {
       sessionConfig: data.sessionConfig,
       notes: (data as any).notes ?? null,
       periodStartPreference: coercePeriodStartPreference(data.periodStartPreference),
-      quickAddValues: Array.isArray((data as any).quickAddValues)
-        ? ((data as any).quickAddValues as unknown[]).filter(
-            (value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0
-          )
-        : undefined,
+      defaultQuantity:
+        typeof (data as any).defaultQuantity === 'number' &&
+        Number.isFinite((data as any).defaultQuantity) &&
+        (data as any).defaultQuantity > 0
+          ? ((data as any).defaultQuantity as number)
+          : undefined,
       categoryId: (data as any).categoryId ?? null,
       // Preserve activityId if present (migration compat)
       ...(data.activityId ? { activityId: data.activityId } : {}),

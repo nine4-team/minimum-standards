@@ -150,7 +150,7 @@ service cloud.firestore {
         'summary',
         'sessionConfig',
         'periodStartPreference',
-        'quickAddValues',
+        'defaultQuantity',
         'notes',
         'categoryId',
         'activityId',
@@ -173,10 +173,10 @@ service cloud.firestore {
       && request.resource.data.unit.size() >= 1
       && request.resource.data.unit.size() <= 40
       && (
-        !('quickAddValues' in request.resource.data)
+        !('defaultQuantity' in request.resource.data)
         || (
-          request.resource.data.quickAddValues is list
-          && request.resource.data.quickAddValues.size() <= 5
+          request.resource.data.defaultQuantity is number
+          && request.resource.data.defaultQuantity > 0
         )
       )
       && request.resource.data.cadence is map

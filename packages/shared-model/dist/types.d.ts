@@ -41,7 +41,7 @@ export type Standard = SoftDelete & AuditTimestamps & {
     state: StandardState;
     summary: string;
     archivedAtMs: TimestampMs | null;
-    quickAddValues?: number[];
+    defaultQuantity?: number;
     sessionConfig: StandardSessionConfig;
     periodStartPreference?: PeriodStartPreference;
     configEras?: ConfigEra[];

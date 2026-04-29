@@ -153,7 +153,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     state: z.ZodUnion<[z.ZodLiteral<"active">, z.ZodLiteral<"archived">]>;
     summary: z.ZodString;
     archivedAtMs: z.ZodNullable<z.ZodEffects<z.ZodNumber, number, number>>;
-    quickAddValues: z.ZodOptional<z.ZodArray<z.ZodNumber, "many">>;
+    defaultQuantity: z.ZodOptional<z.ZodNumber>;
     sessionConfig: z.ZodObject<{
         sessionLabel: z.ZodString;
         sessionsPerCadence: z.ZodNumber;
@@ -302,7 +302,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
-    quickAddValues?: number[] | undefined;
+    defaultQuantity?: number | undefined;
     configEras?: {
         unit: string;
         minimum: number;
@@ -354,7 +354,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     } | undefined;
     name?: string | undefined;
     notes?: string | null | undefined;
-    quickAddValues?: number[] | undefined;
+    defaultQuantity?: number | undefined;
     configEras?: {
         unit: string;
         minimum: number;
@@ -406,7 +406,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         mode: "weekDay";
         weekStartDay: number;
     } | undefined;
-    quickAddValues?: number[] | undefined;
+    defaultQuantity?: number | undefined;
     configEras?: {
         unit: string;
         minimum: number;
@@ -458,7 +458,7 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     } | undefined;
     name?: string | undefined;
     notes?: string | null | undefined;
-    quickAddValues?: number[] | undefined;
+    defaultQuantity?: number | undefined;
     configEras?: {
         unit: string;
         minimum: number;

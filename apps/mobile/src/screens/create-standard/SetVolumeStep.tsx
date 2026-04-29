@@ -41,6 +41,8 @@ export function SetVolumeStep() {
   const setSessionsPerCadence = useStandardsBuilderStore((s) => s.setSessionsPerCadence);
   const volumePerSession = useStandardsBuilderStore((s) => s.volumePerSession);
   const setVolumePerSession = useStandardsBuilderStore((s) => s.setVolumePerSession);
+  const defaultQuantity = useStandardsBuilderStore((s) => s.defaultQuantity);
+  const setDefaultQuantity = useStandardsBuilderStore((s) => s.setDefaultQuantity);
 
   // Local string state for TextInput display
   const [goalTotalText, setGoalTotalText] = useState(
@@ -51,6 +53,9 @@ export function SetVolumeStep() {
   );
   const [volumePerSessionText, setVolumePerSessionText] = useState(
     volumePerSession !== null ? String(volumePerSession) : '',
+  );
+  const [defaultQuantityText, setDefaultQuantityText] = useState(
+    defaultQuantity !== null ? String(defaultQuantity) : '',
   );
 
   const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
@@ -94,6 +99,19 @@ export function SetVolumeStep() {
       }
     },
     [setSessionsPerCadence],
+  );
+
+  const handleDefaultQuantityChange = useCallback(
+    (text: string) => {
+      setDefaultQuantityText(text);
+      const parsed = parseFloat(text);
+      if (text === '' || isNaN(parsed) || parsed <= 0) {
+        setDefaultQuantity(null);
+      } else {
+        setDefaultQuantity(parsed);
+      }
+    },
+    [setDefaultQuantity],
   );
 
   const handleVolumePerSessionChange = useCallback(
@@ -335,6 +353,31 @@ export function SetVolumeStep() {
               </View>
             </View>
           )}
+
+          {/* Default quick-log quantity (optional) */}
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.fieldLabel, { color: theme.text.secondary }]}>
+              Default quick-log quantity (optional)
+            </Text>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  color: theme.input.text,
+                  backgroundColor: theme.background.chrome,
+                  borderColor: theme.border.primary,
+                },
+              ]}
+              value={defaultQuantityText}
+              onChangeText={handleDefaultQuantityChange}
+              placeholder={effectiveUnit ? `e.g. 1 ${effectiveUnit}` : 'e.g. 1'}
+              placeholderTextColor={theme.input.placeholder}
+              keyboardType="numeric"
+            />
+            <Text style={[styles.fieldHint, { color: theme.text.secondary }]}>
+              When set, a "+N" chip on the dashboard logs this amount in one tap.
+            </Text>
+          </View>
         </ScrollView>
 
         {/* Footer */}

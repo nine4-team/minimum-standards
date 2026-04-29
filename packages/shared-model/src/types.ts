@@ -51,7 +51,7 @@ export type Standard = SoftDelete &
     state: StandardState;
     summary: string; // Normalized summary string like "1000 calls / week" or "5 sessions × 15 minutes = 75 minutes / week"
     archivedAtMs: TimestampMs | null; // Timestamp when archived, null if active
-    quickAddValues?: number[]; // Optional preset chips for fast logging (e.g., [1])
+    defaultQuantity?: number; // Optional default quantity used by the dashboard quick-log chip
     sessionConfig: StandardSessionConfig; // Required: session-based configuration
     periodStartPreference?: PeriodStartPreference;
     configEras?: ConfigEra[];

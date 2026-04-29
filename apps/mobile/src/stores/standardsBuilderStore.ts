@@ -36,6 +36,10 @@ export interface StandardsBuilderState {
   volumePerSession: number | null;
   setVolumePerSession: (volume: number | null) => void;
 
+  // Default quantity for the dashboard quick-log chip (optional)
+  defaultQuantity: number | null;
+  setDefaultQuantity: (quantity: number | null) => void;
+
   // Period alignment preference
   periodStartPreference: PeriodStartPreference | null;
   setPeriodStartPreference: (preference: PeriodStartPreference | null) => void;
@@ -65,6 +69,7 @@ export interface StandardsBuilderState {
     summary: string;
     sessionConfig: StandardSessionConfig;
     periodStartPreference?: PeriodStartPreference;
+    defaultQuantity?: number;
   } | null;
 }
 
@@ -85,6 +90,7 @@ const initialState = {
   sessionsPerCadence: null,
   volumePerSession: null,
   periodStartPreference: null,
+  defaultQuantity: null as number | null,
   editingStandardId: null,
 };
 
@@ -124,6 +130,15 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
 
     setPeriodStartPreference: (preference) => {
       set({ periodStartPreference: preference });
+    },
+
+    setDefaultQuantity: (quantity) => {
+      set({
+        defaultQuantity:
+          typeof quantity === 'number' && Number.isFinite(quantity) && quantity > 0
+            ? quantity
+            : null,
+      });
     },
 
   setName: (name) => {
@@ -275,6 +290,10 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
       summary,
       sessionConfig,
       periodStartPreference: preference ?? undefined,
+      defaultQuantity:
+        typeof state.defaultQuantity === 'number' && state.defaultQuantity > 0
+          ? state.defaultQuantity
+          : undefined,
     };
   },
 
@@ -298,6 +317,10 @@ export const useStandardsBuilderStore = create<StandardsBuilderState>((set, get)
         sessionsPerCadence: standard.sessionConfig.sessionsPerCadence,
         volumePerSession: standard.sessionConfig.volumePerSession,
         periodStartPreference: standard.periodStartPreference ?? null,
+        defaultQuantity:
+          typeof standard.defaultQuantity === 'number' && standard.defaultQuantity > 0
+            ? standard.defaultQuantity
+            : null,
         editingStandardId: standard.id,
       });
     },

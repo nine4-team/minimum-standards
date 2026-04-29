@@ -15,6 +15,7 @@ type StandardAnalyticsEvent =
   | 'standard_unarchive'
   | 'standard_archive_toggle'
   | 'dashboard_log_tap'
+  | 'dashboard_quick_log'
   | 'standard_detail_view'
   | 'standard_detail_period_tap'
   | 'standard_detail_log_tap'

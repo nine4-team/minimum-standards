@@ -32,7 +32,6 @@ function buildStandardData(overrides: StandardOverride = {}) {
       sessionsPerCadence: 1,
       volumePerSession: 100,
     },
-    quickAddValues: [1],
     archivedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

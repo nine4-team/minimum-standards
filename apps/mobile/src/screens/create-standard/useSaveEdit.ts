@@ -29,6 +29,9 @@ export function useSaveEdit(
     const { periodStartPreference: preference, summary: _summary, ...standardPayload } = payload;
     const original = standards.find((s) => s.id === editingStandardId);
     const clearPeriodStartPreference = !!original?.periodStartPreference && !preference;
+    const clearDefaultQuantity =
+      typeof original?.defaultQuantity === 'number' &&
+      typeof payload.defaultQuantity !== 'number';
 
     setSaving(true);
     setSaveError(null);
@@ -38,6 +41,7 @@ export function useSaveEdit(
         ...standardPayload,
         periodStartPreference: preference,
         clearPeriodStartPreference,
+        clearDefaultQuantity,
       });
       trackStandardEvent('standard_edit', {
         standardId: editingStandardId,

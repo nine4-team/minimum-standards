@@ -21,6 +21,14 @@ export interface CircularStandardCardProps {
   onCardPress?: () => void;
   onMenuPress?: () => void;
   highlighted?: boolean;
+  /** Default quantity used by the quick-log chip. When undefined, no chip is rendered. */
+  defaultQuantity?: number;
+  /** Tap handler for the "+N" chip. Required to render the chip. */
+  onQuickLogPress?: () => void;
+  /** When true, the chip shows "Undo" instead of "+N". */
+  quickLogUndoVisible?: boolean;
+  /** Tap handler for the "Undo" state. */
+  onQuickLogUndoPress?: () => void;
 }
 
 const RING_SIZE = 130;
@@ -41,6 +49,10 @@ export function CircularStandardCard({
   onCardPress,
   onMenuPress,
   highlighted,
+  defaultQuantity,
+  onQuickLogPress,
+  quickLogUndoVisible,
+  onQuickLogUndoPress,
   style,
 }: CircularStandardCardProps) {
   const theme = useTheme();
@@ -87,6 +99,24 @@ export function CircularStandardCard({
     [onMenuPress]
   );
 
+  const handleQuickLogPress = useCallback(
+    (e: any) => {
+      e.stopPropagation();
+      if (quickLogUndoVisible) {
+        onQuickLogUndoPress?.();
+      } else {
+        onQuickLogPress?.();
+      }
+    },
+    [quickLogUndoVisible, onQuickLogPress, onQuickLogUndoPress]
+  );
+
+  const showQuickLogChip =
+    typeof defaultQuantity === 'number' &&
+    defaultQuantity > 0 &&
+    typeof onQuickLogPress === 'function';
+  const chipLabel = quickLogUndoVisible ? 'Undo' : `+${defaultQuantity}`;
+
   return (
     <Pressable
       onPress={onCardPress ?? onLogPress}
@@ -107,6 +137,42 @@ export function CircularStandardCard({
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <MaterialIcons name="more-horiz" size={18} color={theme.text.secondary} />
+        </TouchableOpacity>
+      )}
+
+      {showQuickLogChip && (
+        <TouchableOpacity
+          onPress={handleQuickLogPress}
+          style={[
+            styles.quickLogChip,
+            {
+              borderColor: quickLogUndoVisible
+                ? theme.button.primary.background
+                : theme.border.primary,
+              backgroundColor: theme.background.surface,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={
+            quickLogUndoVisible
+              ? `Undo log for ${activityName}`
+              : `Quick log ${defaultQuantity} ${unit} for ${activityName}`
+          }
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text
+            style={[
+              styles.quickLogChipText,
+              {
+                color: quickLogUndoVisible
+                  ? theme.button.primary.background
+                  : theme.text.primary,
+              },
+            ]}
+            numberOfLines={1}
+          >
+            {chipLabel}
+          </Text>
         </TouchableOpacity>
       )}
 
@@ -180,6 +246,23 @@ const styles = StyleSheet.create({
     padding: 4,
     zIndex: 1,
     opacity: 0.5,
+  },
+  quickLogChip: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    zIndex: 1,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  quickLogChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    includeFontPadding: false,
   },
   ringContainer: {
     width: RING_SIZE,

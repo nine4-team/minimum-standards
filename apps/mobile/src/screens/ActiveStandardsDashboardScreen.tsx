@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,6 +16,7 @@ import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
 import {
   useStandards,
 } from '../hooks/useStandards';
+import { useQuickLog } from '../hooks/useQuickLog';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { trackStandardEvent } from '../utils/analytics';
 import { LogEntryModal } from '../components/LogEntryModal';
@@ -77,6 +78,83 @@ export function StandardsScreen({
 
   const { pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
+
+  // Quick-log chip: per-card undo window. Maps standardId -> {logEntryId, occurredAtMs}.
+  const { quickLog, undoQuickLog } = useQuickLog();
+  const [pendingUndo, setPendingUndo] = useState<
+    Record<string, { logEntryId: string; occurredAtMs: number }>
+  >({});
+  const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const QUICK_LOG_UNDO_MS = 4000;
+
+  const clearUndoTimer = useCallback((standardId: string) => {
+    const timer = undoTimers.current[standardId];
+    if (timer) {
+      clearTimeout(timer);
+      delete undoTimers.current[standardId];
+    }
+  }, []);
+
+  const dismissUndo = useCallback(
+    (standardId: string) => {
+      clearUndoTimer(standardId);
+      setPendingUndo((prev) => {
+        if (!(standardId in prev)) return prev;
+        const next = { ...prev };
+        delete next[standardId];
+        return next;
+      });
+    },
+    [clearUndoTimer]
+  );
+
+  useEffect(() => {
+    return () => {
+      Object.values(undoTimers.current).forEach((timer) => clearTimeout(timer));
+      undoTimers.current = {};
+    };
+  }, []);
+
+  const handleQuickLog = useCallback(
+    async (standard: Standard) => {
+      try {
+        const result = await quickLog(standard);
+        if (!result) return;
+        clearUndoTimer(standard.id);
+        setPendingUndo((prev) => ({
+          ...prev,
+          [standard.id]: {
+            logEntryId: result.logEntryId,
+            occurredAtMs: result.occurredAtMs,
+          },
+        }));
+        undoTimers.current[standard.id] = setTimeout(() => {
+          dismissUndo(standard.id);
+        }, QUICK_LOG_UNDO_MS);
+        trackStandardEvent('dashboard_quick_log', { standardId: standard.id });
+      } catch (err) {
+        Alert.alert('Error', 'Failed to log entry');
+        console.error('Quick log failed:', err);
+      }
+    },
+    [quickLog, clearUndoTimer, dismissUndo]
+  );
+
+  const handleQuickLogUndo = useCallback(
+    async (standardId: string) => {
+      const pending = pendingUndo[standardId];
+      if (!pending) return;
+      dismissUndo(standardId);
+      try {
+        await undoQuickLog(standardId, pending.logEntryId, pending.occurredAtMs);
+      } catch (err) {
+        Alert.alert('Error', 'Failed to undo log');
+        console.error('Quick log undo failed:', err);
+      }
+    },
+    [pendingUndo, dismissUndo, undoQuickLog]
+  );
 
   const handleLogPress = useCallback(
     (entry: DashboardStandard) => {
@@ -199,10 +277,22 @@ export function StandardsScreen({
           onCardPress={() => handleLogPress(item)}
           onMenuPress={() => handleActiveMenuOpen(standard)}
           highlighted={standard.id === highlightedStandardId}
+          defaultQuantity={standard.defaultQuantity}
+          onQuickLogPress={() => handleQuickLog(standard)}
+          quickLogUndoVisible={Boolean(pendingUndo[standard.id])}
+          onQuickLogUndoPress={() => handleQuickLogUndo(standard.id)}
         />
       );
     },
-    [handleActiveMenuOpen, handleLogPress, nowMs, highlightedStandardId]
+    [
+      handleActiveMenuOpen,
+      handleLogPress,
+      nowMs,
+      highlightedStandardId,
+      pendingUndo,
+      handleQuickLog,
+      handleQuickLogUndo,
+    ]
   );
 
   const handleReorder = useCallback(

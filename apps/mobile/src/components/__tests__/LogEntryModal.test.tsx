@@ -227,46 +227,6 @@ describe('LogEntryModal', () => {
       expect(onSave).not.toHaveBeenCalled();
     });
 
-    test('zero value works with quick-add chips', async () => {
-      const onClose = jest.fn();
-      const onSave = jest.fn().mockResolvedValue(undefined);
-
-      const standardWithChips: Standard = {
-        ...mockStandard,
-        quickAddValues: [1, 5],
-      };
-
-      const { getByPlaceholderText, getByText } = render(
-        <LogEntryModal
-          visible={true}
-          standard={standardWithChips}
-          onClose={onClose}
-          onSave={onSave}
-          resolveActivityName={resolveActivityName}
-        />
-      );
-
-      // Verify quick-add chips are visible
-      expect(getByText('+1')).toBeTruthy();
-      expect(getByText('+5')).toBeTruthy();
-
-      // Enter zero manually (zero can be logged even if chips don't include zero)
-      const input = getByPlaceholderText('');
-      fireEvent.changeText(input, '0');
-
-      const saveButton = getByText('Save');
-      fireEvent.press(saveButton);
-
-      await waitFor(() => {
-        expect(onSave).toHaveBeenCalledWith(
-          standardWithChips.id,
-          0,
-          expect.any(Number),
-          null
-        );
-      });
-    });
-
     test('zero value works with backdating functionality', async () => {
       const onClose = jest.fn();
       const onSave = jest.fn().mockResolvedValue(undefined);

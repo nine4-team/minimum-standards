@@ -97,7 +97,7 @@ exports.standardSchema = zod_1.z.object({
     state: exports.standardStateSchema,
     summary: zod_1.z.string().min(1).max(200), // Normalized summary string like "1000 calls / week" or "5 sessions × 15 minutes = 75 minutes / week"
     archivedAtMs: timestampMsSchema.nullable(), // Timestamp when archived, null if active
-    quickAddValues: zod_1.z.array(zod_1.z.number().positive()).max(5).optional(),
+    defaultQuantity: zod_1.z.number().positive().optional(),
     sessionConfig: exports.standardSessionConfigSchema, // Required: session-based configuration
     periodStartPreference: periodStartPreferenceSchema.optional(),
     configEras: zod_1.z.array(exports.configEraSchema).optional(),

@@ -44,6 +44,7 @@ export interface CreateStandardInput {
   cadence: StandardCadence;
   sessionConfig: StandardSessionConfig;
   periodStartPreference?: PeriodStartPreference;
+  defaultQuantity?: number;
 }
 
 
@@ -85,6 +86,8 @@ export interface UpdateStandardInput {
   periodStartPreference?: PeriodStartPreference;
   clearPeriodStartPreference?: boolean;
   hiddenFromGroup?: boolean;
+  defaultQuantity?: number;
+  clearDefaultQuantity?: boolean;
 }
 
 export interface UseStandardsResult {
@@ -101,7 +104,7 @@ export interface UseStandardsResult {
   archiveStandard: (standardId: string) => Promise<void>;
   unarchiveStandard: (standardId: string, options?: { bypassCap?: boolean }) => Promise<void>;
   deleteStandard: (standardId: string) => Promise<void>;
-  createLogEntry: (input: CreateLogInput) => Promise<void>;
+  createLogEntry: (input: CreateLogInput) => Promise<{ logEntryId: string }>;
   updateLogEntry: (input: UpdateLogInput) => Promise<void>;
   deleteLogEntry: (input: DeleteLogInput) => Promise<void>;
   restoreLogEntry: (input: RestoreLogInput) => Promise<void>;
@@ -227,6 +230,9 @@ export function useStandards(): UseStandardsResult {
         ...(input.periodStartPreference
           ? { periodStartPreference: input.periodStartPreference }
           : {}),
+        ...(typeof input.defaultQuantity === 'number' && input.defaultQuantity > 0
+          ? { defaultQuantity: input.defaultQuantity }
+          : {}),
         archivedAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -304,6 +310,15 @@ export function useStandards(): UseStandardsResult {
 
       if (input.hiddenFromGroup !== undefined) {
         payload.hiddenFromGroup = input.hiddenFromGroup;
+      }
+
+      if (input.clearDefaultQuantity) {
+        payload.defaultQuantity = deleteField();
+      } else if (
+        typeof input.defaultQuantity === 'number' &&
+        input.defaultQuantity > 0
+      ) {
+        payload.defaultQuantity = input.defaultQuantity;
       }
 
       // When config changes, append a new era so historical periods retain the old config
@@ -536,6 +551,8 @@ export function useStandards(): UseStandardsResult {
       });
 
       triggerActivityHistoryRecompute(target, occurredAtMs);
+
+      return { logEntryId: logsRef.id };
     },
     [userId, standards, canLogStandard, triggerActivityHistoryRecompute]
   );

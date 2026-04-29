@@ -9,7 +9,7 @@ export type FirestoreStandardData = {
   state: Standard['state'];
   summary: string;
   sessionConfig: Standard['sessionConfig'];
-  quickAddValues?: number[];
+  defaultQuantity?: number;
   notes?: string | null;
   /** @deprecated Kept for migration compatibility */
   activityId?: string;
@@ -48,11 +48,12 @@ export function fromFirestoreStandard(
     sessionConfig: data.sessionConfig,
     periodStartPreference: data.periodStartPreference,
     configEras: Array.isArray(data.configEras) ? data.configEras : undefined,
-    quickAddValues: Array.isArray(data.quickAddValues)
-      ? data.quickAddValues.filter(
-          (value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0
-        )
-      : undefined,
+    defaultQuantity:
+      typeof data.defaultQuantity === 'number' &&
+      Number.isFinite(data.defaultQuantity) &&
+      data.defaultQuantity > 0
+        ? data.defaultQuantity
+        : undefined,
     archivedAtMs: data.archivedAt?.toMillis() ?? null,
     createdAtMs: data.createdAt?.toMillis() ?? Date.now(),
     updatedAtMs: data.updatedAt?.toMillis() ?? Date.now(),
