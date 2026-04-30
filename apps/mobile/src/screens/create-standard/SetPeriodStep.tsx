@@ -37,6 +37,7 @@ export function SetPeriodStep() {
   const { editingStandardId, handleSaveEdit, saving: savingEdit, saveError } = useSaveEdit(parentNavigation, mainNavigation);
 
   const generatePayload = useStandardsBuilderStore((s) => s.generatePayload);
+  const canSubmit = generatePayload() !== null;
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -181,27 +182,38 @@ export function SetPeriodStep() {
           },
         ]}
       >
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            {
-              backgroundColor: (editingStandardId ? savingEdit : submitting)
-                ? theme.button.disabled.background
-                : theme.button.primary.background,
-            },
-          ]}
-          onPress={editingStandardId ? handleSaveEdit : handleSubmit}
-          disabled={editingStandardId ? savingEdit : submitting}
-          activeOpacity={0.7}
-        >
-          {(editingStandardId ? savingEdit : submitting) ? (
-            <ActivityIndicator size="small" color={theme.button.primary.text} />
-          ) : (
-            <Text style={[styles.submitButtonText, { color: theme.button.primary.text }]}>
-              {editingStandardId ? 'Save' : 'Create Standard'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {(() => {
+          const inFlight = editingStandardId ? savingEdit : submitting;
+          const enabled = canSubmit && !inFlight;
+          return (
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                {
+                  backgroundColor: enabled
+                    ? theme.button.primary.background
+                    : theme.button.disabled.background,
+                },
+              ]}
+              onPress={editingStandardId ? handleSaveEdit : handleSubmit}
+              disabled={!enabled}
+              activeOpacity={0.7}
+            >
+              {inFlight ? (
+                <ActivityIndicator size="small" color={theme.button.primary.text} />
+              ) : (
+                <Text
+                  style={[
+                    styles.submitButtonText,
+                    { color: enabled ? theme.button.primary.text : theme.button.disabled.text },
+                  ]}
+                >
+                  {editingStandardId ? 'Save' : 'Create Standard'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        })()}
       </View>
       <ArchiveToMakeRoomSheet
         visible={capSheetVisible}
