@@ -37,7 +37,25 @@ export function SetPeriodStep() {
   const { editingStandardId, handleSaveEdit, saving: savingEdit, saveError } = useSaveEdit(parentNavigation, mainNavigation);
 
   const generatePayload = useStandardsBuilderStore((s) => s.generatePayload);
-  const canSubmit = generatePayload() !== null;
+  const name = useStandardsBuilderStore((s) => s.name);
+  const unit = useStandardsBuilderStore((s) => s.unit);
+  const cadence = useStandardsBuilderStore((s) => s.cadence);
+  const goalTotal = useStandardsBuilderStore((s) => s.goalTotal);
+  const breakdownEnabled = useStandardsBuilderStore((s) => s.breakdownEnabled);
+  const sessionsPerCadence = useStandardsBuilderStore((s) => s.sessionsPerCadence);
+  const volumePerSession = useStandardsBuilderStore((s) => s.volumePerSession);
+
+  const missingFields: string[] = [];
+  if (!name.trim()) missingFields.push('Name');
+  if (!unit.trim()) missingFields.push('Unit');
+  if (!cadence) missingFields.push('Period');
+  if (breakdownEnabled) {
+    if (!sessionsPerCadence || sessionsPerCadence <= 0) missingFields.push('Sessions per period');
+    if (!volumePerSession || volumePerSession <= 0) missingFields.push('Volume per session');
+  } else {
+    if (!goalTotal || goalTotal <= 0) missingFields.push('Volume target');
+  }
+  const canSubmit = missingFields.length === 0;
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -182,6 +200,11 @@ export function SetPeriodStep() {
           },
         ]}
       >
+        {!canSubmit && (
+          <Text style={[styles.missingFieldsText, { color: theme.text.secondary }]}>
+            Still need: {missingFields.join(', ')}
+          </Text>
+        )}
         {(() => {
           const inFlight = editingStandardId ? savingEdit : submitting;
           const enabled = canSubmit && !inFlight;
@@ -285,6 +308,11 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     borderTopWidth: 1,
+  },
+  missingFieldsText: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   submitButton: {
     padding: 16,
