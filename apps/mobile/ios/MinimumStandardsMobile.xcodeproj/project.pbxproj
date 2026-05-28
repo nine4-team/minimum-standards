@@ -320,7 +320,7 @@
 				CODE_SIGN_ENTITLEMENTS = MinimumStandardsMobile/MinimumStandardsMobile.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 202605271403;
 				DEVELOPMENT_TEAM = 5VHL56HV63;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = MinimumStandardsMobile/Info.plist;
@@ -353,7 +353,7 @@
 				CODE_SIGN_ENTITLEMENTS = MinimumStandardsMobile/MinimumStandardsMobile.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 202605271403;
 				DEVELOPMENT_TEAM = 5VHL56HV63;
 				INFOPLIST_FILE = MinimumStandardsMobile/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
