@@ -2,17 +2,14 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LANE="upload_testflight"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/build-testflight.sh [build-number] [--external] [--groups "Group A,Group B"] [--changelog "Text"]
+  scripts/distribute-testflight-external.sh <build-number> [--groups "Group A,Group B"] [--changelog "Text"]
 
 Examples:
-  scripts/build-testflight.sh
-  scripts/build-testflight.sh --external --groups "External Testers"
-  scripts/build-testflight.sh 202605271530 --external --changelog "Fix group standards flows"
+  scripts/distribute-testflight-external.sh 202605271403 --groups "External Testers"
 
 Environment:
   APP_STORE_CONNECT_ISSUER_ID is required.
@@ -22,12 +19,27 @@ USAGE
 }
 
 args=()
+if [[ $# -gt 0 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -lt 1 ]]; then
+  usage >&2
+  exit 1
+fi
+
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+  args+=("build_number:$1")
+  shift
+else
+  echo "First argument must be the numeric build number." >&2
+  usage >&2
+  exit 1
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --external)
-      LANE="external_testflight"
-      shift
-      ;;
     --groups)
       args+=("groups:$2")
       shift 2
@@ -41,14 +53,9 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      if [[ "$1" =~ ^[0-9]+$ ]]; then
-        args+=("build_number:$1")
-        shift
-      else
-        echo "Unknown argument: $1" >&2
-        usage >&2
-        exit 1
-      fi
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 1
       ;;
   esac
 done
@@ -63,4 +70,4 @@ if [[ -z "$BUNDLE_BIN" ]]; then
   fi
 fi
 
-"$BUNDLE_BIN" exec fastlane ios "$LANE" "${args[@]}"
+"$BUNDLE_BIN" exec fastlane ios distribute_existing_external "${args[@]}"
