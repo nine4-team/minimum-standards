@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,19 +21,79 @@ import { firebaseAuth } from '../firebase/firebaseApp';
 import { importStandardsForUser } from '../utils/snapshotImport';
 import type { SnapshotPayloadV2 } from '../types/snapshots';
 import type { GroupsStackParamList } from '../navigation/types';
+import { StandardsScreen } from './ActiveStandardsDashboardScreen';
+import { useStandards } from '../hooks/useStandards';
+import { useStandardsBuilderStore } from '../stores/standardsBuilderStore';
 
 type Nav = NativeStackNavigationProp<GroupsStackParamList>;
 
 export function MemberDashboardScreen() {
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation<Nav>();
   const route = useRoute();
   const { groupId, memberUid, displayName } = route.params as {
     groupId: string;
     memberUid: string;
     displayName: string;
   };
+  const currentUid = firebaseAuth.currentUser?.uid;
+
+  if (memberUid === currentUid) {
+    return <SelfMemberStandardsScreen displayName={displayName} />;
+  }
+
+  return (
+    <OtherMemberDashboardScreen
+      groupId={groupId}
+      memberUid={memberUid}
+      displayName={displayName}
+    />
+  );
+}
+
+function SelfMemberStandardsScreen({ displayName }: { displayName: string }) {
+  const navigation = useNavigation<Nav>();
+  const { standards } = useStandards();
+  const resetBuilder = useStandardsBuilderStore((s) => s.reset);
+
+  const navigateToMainModal = (routeName: 'CreateStandardFlow' | 'EditStandard') => {
+    const mainNavigation = navigation.getParent()?.getParent();
+    if (mainNavigation) {
+      (mainNavigation as any).navigate(routeName);
+      return;
+    }
+    (navigation as any).navigate(routeName);
+  };
+
+  return (
+    <StandardsScreen
+      title={displayName ? `${displayName}'s Standards` : 'My Standards'}
+      backButtonLabel="Group"
+      onBack={() => navigation.goBack()}
+      onLaunchBuilder={() => {
+        resetBuilder();
+        navigateToMainModal('CreateStandardFlow');
+      }}
+      onEditStandard={(standardId) => {
+        const standard = standards.find((s) => s.id === standardId);
+        if (!standard) return;
+        useStandardsBuilderStore.getState().loadFromStandard(standard);
+        navigateToMainModal('EditStandard');
+      }}
+    />
+  );
+}
+
+function OtherMemberDashboardScreen({
+  groupId,
+  memberUid,
+  displayName,
+}: {
+  groupId: string;
+  memberUid: string;
+  displayName: string;
+}) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
 
   const [standards, setStandards] = useState<MemberStandardSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,11 +103,7 @@ export function MemberDashboardScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
 
-  useEffect(() => {
-    loadStandards();
-  }, [groupId, memberUid]);
-
-  const loadStandards = async () => {
+  const loadStandards = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -58,7 +114,11 @@ export function MemberDashboardScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupId, memberUid]);
+
+  useEffect(() => {
+    loadStandards();
+  }, [loadStandards]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {

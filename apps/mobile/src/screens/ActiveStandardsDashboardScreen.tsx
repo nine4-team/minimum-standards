@@ -36,6 +36,7 @@ export interface StandardsScreenProps {
   onNavigateToDetail?: (standardId: string) => void;
   onEditStandard?: (standardId: string) => void;
   backButtonLabel?: string;
+  title?: string;
 }
 
 export function StandardsScreen({
@@ -45,6 +46,7 @@ export function StandardsScreen({
   onNavigateToDetail,
   onEditStandard,
   backButtonLabel,
+  title = 'Standards',
 }: StandardsScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
@@ -402,8 +404,8 @@ export function StandardsScreen({
         ) : (
           <View style={styles.headerLeftButton} />
         )}
-        <Text style={[styles.headerTitle, { color: theme.text.primary }]}>
-          Standards
+        <Text style={[styles.headerTitle, { color: theme.text.primary }]} numberOfLines={1}>
+          {title}
         </Text>
         <View style={styles.headerMenuButton} />
       </View>
