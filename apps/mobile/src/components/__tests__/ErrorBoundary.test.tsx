@@ -1,13 +1,16 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { Text } from 'react-native';
 import { ErrorBoundary } from '../ErrorBoundary';
 
-// Mock Firebase Auth
-jest.mock('@react-native-firebase/auth', () => ({
-  __esModule: true,
-  default: jest.fn(() => ({
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
+jest.mock('../../firebase/firebaseApp', () => ({
+  firebaseAuth: {
     currentUser: { uid: 'test-user-123' },
-  })),
+  },
 }));
 
 // Mock Crashlytics (optional dependency)
@@ -46,7 +49,7 @@ describe('ErrorBoundary', () => {
     );
 
     expect(getByText('Something went wrong')).toBeTruthy();
-    expect(getByText(/Something went wrong. Please try again/i)).toBeTruthy();
+    expect(getByText(/A database error occurred. Please try again/i)).toBeTruthy();
   });
 
   test('Crashlytics logging includes Firebase auth UID', () => {
@@ -87,7 +90,7 @@ describe('ErrorBoundary', () => {
       if (shouldThrow) {
         throw new Error('Test error');
       }
-      return <React.Fragment>Success</React.Fragment>;
+      return <Text>Success</Text>;
     };
 
     const { getByText, rerender } = render(
@@ -98,16 +101,14 @@ describe('ErrorBoundary', () => {
 
     expect(getByText('Something went wrong')).toBeTruthy();
 
-    const retryButton = getByText('Retry');
-    fireEvent.press(retryButton);
-
-    // After retry, error boundary should reset
-    // In a real scenario, the component would re-render without error
     rerender(
       <ErrorBoundary>
         <ThrowError shouldThrow={false} />
       </ErrorBoundary>
     );
+
+    const retryButton = getByText('Retry');
+    fireEvent.press(retryButton);
 
     expect(getByText('Success')).toBeTruthy();
   });
@@ -117,7 +118,7 @@ describe('ErrorBoundary', () => {
       throw new Error('Test error');
     };
 
-    const customFallback = <React.Fragment>Custom Error UI</React.Fragment>;
+    const customFallback = <Text>Custom Error UI</Text>;
 
     const { getByText } = render(
       <ErrorBoundary fallback={customFallback}>
@@ -144,5 +145,23 @@ describe('ErrorBoundary', () => {
     expect(onError).toHaveBeenCalled();
     expect(onError.mock.calls[0][0]).toBeInstanceOf(Error);
     expect(onError.mock.calls[0][1]).toHaveProperty('componentStack');
+  });
+
+  test('does not crash if onError callback throws', () => {
+    const onError = jest.fn(() => {
+      throw new Error('Callback failed');
+    });
+    const ThrowError = () => {
+      throw new Error('Test error');
+    };
+
+    const { getByText } = render(
+      <ErrorBoundary onError={onError}>
+        <ThrowError />
+      </ErrorBoundary>
+    );
+
+    expect(onError).toHaveBeenCalled();
+    expect(getByText('Something went wrong')).toBeTruthy();
   });
 });

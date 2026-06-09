@@ -4,12 +4,13 @@ import { normalizeFirebaseError } from '../utils/errors';
 import { firebaseAuth } from '../firebase/firebaseApp';
 import { useTheme } from '../theme/useTheme';
 
-// Conditionally import Crashlytics if available
-let crashlytics: any = null;
-try {
-  crashlytics = require('@react-native-firebase/crashlytics').default();
-} catch {
-  // Crashlytics not installed, will skip logging
+function getCrashlytics() {
+  try {
+    const crashlyticsModule = require('@react-native-firebase/crashlytics');
+    return crashlyticsModule.default();
+  } catch {
+    return null;
+  }
 }
 
 interface ErrorBoundaryProps {
@@ -49,11 +50,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // Call optional error handler
     if (this.props.onError) {
-      this.props.onError(error, errorInfo);
+      try {
+        this.props.onError(error, errorInfo);
+      } catch (onErrorCallbackError) {
+        console.warn('ErrorBoundary onError callback failed:', onErrorCallbackError);
+      }
     }
   }
 
   private logToCrashlytics(error: Error, errorInfo: ErrorInfo) {
+    const crashlytics = getCrashlytics();
     if (!crashlytics) {
       // Crashlytics not available, skip logging
       return;
@@ -63,23 +69,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Set user identifier if authenticated
       const user = firebaseAuth.currentUser;
       if (user?.uid) {
-        crashlytics().setUserId(user.uid);
+        crashlytics.setUserId(user.uid);
       }
 
       // Normalize error to get stable code
       const normalizedError = normalizeFirebaseError(error);
       
       // Log structured error information
-      crashlytics().log(`Error Boundary caught: ${normalizedError.code}`);
-      crashlytics().setAttribute('error_code', normalizedError.code);
-      crashlytics().setAttribute('error_name', error.name);
+      crashlytics.log(`Error Boundary caught: ${normalizedError.code}`);
+      crashlytics.setAttribute('error_code', normalizedError.code);
+      crashlytics.setAttribute('error_name', error.name);
       
       if (errorInfo.componentStack) {
-        crashlytics().setAttribute('component_stack', errorInfo.componentStack.substring(0, 500));
+        crashlytics.setAttribute('component_stack', errorInfo.componentStack.substring(0, 500));
       }
 
       // Record the fatal error
-      crashlytics().recordError(error);
+      crashlytics.recordError(error);
     } catch (crashlyticsError) {
       // Fail silently if Crashlytics logging fails
       console.warn('Failed to log to Crashlytics:', crashlyticsError);

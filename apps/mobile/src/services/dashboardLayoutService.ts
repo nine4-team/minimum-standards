@@ -67,6 +67,11 @@ function normalizePages(
     .map((page, index) => ({ ...page, orderIndex: index }));
 }
 
+function snapshotExists(snapshot: FirebaseFirestoreTypes.DocumentSnapshot): boolean {
+  const exists = snapshot.exists as unknown;
+  return typeof exists === 'function' ? Boolean(exists.call(snapshot)) : Boolean(exists);
+}
+
 export function subscribeToDashboardLayout(
   userId: string,
   onNext: (layout: DashboardLayoutSnapshot) => void,
@@ -74,12 +79,17 @@ export function subscribeToDashboardLayout(
 ): () => void {
   return dashboardLayoutRef(userId).onSnapshot(
     (snapshot: FirebaseFirestoreTypes.DocumentSnapshot) => {
-      if (!snapshot.exists) {
+      if (!snapshotExists(snapshot)) {
         onNext(null);
         return;
       }
 
-      const data = snapshot.data() as FirestoreDashboardLayoutData;
+      const data = snapshot.data() as FirestoreDashboardLayoutData | undefined;
+      if (!data) {
+        onNext(null);
+        return;
+      }
+
       onNext({
         pages: normalizePages(data.pages),
         pageSize: 6,
