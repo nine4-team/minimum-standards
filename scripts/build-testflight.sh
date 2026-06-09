@@ -7,7 +7,7 @@ LANE="upload_testflight"
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/build-testflight.sh [build-number] [--external] [--groups "Group A,Group B"] [--changelog "Text"]
+  scripts/build-testflight.sh [build-number] [--external] [--groups "Group A,Group B"] [--version "1.0"] [--changelog "Text"]
 
 Examples:
   scripts/build-testflight.sh
@@ -30,6 +30,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --groups)
       args+=("groups:$2")
+      shift 2
+      ;;
+    --version)
+      args+=("version:$2")
       shift 2
       ;;
     --changelog)

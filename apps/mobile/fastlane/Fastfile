@@ -49,12 +49,8 @@ platform :ios do
   desc "Build and upload to TestFlight without external distribution"
   lane :upload_testflight do |options|
     build_number = (options[:build_number] || ENV["BUILD_NUMBER"] || timestamp_build_number).to_s
+    version = marketing_version_from(options)
     changelog = options[:changelog] || ENV["TESTFLIGHT_CHANGELOG"]
-
-    increment_build_number(
-      build_number: build_number,
-      xcodeproj: "ios/MinimumStandardsMobile.xcodeproj"
-    )
 
     build_app(
       workspace: WORKSPACE,
@@ -65,7 +61,9 @@ platform :ios do
       output_directory: BUILD_DIR,
       output_name: "MinimumStandardsMobile.ipa",
       include_symbols: true,
-      clean: false
+      clean: false,
+      xcargs: "DEVELOPMENT_TEAM=#{TEAM_ID} CODE_SIGN_STYLE=Automatic MARKETING_VERSION=#{version} CURRENT_PROJECT_VERSION=#{build_number}",
+      export_xcargs: "-allowProvisioningUpdates"
     )
 
     upload_to_testflight(
@@ -84,13 +82,9 @@ platform :ios do
   desc "Build, upload, and distribute to external TestFlight groups"
   lane :external_testflight do |options|
     build_number = (options[:build_number] || ENV["BUILD_NUMBER"] || timestamp_build_number).to_s
+    version = marketing_version_from(options)
     changelog = options[:changelog] || ENV["TESTFLIGHT_CHANGELOG"] || "Minimum Standards beta update"
     groups = external_groups_from(options)
-
-    increment_build_number(
-      build_number: build_number,
-      xcodeproj: "ios/MinimumStandardsMobile.xcodeproj"
-    )
 
     build_app(
       workspace: WORKSPACE,
@@ -101,7 +95,9 @@ platform :ios do
       output_directory: BUILD_DIR,
       output_name: "MinimumStandardsMobile.ipa",
       include_symbols: true,
-      clean: false
+      clean: false,
+      xcargs: "DEVELOPMENT_TEAM=#{TEAM_ID} CODE_SIGN_STYLE=Automatic MARKETING_VERSION=#{version} CURRENT_PROJECT_VERSION=#{build_number}",
+      export_xcargs: "-allowProvisioningUpdates"
     )
 
     upload_to_testflight(
