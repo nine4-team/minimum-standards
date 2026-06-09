@@ -4,6 +4,7 @@ import {
   buildDashboardPages,
   buildPlacementUpdates,
   getFirstPageWithRoom,
+  getVisiblePageDotIndexes,
   moveStandardToPage,
   renameDashboardPage,
   reorderPageStandards,
@@ -212,5 +213,20 @@ describe('dashboardPages', () => {
       'Fitness'
     );
     expect(renameDashboardPage(pages, 'health', '   ')[0].name).toBe('Health');
+  });
+
+  test('returns all page dots when page count is within the visible cap', () => {
+    expect(getVisiblePageDotIndexes(4, 2)).toEqual([0, 1, 2, 3]);
+  });
+
+  test('limits visible page dots to a moving window of four', () => {
+    expect(getVisiblePageDotIndexes(8, 0)).toEqual([0, 1, 2, 3]);
+    expect(getVisiblePageDotIndexes(8, 4)).toEqual([3, 4, 5, 6]);
+    expect(getVisiblePageDotIndexes(8, 7)).toEqual([4, 5, 6, 7]);
+  });
+
+  test('clamps visible page dots when active page index is out of range', () => {
+    expect(getVisiblePageDotIndexes(6, 99)).toEqual([2, 3, 4, 5]);
+    expect(getVisiblePageDotIndexes(6, -4)).toEqual([0, 1, 2, 3]);
   });
 });

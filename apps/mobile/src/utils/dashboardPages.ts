@@ -1,6 +1,7 @@
 import type { DashboardLayoutPage, Standard } from '@minimum-standards/shared-model';
 
 export const DASHBOARD_PAGE_SIZE = 6;
+export const MAX_VISIBLE_PAGE_DOTS = 4;
 
 export type DashboardStandardLike = {
   id: string;
@@ -231,5 +232,32 @@ export function renameDashboardPage(
   if (!trimmed) return pages;
   return pages.map((page) =>
     page.id === pageId ? { ...page, name: trimmed.slice(0, 40) } : page
+  );
+}
+
+export function getVisiblePageDotIndexes(
+  pageCount: number,
+  activePageIndex: number,
+  maxVisibleDots: number = MAX_VISIBLE_PAGE_DOTS
+): number[] {
+  const normalizedPageCount = Math.max(0, pageCount);
+  const normalizedMax = Math.max(1, maxVisibleDots);
+  if (normalizedPageCount <= normalizedMax) {
+    return Array.from({ length: normalizedPageCount }, (_, index) => index);
+  }
+
+  const clampedActiveIndex = Math.max(
+    0,
+    Math.min(activePageIndex, normalizedPageCount - 1)
+  );
+  const leadingCount = Math.floor((normalizedMax - 1) / 2);
+  const startIndex = Math.max(
+    0,
+    Math.min(clampedActiveIndex - leadingCount, normalizedPageCount - normalizedMax)
+  );
+
+  return Array.from(
+    { length: normalizedMax },
+    (_, index) => startIndex + index
   );
 }

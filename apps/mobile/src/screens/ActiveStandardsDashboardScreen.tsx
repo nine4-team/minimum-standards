@@ -37,6 +37,7 @@ import {
   buildDashboardPages,
   buildPlacementUpdates,
   createNextPage,
+  getVisiblePageDotIndexes,
   moveStandardToPage,
   reorderPageStandards,
 } from '../utils/dashboardPages';
@@ -502,40 +503,6 @@ export function StandardsScreen({
 
     return (
       <View style={styles.pagerContainer}>
-        <View style={[styles.pageBar, { borderBottomColor: theme.border.secondary }]}>
-          <View style={styles.pageTitleBlock}>
-            <Text style={[styles.pageTitle, { color: theme.text.primary }]} numberOfLines={1}>
-              {currentPage?.name ?? 'Page 1'}
-            </Text>
-            <View style={styles.pageDots} accessibilityRole="tablist">
-              {dashboardPages.map((page, index) => (
-                <TouchableOpacity
-                  key={page.id}
-                  onPress={() => setActivePageIndex(index)}
-                  style={[
-                    styles.pageDot,
-                    {
-                      backgroundColor:
-                        index === activePageIndex
-                          ? theme.primary.main
-                          : theme.border.primary,
-                    },
-                  ]}
-                  accessibilityRole="tab"
-                  accessibilityLabel={page.name}
-                />
-              ))}
-            </View>
-          </View>
-          <TouchableOpacity
-            onPress={handleAddPage}
-            style={styles.pageIconButton}
-            accessibilityRole="button"
-            accessibilityLabel="Add page"
-          >
-            <MaterialIcons name="add" size={22} color={theme.text.primary} />
-          </TouchableOpacity>
-        </View>
         <ScrollView
           ref={pagerRef}
           horizontal
@@ -560,11 +527,8 @@ export function StandardsScreen({
       </View>
     );
   }, [
-    activePageIndex,
-    currentPage?.name,
     dashboardStandards,
     dashboardPages,
-    handleAddPage,
     loading,
     layoutLoading,
     onLaunchBuilder,
@@ -576,20 +540,67 @@ export function StandardsScreen({
     windowWidth,
   ]);
 
+  const showPageControls = dashboardStandards.length > 0;
+  const visiblePageDotIndexes = useMemo(
+    () => getVisiblePageDotIndexes(dashboardPages.length, activePageIndex),
+    [activePageIndex, dashboardPages.length]
+  );
+
   return (
     <View style={[styles.screen, getScreenContainerStyle(theme)]}>
       <View style={[styles.header, { backgroundColor: theme.background.screen, borderBottomColor: theme.border.secondary, paddingTop: Math.max(insets.top, 12) }]}>
-        {backButtonLabel ? (
-          <TouchableOpacity onPress={onBack} accessibilityRole="button">
-            <Text style={[styles.backButton, { color: theme.primary.main }]}>{backButtonLabel}</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerLeftButton} />
-        )}
-        <Text style={[styles.headerTitle, { color: theme.text.primary }]} numberOfLines={1}>
-          {title}
-        </Text>
-        <View style={styles.headerMenuButton} />
+        <View style={styles.headerTopRow}>
+          {backButtonLabel ? (
+            <TouchableOpacity onPress={onBack} accessibilityRole="button" style={styles.headerLeftButton}>
+              <Text style={[styles.backButton, { color: theme.primary.main }]}>{backButtonLabel}</Text>
+            </TouchableOpacity>
+          ) : showPageControls ? (
+            <View style={styles.headerPageControls}>
+              <Text style={[styles.pageTitle, { color: theme.text.primary }]} numberOfLines={1}>
+                {currentPage?.name ?? 'Page 1'}
+              </Text>
+              <View style={styles.pageDots} accessibilityRole="tablist">
+                {visiblePageDotIndexes.map((index) => {
+                  const page = dashboardPages[index];
+                  return (
+                    <TouchableOpacity
+                      key={page.id}
+                      onPress={() => setActivePageIndex(index)}
+                      style={[
+                        styles.pageDot,
+                        {
+                          backgroundColor:
+                            index === activePageIndex
+                              ? theme.primary.main
+                              : theme.border.primary,
+                        },
+                      ]}
+                      accessibilityRole="tab"
+                      accessibilityLabel={page.name}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.headerLeftButton} />
+          )}
+          <Text style={[styles.headerTitle, { color: theme.text.primary }]} numberOfLines={1}>
+            {title}
+          </Text>
+          {showPageControls ? (
+            <TouchableOpacity
+              onPress={handleAddPage}
+              style={styles.headerMenuButton}
+              accessibilityRole="button"
+              accessibilityLabel="Add page"
+            >
+              <MaterialIcons name="add" size={22} color={theme.text.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerMenuButton} />
+          )}
+        </View>
       </View>
 
       <ErrorBanner error={error} onRetry={handleRetry} />
@@ -700,11 +711,16 @@ const styles = StyleSheet.create({
     // Style comes from getScreenContainerStyle helper
   },
   header: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerTopRow: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    position: 'relative',
   },
   backButton: {
     fontSize: 16,
@@ -713,24 +729,23 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    flex: 1,
+    left: 108,
+    position: 'absolute',
+    right: 108,
     textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 64,
   },
   headerLeftButton: {
     width: 64,
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
   },
   headerMenuButton: {
     width: 64,
+    height: 40,
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingVertical: 4,
-    opacity: 0.5,
   },
   skeletonContainer: {
     padding: SCREEN_PADDING,
@@ -789,36 +804,30 @@ const styles = StyleSheet.create({
   pagerContainer: {
     flex: 1,
   },
-  pageBar: {
-    minHeight: 52,
-    paddingHorizontal: SCREEN_PADDING,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  headerPageControls: {
+    width: 108,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pageTitleBlock: {
-    flex: 1,
-    gap: 6,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 8,
   },
   pageTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
+    lineHeight: 18,
+    maxWidth: '100%',
+    textAlign: 'left',
   },
   pageDots: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
+    height: 18,
   },
   pageDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-  },
-  pageIconButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   horizontalPager: {
     flex: 1,
