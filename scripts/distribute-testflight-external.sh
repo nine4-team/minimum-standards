@@ -6,14 +6,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/distribute-testflight-external.sh <build-number> [--groups "Group A,Group B"] [--changelog "Text"]
+  scripts/distribute-testflight-external.sh <build-number> [--groups "Group A,Group B"] [--version "1.0"] [--changelog "Text"]
 
 Examples:
   scripts/distribute-testflight-external.sh 202605271403 --groups "External Testers"
 
 Environment:
-  APP_STORE_CONNECT_ISSUER_ID is required.
-  APP_STORE_CONNECT_KEY_ID defaults to 7S3B2QMS2Q.
+  APP_STORE_CONNECT_ISSUER_ID defaults to 4827880b-e626-4e8e-a16b-c66db4355e12.
+  APP_STORE_CONNECT_KEY_ID defaults to X5SX4S7NW5.
   APP_STORE_CONNECT_KEY_FILEPATH defaults to ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8.
 USAGE
 }
@@ -42,6 +42,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --groups)
       args+=("groups:$2")
+      shift 2
+      ;;
+    --version)
+      args+=("version:$2")
       shift 2
       ;;
     --changelog)
