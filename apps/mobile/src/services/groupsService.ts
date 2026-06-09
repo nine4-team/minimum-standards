@@ -1,6 +1,7 @@
 import { callFunction } from './cloudFunctions';
 import type { MemberDashboardData } from '../hooks/useMemberDashboard';
 import type { MemberStandardDetailData } from '../hooks/useMemberStandardDetail';
+import type { DashboardLayoutPage } from '@minimum-standards/shared-model';
 
 function mapError(err: any): string {
   const code = err?.code;
@@ -94,6 +95,8 @@ export interface MemberStandardSummary {
   cadence: { interval: number; unit: 'day' | 'week' | 'month' };
   sessionConfig: { sessionLabel: string; sessionsPerCadence: number; volumePerSession: number } | null;
   periodStartPreference?: { mode: 'default' | 'weekDay'; weekStartDay?: number };
+  dashboardPageId?: string;
+  dashboardOrderIndex?: number;
   status: string;
   progressPercent: number;
   total: number;
@@ -104,7 +107,7 @@ export interface MemberStandardSummary {
 export async function getMemberStandards(
   groupId: string,
   memberUid: string
-): Promise<{ standards: MemberStandardSummary[] }> {
+): Promise<{ pages?: DashboardLayoutPage[]; standards: MemberStandardSummary[] }> {
   try {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
     return await callFunction('getMemberStandards', { groupId, memberUid, timezone });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -24,6 +27,8 @@ import type { GroupsStackParamList } from '../navigation/types';
 import { StandardsScreen } from './ActiveStandardsDashboardScreen';
 import { useStandards } from '../hooks/useStandards';
 import { useStandardsBuilderStore } from '../stores/standardsBuilderStore';
+import type { DashboardLayoutPage } from '@minimum-standards/shared-model';
+import { buildDashboardPages } from '../utils/dashboardPages';
 
 type Nav = NativeStackNavigationProp<GroupsStackParamList>;
 
@@ -94,8 +99,12 @@ function OtherMemberDashboardScreen({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
+  const { width: windowWidth } = useWindowDimensions();
+  const pagerRef = useRef<ScrollView | null>(null);
 
   const [standards, setStandards] = useState<MemberStandardSummary[]>([]);
+  const [pages, setPages] = useState<DashboardLayoutPage[]>([]);
+  const [activePageIndex, setActivePageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +118,7 @@ function OtherMemberDashboardScreen({
     try {
       const result = await groupsService.getMemberStandards(groupId, memberUid);
       setStandards(result.standards);
+      setPages(result.pages ?? []);
     } catch (err: any) {
       setError(err?.message || 'Failed to load member data.');
     } finally {
@@ -189,9 +199,37 @@ function OtherMemberDashboardScreen({
   };
 
   const nowMs = Date.now();
+  const visiblePages = useMemo(
+    () => buildDashboardPages(standards, pages.length > 0 ? { pages } : null),
+    [pages, standards]
+  );
+
+  const handlePagerScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextIndex = Math.round(
+        event.nativeEvent.contentOffset.x / Math.max(windowWidth, 1)
+      );
+      setActivePageIndex(
+        Math.max(0, Math.min(nextIndex, Math.max(visiblePages.length - 1, 0)))
+      );
+    },
+    [visiblePages.length, windowWidth]
+  );
+
+  useEffect(() => {
+    if (activePageIndex <= visiblePages.length - 1) return;
+    setActivePageIndex(Math.max(visiblePages.length - 1, 0));
+  }, [activePageIndex, visiblePages.length]);
+
+  useEffect(() => {
+    pagerRef.current?.scrollTo({
+      x: activePageIndex * windowWidth,
+      animated: true,
+    });
+  }, [activePageIndex, windowWidth]);
 
   return (
-    <View style={[styles.screen, getScreenContainerStyle(theme)]}>
+    <View style={[styles.screen, getScreenContainerStyle(theme) as any]}>
       <View
         style={[
           styles.header,
@@ -267,61 +305,100 @@ function OtherMemberDashboardScreen({
           </Text>
         </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={[
-            styles.gridWrapper,
-            { paddingBottom: insets.bottom + 16 },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.pagerContainer}>
           {selectMode && (
             <Text style={[styles.selectHint, { color: theme.text.secondary }]}>
               Tap standards to select them, then import to add them to yours.
             </Text>
           )}
-          <View style={styles.grid}>
-          {standards.map((item) => {
-            const isSelected = selectedIds.has(item.id);
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.cell}
-                activeOpacity={selectMode ? 0.7 : 1}
-                onPress={selectMode ? () => toggleSelect(item.id) : undefined}
-                disabled={!selectMode}
-              >
-                {selectMode && (
-                  <View
-                    style={[
-                      styles.checkBadge,
-                      {
-                        backgroundColor: isSelected ? theme.link : theme.background.card,
-                        borderColor: isSelected ? theme.link : theme.border.primary,
-                      },
-                    ]}
-                  >
-                    {isSelected && (
-                      <MaterialIcons name="check" size={14} color="#fff" />
-                    )}
-                  </View>
-                )}
-                <CircularStandardCard
-                  style={{ width: '100%', ...(selectMode && isSelected ? { opacity: 0.85 } : {}) }}
-                  standard={{ name: item.name, unit: item.unit, minimum: item.minimum, sessionConfig: undefined as any }}
-                  activityName={item.name}
-                  currentTotalFormatted={item.total.toString()}
-                  targetValueFormatted={Math.round(item.minimum).toString()}
-                  progressPercent={item.progressPercent}
-                  unit={item.unit}
-                  periodStartMs={item.periodStartMs}
-                  periodEndMs={item.periodEndMs}
-                  nowMs={nowMs}
+          <View style={[styles.pageBar, { borderBottomColor: theme.border.secondary }]}>
+            <Text style={[styles.pageTitle, { color: theme.text.primary }]} numberOfLines={1}>
+              {visiblePages[activePageIndex]?.name ?? 'Standards'}
+            </Text>
+            <View style={styles.pageDots}>
+              {visiblePages.map((page, index) => (
+                <TouchableOpacity
+                  key={page.id}
+                  onPress={() => setActivePageIndex(index)}
+                  style={[
+                    styles.pageDot,
+                    {
+                      backgroundColor:
+                        index === activePageIndex
+                          ? theme.primary.main
+                          : theme.border.primary,
+                    },
+                  ]}
+                  accessibilityRole="tab"
+                  accessibilityLabel={page.name}
                 />
-              </TouchableOpacity>
-            );
-          })}
+              ))}
+            </View>
           </View>
-        </ScrollView>
+          <ScrollView
+            ref={pagerRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handlePagerScrollEnd}
+            style={styles.horizontalPager}
+          >
+            {visiblePages.map((page) => (
+              <ScrollView
+                key={page.id}
+                style={[styles.memberPage, { width: windowWidth }]}
+                contentContainerStyle={[
+                  styles.gridWrapper,
+                  { paddingBottom: insets.bottom + 16 },
+                ]}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.grid}>
+                  {page.standards.map((item) => {
+                    const isSelected = selectedIds.has(item.id);
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.cell}
+                        activeOpacity={selectMode ? 0.7 : 1}
+                        onPress={selectMode ? () => toggleSelect(item.id) : undefined}
+                        disabled={!selectMode}
+                      >
+                        {selectMode && (
+                          <View
+                            style={[
+                              styles.checkBadge,
+                              {
+                                backgroundColor: isSelected ? theme.link : theme.background.card,
+                                borderColor: isSelected ? theme.link : theme.border.primary,
+                              },
+                            ]}
+                          >
+                            {isSelected && (
+                              <MaterialIcons name="check" size={14} color="#fff" />
+                            )}
+                          </View>
+                        )}
+                        <CircularStandardCard
+                          style={{ width: '100%', ...(selectMode && isSelected ? { opacity: 0.85 } : {}) }}
+                          standard={{ name: item.name, unit: item.unit, minimum: item.minimum, sessionConfig: undefined as any }}
+                          activityName={item.name}
+                          currentTotalFormatted={item.total.toString()}
+                          targetValueFormatted={Math.round(item.minimum).toString()}
+                          progressPercent={item.progressPercent}
+                          unit={item.unit}
+                          periodStartMs={item.periodStartMs}
+                          periodEndMs={item.periodEndMs}
+                          nowMs={nowMs}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
     </View>
@@ -367,7 +444,40 @@ const styles = StyleSheet.create({
   selectHint: {
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: 12,
+    marginVertical: 12,
+    marginHorizontal: SCREEN_PADDING,
+  },
+  pagerContainer: {
+    flex: 1,
+  },
+  pageBar: {
+    minHeight: 52,
+    paddingHorizontal: SCREEN_PADDING,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pageTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  pageDots: {
+    flexDirection: 'row',
+    gap: 6,
+    marginLeft: 12,
+  },
+  pageDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  horizontalPager: {
+    flex: 1,
+  },
+  memberPage: {
+    flex: 1,
   },
   grid: {
     flexDirection: 'row',

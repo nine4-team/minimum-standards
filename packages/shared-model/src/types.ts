@@ -57,6 +57,8 @@ export type Standard = SoftDelete &
     configEras?: ConfigEra[];
     notes: string | null;
     orderIndex?: number;
+    dashboardPageId?: string;
+    dashboardOrderIndex?: number;
     hiddenFromGroup?: boolean;
     /** @deprecated Kept for migration compatibility. Will be removed in a future release. */
     activityId?: string;
@@ -75,6 +77,19 @@ export type ActivityLog = SoftDelete &
 export type DashboardPins = {
   id: string;
   pinnedStandardIds: string[];
+  updatedAtMs: TimestampMs;
+};
+
+export type DashboardLayoutPage = {
+  id: string;
+  name: string;
+  orderIndex: number;
+};
+
+export type DashboardLayout = {
+  id: string;
+  pages: DashboardLayoutPage[];
+  pageSize: 6;
   updatedAtMs: TimestampMs;
 };
 

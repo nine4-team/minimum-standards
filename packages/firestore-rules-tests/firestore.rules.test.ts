@@ -94,6 +94,51 @@ describe('Firestore security rules: user isolation', () => {
     );
   });
 
+  test('allows authenticated user to save dashboard layout preferences', async () => {
+    const u1 = testEnv.authenticatedContext('u1');
+    const db1 = u1.firestore();
+
+    await assertSucceeds(
+      setDoc(doc(db1, 'users/u1/preferences/dashboardLayout'), {
+        pages: [
+          { id: 'page-1', name: 'Page 1', orderIndex: 0 },
+          { id: 'page-2', name: 'Page 2', orderIndex: 1 },
+        ],
+        pageSize: 6,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  test('denies dashboard layout preferences with an unsupported page size', async () => {
+    const u1 = testEnv.authenticatedContext('u1');
+    const db1 = u1.firestore();
+
+    await assertFails(
+      setDoc(doc(db1, 'users/u1/preferences/dashboardLayout'), {
+        pages: [{ id: 'page-1', name: 'Page 1', orderIndex: 0 }],
+        pageSize: 12,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  test('allows updating synced dashboard placement fields on standards', async () => {
+    const u1 = testEnv.authenticatedContext('u1');
+    const db1 = u1.firestore();
+    const standardRef = doc(db1, 'users/u1/standards/s1');
+
+    await assertSucceeds(setDoc(standardRef, buildStandardData()));
+
+    await assertSucceeds(
+      updateDoc(standardRef, {
+        dashboardPageId: 'page-2',
+        dashboardOrderIndex: 0,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
   test('denies writes with unexpected fields', async () => {
     const u1 = testEnv.authenticatedContext('u1');
     const db1 = u1.firestore();

@@ -15,13 +15,19 @@ import { BUTTON_BORDER_RADIUS } from '@nine4/ui-kit';
 import { StepHeader } from '../../navigation/CreateStandardFlow';
 import { CreateStandardFlowParamList, MainStackParamList } from '../../navigation/types';
 import { useStandardsBuilderStore } from '../../stores/standardsBuilderStore';
-import { useStandards, ActiveCapExceededError } from '../../hooks/useStandards';
-import { ArchiveToMakeRoomSheet } from '../../components/ArchiveToMakeRoomSheet';
+import { useStandards } from '../../hooks/useStandards';
+import { useDashboardLayout } from '../../hooks/useDashboardLayout';
 import { useUIPreferencesStore } from '../../stores/uiPreferencesStore';
 import { useTheme } from '../../theme/useTheme';
 import { trackStandardEvent } from '../../utils/analytics';
 import { useSaveEdit } from './useSaveEdit';
 import { PeriodFields } from '../standard-fields/PeriodFields';
+import {
+  buildDashboardPages,
+  buildPlacementUpdates,
+  createNextPage,
+  getFirstPageWithRoom,
+} from '../../utils/dashboardPages';
 
 type FlowNav = NativeStackNavigationProp<CreateStandardFlowParamList>;
 type MainNav = NativeStackNavigationProp<MainStackParamList>;
@@ -31,7 +37,8 @@ export function SetPeriodStep() {
   const insets = useSafeAreaInsets();
   const flowNavigation = useNavigation<FlowNav>();
   const mainNavigation = useNavigation<MainNav>();
-  const { createStandard, archiveStandard, activeStandards } = useStandards();
+  const { createStandard, activeStandards } = useStandards();
+  const { layout, saveLayoutAndPlacements } = useDashboardLayout();
   const parentNavigation = flowNavigation.getParent<NativeStackNavigationProp<MainStackParamList>>();
   const setPendingScrollToStandardId = useUIPreferencesStore((s) => s.setPendingScrollToStandardId);
   const { editingStandardId, handleSaveEdit, saving: savingEdit, saveError } = useSaveEdit(parentNavigation, mainNavigation);
@@ -59,7 +66,6 @@ export function SetPeriodStep() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [capSheetVisible, setCapSheetVisible] = useState(false);
   const [learnMoreExpanded, setLearnMoreExpanded] = useState(false);
 
   const handleSubmit = useCallback(async () => {
@@ -74,6 +80,25 @@ export function SetPeriodStep() {
     setSubmitting(true);
     try {
       const newStandard = await createStandard(payload);
+      const pages = buildDashboardPages(activeStandards, layout);
+      const targetPage = getFirstPageWithRoom(pages);
+      const nextPages = targetPage
+        ? pages.map((page) =>
+            page.id === targetPage.id
+              ? { ...page, standards: [...page.standards, newStandard] }
+              : page
+          )
+        : [
+            ...pages,
+            {
+              ...createNextPage(pages),
+              standards: [newStandard],
+            },
+          ];
+      await saveLayoutAndPlacements(
+        nextPages.map(({ standards: _standards, ...page }) => page),
+        buildPlacementUpdates(nextPages)
+      );
       trackStandardEvent('standard_create', { standardName: payload.name });
       // Tell the dashboard to scroll to the newly created standard's card
       setPendingScrollToStandardId(newStandard.id);
@@ -85,37 +110,20 @@ export function SetPeriodStep() {
         mainNavigation.goBack();
       }
     } catch (err) {
-      if (err instanceof ActiveCapExceededError) {
-        setCapSheetVisible(true);
-      } else {
-        setErrorMessage(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }, [generatePayload, createStandard, parentNavigation, mainNavigation, setPendingScrollToStandardId]);
-
-  const handleArchiveAndRetry = useCallback(async (standardId: string) => {
-    setCapSheetVisible(false);
-    const payload = generatePayload();
-    if (!payload) return;
-    setSubmitting(true);
-    try {
-      await archiveStandard(standardId);
-      const newStandard = await createStandard(payload, { bypassCap: true });
-      trackStandardEvent('standard_create', { standardName: payload.name });
-      setPendingScrollToStandardId(newStandard.id);
-      if (parentNavigation) {
-        parentNavigation.goBack();
-      } else {
-        mainNavigation.goBack();
-      }
-    } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
-  }, [archiveStandard, createStandard, generatePayload, parentNavigation, mainNavigation, setPendingScrollToStandardId]);
+  }, [
+    activeStandards,
+    createStandard,
+    generatePayload,
+    layout,
+    mainNavigation,
+    parentNavigation,
+    saveLayoutAndPlacements,
+    setPendingScrollToStandardId,
+  ]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.chrome }]}>
@@ -238,12 +246,6 @@ export function SetPeriodStep() {
           );
         })()}
       </View>
-      <ArchiveToMakeRoomSheet
-        visible={capSheetVisible}
-        activeStandards={activeStandards}
-        onArchive={handleArchiveAndRetry}
-        onRequestClose={() => setCapSheetVisible(false)}
-      />
     </View>
   );
 }

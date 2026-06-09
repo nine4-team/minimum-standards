@@ -946,6 +946,21 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
   const standardsSnap = await db
     .collection(`users/${memberUid}/standards`)
     .get();
+  const layoutSnap = await db.doc(`users/${memberUid}/preferences/dashboardLayout`).get();
+  const layout = layoutSnap.exists ? layoutSnap.data() : null;
+  const pages = Array.isArray(layout && layout.pages)
+    ? layout.pages
+        .filter((page) => page && typeof page.id === 'string')
+        .map((page, index) => ({
+          id: page.id,
+          name: typeof page.name === 'string' && page.name.trim()
+            ? page.name.trim()
+            : `Page ${index + 1}`,
+          orderIndex: typeof page.orderIndex === 'number' ? page.orderIndex : index,
+        }))
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((page, index) => ({ ...page, orderIndex: index }))
+    : [];
 
   const standards = [];
   standardsSnap.forEach((doc) => {
@@ -963,6 +978,8 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
       cadence: data.cadence,
       sessionConfig: data.sessionConfig || null,
       periodStartPreference: data.periodStartPreference,
+      dashboardPageId: data.dashboardPageId,
+      dashboardOrderIndex: data.dashboardOrderIndex,
     });
   });
 
@@ -1027,6 +1044,8 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
       cadence: s.cadence,
       sessionConfig: s.sessionConfig,
       periodStartPreference: s.periodStartPreference,
+      dashboardPageId: s.dashboardPageId,
+      dashboardOrderIndex: s.dashboardOrderIndex,
       status,
       progressPercent,
       total,
@@ -1035,7 +1054,7 @@ exports.getMemberStandards = functions.https.onCall(async (request) => {
     };
   });
 
-  return { standards: result };
+  return { pages, standards: result };
 });
 
 exports.getMemberStandardDetail = functions.https.onCall(async (request) => {
@@ -1124,4 +1143,3 @@ exports.getMemberStandardDetail = functions.https.onCall(async (request) => {
     history,
   };
 });
-

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activityHistoryDocSchema = exports.activityHistoryPeriodStatusSchema = exports.activityHistoryStandardSnapshotSchema = exports.activityHistorySourceSchema = exports.dashboardPinsSchema = exports.activityLogSchema = exports.standardSchema = exports.configEraSchema = exports.activitySchema = exports.standardSessionConfigSchema = exports.standardStateSchema = exports.legacyStandardCadenceSchema = exports.standardCadenceSchema = exports.cadenceUnitSchema = void 0;
+exports.activityHistoryDocSchema = exports.activityHistoryPeriodStatusSchema = exports.activityHistoryStandardSnapshotSchema = exports.activityHistorySourceSchema = exports.dashboardPinsSchema = exports.dashboardLayoutSchema = exports.dashboardLayoutPageSchema = exports.activityLogSchema = exports.standardSchema = exports.configEraSchema = exports.activitySchema = exports.standardSessionConfigSchema = exports.standardStateSchema = exports.legacyStandardCadenceSchema = exports.standardCadenceSchema = exports.cadenceUnitSchema = void 0;
 const zod_1 = require("zod");
 const unit_normalization_1 = require("./unit-normalization");
 const timestampMsSchema = zod_1.z
@@ -103,6 +103,8 @@ exports.standardSchema = zod_1.z.object({
     configEras: zod_1.z.array(exports.configEraSchema).optional(),
     notes: zod_1.z.string().max(1000).nullable().default(null),
     orderIndex: zod_1.z.number().int().nonnegative().optional(),
+    dashboardPageId: zod_1.z.string().min(1).optional(),
+    dashboardOrderIndex: zod_1.z.number().int().nonnegative().optional(),
     hiddenFromGroup: zod_1.z.boolean().optional(),
     activityId: zod_1.z.string().min(1).optional(), // Deprecated: kept for migration
     createdAtMs: timestampMsSchema,
@@ -122,6 +124,17 @@ exports.activityLogSchema = zod_1.z.object({
     createdAtMs: timestampMsSchema,
     updatedAtMs: timestampMsSchema,
     deletedAtMs: timestampMsSchema.nullable()
+});
+exports.dashboardLayoutPageSchema = zod_1.z.object({
+    id: zod_1.z.string().min(1),
+    name: zod_1.z.string().min(1).max(40),
+    orderIndex: zod_1.z.number().int().nonnegative(),
+});
+exports.dashboardLayoutSchema = zod_1.z.object({
+    id: zod_1.z.string().min(1),
+    pages: zod_1.z.array(exports.dashboardLayoutPageSchema),
+    pageSize: zod_1.z.literal(6),
+    updatedAtMs: timestampMsSchema,
 });
 exports.dashboardPinsSchema = zod_1.z.object({
     id: zod_1.z.string().min(1),

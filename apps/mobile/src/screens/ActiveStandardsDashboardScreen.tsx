@@ -5,6 +5,10 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  ScrollView,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +20,7 @@ import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
 import {
   useStandards,
 } from '../hooks/useStandards';
+import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useQuickLog } from '../hooks/useQuickLog';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { trackStandardEvent } from '../utils/analytics';
@@ -28,6 +33,13 @@ import { DraggableStandardsGrid } from '../components/DraggableStandardsGrid';
 import { useTheme } from '../theme/useTheme';
 import { BUTTON_BORDER_RADIUS, CARD_LIST_GAP, SCREEN_PADDING, getScreenContainerStyle } from '@nine4/ui-kit';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {
+  buildDashboardPages,
+  buildPlacementUpdates,
+  createNextPage,
+  moveStandardToPage,
+  reorderPageStandards,
+} from '../utils/dashboardPages';
 
 export interface StandardsScreenProps {
   onBack?: () => void;
@@ -51,6 +63,8 @@ export function StandardsScreen({
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const pagerRef = useRef<ScrollView | null>(null);
   const [selectedStandard, setSelectedStandard] = useState<Standard | null>(null);
   const [logModalVisible, setLogModalVisible] = useState(false);
   const {
@@ -69,14 +83,19 @@ export function StandardsScreen({
     deleteStandard,
     deleteLogEntry,
     updateStandard,
-    saveStandardOrder,
   } = useStandards();
+  const {
+    layout,
+    loading: layoutLoading,
+    saveLayoutAndPlacements,
+  } = useDashboardLayout();
 
   // State for active standard action bottom sheet (T037–T041)
   const [activeMenuStandard, setActiveMenuStandard] = useState<Standard | null>(null);
   const [activeMenuVisible, setActiveMenuVisible] = useState(false);
   const [activeDeactivateConfirmVisible, setActiveDeactivateConfirmVisible] = useState(false);
   const [activeDeleteConfirmVisible, setActiveDeleteConfirmVisible] = useState(false);
+  const [activePageIndex, setActivePageIndex] = useState(0);
 
   const { pendingScrollToStandardId, setPendingScrollToStandardId } = useUIPreferencesStore();
   const [highlightedStandardId, setHighlightedStandardId] = useState<string | null>(null);
@@ -297,18 +316,6 @@ export function StandardsScreen({
     ]
   );
 
-  const handleReorder = useCallback(
-    async (orderedIds: string[]) => {
-      try {
-        await saveStandardOrder(orderedIds);
-      } catch (err) {
-        Alert.alert('Error', 'Failed to save order');
-        console.error('Failed to save order:', err);
-      }
-    },
-    [saveStandardOrder]
-  );
-
   // Sort by orderIndex if set (user has dragged), otherwise alphabetical
   const sortedAndFilteredStandards = useMemo(() => {
     return [...dashboardStandards].sort((a, b) => {
@@ -319,6 +326,105 @@ export function StandardsScreen({
     });
   }, [dashboardStandards]);
 
+  const dashboardStandardMap = useMemo(
+    () =>
+      new Map(
+        sortedAndFilteredStandards.map((entry) => [entry.standard.id, entry])
+      ),
+    [sortedAndFilteredStandards]
+  );
+
+  const standardPages = useMemo(
+    () =>
+      buildDashboardPages(
+        sortedAndFilteredStandards.map((entry) => entry.standard),
+        layout
+      ),
+    [layout, sortedAndFilteredStandards]
+  );
+
+  const dashboardPages = useMemo(
+    () =>
+      standardPages.map((page) => ({
+        ...page,
+        items: page.standards
+          .map((standard) => dashboardStandardMap.get(standard.id))
+          .filter((entry): entry is DashboardStandard => Boolean(entry)),
+      })),
+    [dashboardStandardMap, standardPages]
+  );
+
+  const currentPage = dashboardPages[
+    Math.min(activePageIndex, Math.max(dashboardPages.length - 1, 0))
+  ];
+
+  useEffect(() => {
+    if (activePageIndex <= dashboardPages.length - 1) return;
+    setActivePageIndex(Math.max(dashboardPages.length - 1, 0));
+  }, [activePageIndex, dashboardPages.length]);
+
+  useEffect(() => {
+    pagerRef.current?.scrollTo({
+      x: activePageIndex * windowWidth,
+      animated: true,
+    });
+  }, [activePageIndex, windowWidth]);
+
+  const handleReorder = useCallback(
+    async (pageId: string, orderedIds: string[]) => {
+      try {
+        const nextPages = reorderPageStandards(standardPages, pageId, orderedIds);
+        await saveLayoutAndPlacements(
+          nextPages.map(({ standards: _standards, ...page }) => page),
+          buildPlacementUpdates(nextPages)
+        );
+      } catch (err) {
+        Alert.alert('Error', 'Failed to save order');
+        console.error('Failed to save order:', err);
+      }
+    },
+    [saveLayoutAndPlacements, standardPages]
+  );
+
+  const handleAddPage = useCallback(async () => {
+    try {
+      const nextPage = createNextPage(standardPages);
+      const nextPages = [...standardPages, { ...nextPage, standards: [] }];
+      await saveLayoutAndPlacements(
+        nextPages.map(({ standards: _standards, ...page }) => page),
+        buildPlacementUpdates(nextPages)
+      );
+      setActivePageIndex(standardPages.length);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to add page');
+      console.error('Failed to add page:', err);
+    }
+  }, [saveLayoutAndPlacements, standardPages]);
+
+  const handleMoveStandardToPage = useCallback(
+    async (standardId: string, targetPageId: string) => {
+      const result = moveStandardToPage(standardPages, standardId, targetPageId);
+      if (result.error) {
+        Alert.alert('Page full', result.error);
+        return;
+      }
+      try {
+        await saveLayoutAndPlacements(
+          result.pages.map(({ standards: _standards, ...page }) => page),
+          buildPlacementUpdates(result.pages)
+        );
+        const nextPageIndex = result.pages.findIndex((page) => page.id === targetPageId);
+        if (nextPageIndex >= 0) {
+          setActivePageIndex(nextPageIndex);
+        }
+      } catch (err) {
+        Alert.alert('Error', 'Failed to move standard');
+        console.error('Failed to move standard:', err);
+      }
+    },
+    [saveLayoutAndPlacements, standardPages]
+  );
+
   // Highlight a newly created standard when it appears in the grid
   useEffect(() => {
     if (!pendingScrollToStandardId) return;
@@ -326,15 +432,35 @@ export function StandardsScreen({
       (entry) => entry.standard.id === pendingScrollToStandardId
     );
     if (!found) return; // standard hasn't appeared yet; effect will re-run when it does
+    const pageIndex = dashboardPages.findIndex((page) =>
+      page.items.some((entry) => entry.standard.id === pendingScrollToStandardId)
+    );
+    if (pageIndex >= 0) {
+      setActivePageIndex(pageIndex);
+    }
     setPendingScrollToStandardId(null);
     setHighlightedStandardId(pendingScrollToStandardId);
     setTimeout(() => {
       setHighlightedStandardId(null);
     }, 2000);
-  }, [pendingScrollToStandardId, sortedAndFilteredStandards, setPendingScrollToStandardId]);
+  }, [dashboardPages, pendingScrollToStandardId, sortedAndFilteredStandards, setPendingScrollToStandardId]);
+
+  const handlePagerScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextIndex = Math.round(
+        event.nativeEvent.contentOffset.x / Math.max(windowWidth, 1)
+      );
+      setActivePageIndex(
+        Math.max(0, Math.min(nextIndex, Math.max(dashboardPages.length - 1, 0)))
+      );
+    },
+    [dashboardPages.length, windowWidth]
+  );
 
   const content = useMemo(() => {
-    if (loading && dashboardStandards.length === 0) {
+    const combinedLoading = loading || layoutLoading;
+
+    if (combinedLoading && dashboardStandards.length === 0) {
       return (
         <View style={styles.skeletonContainer} testID="dashboard-skeletons">
           {[0, 1, 2].map((key) => (
@@ -375,23 +501,79 @@ export function StandardsScreen({
     }
 
     return (
-      <DraggableStandardsGrid
-        items={sortedAndFilteredStandards}
-        onReorder={handleReorder}
-        refreshing={loading}
-        onRefresh={refreshProgress}
-        renderCard={renderCard}
-      />
+      <View style={styles.pagerContainer}>
+        <View style={[styles.pageBar, { borderBottomColor: theme.border.secondary }]}>
+          <View style={styles.pageTitleBlock}>
+            <Text style={[styles.pageTitle, { color: theme.text.primary }]} numberOfLines={1}>
+              {currentPage?.name ?? 'Page 1'}
+            </Text>
+            <View style={styles.pageDots} accessibilityRole="tablist">
+              {dashboardPages.map((page, index) => (
+                <TouchableOpacity
+                  key={page.id}
+                  onPress={() => setActivePageIndex(index)}
+                  style={[
+                    styles.pageDot,
+                    {
+                      backgroundColor:
+                        index === activePageIndex
+                          ? theme.primary.main
+                          : theme.border.primary,
+                    },
+                  ]}
+                  accessibilityRole="tab"
+                  accessibilityLabel={page.name}
+                />
+              ))}
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={handleAddPage}
+            style={styles.pageIconButton}
+            accessibilityRole="button"
+            accessibilityLabel="Add page"
+          >
+            <MaterialIcons name="add" size={22} color={theme.text.primary} />
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          ref={pagerRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handlePagerScrollEnd}
+          style={styles.horizontalPager}
+          scrollEventThrottle={16}
+        >
+          {dashboardPages.map((page) => (
+            <View key={page.id} style={[styles.page, { width: windowWidth }]}>
+              <DraggableStandardsGrid
+                items={page.items}
+                onReorder={(orderedIds) => handleReorder(page.id, orderedIds)}
+                refreshing={loading}
+                onRefresh={refreshProgress}
+                renderCard={renderCard}
+              />
+            </View>
+          ))}
+        </ScrollView>
+      </View>
     );
   }, [
+    activePageIndex,
+    currentPage?.name,
     dashboardStandards,
+    dashboardPages,
+    handleAddPage,
     loading,
+    layoutLoading,
     onLaunchBuilder,
     refreshProgress,
     renderCard,
     handleReorder,
+    handlePagerScrollEnd,
     theme,
-    sortedAndFilteredStandards,
+    windowWidth,
   ]);
 
   return (
@@ -436,6 +618,25 @@ export function StandardsScreen({
             icon: 'edit',
             onPress: handleActiveEdit,
           },
+          ...(dashboardPages.length > 1
+            ? [
+                {
+                  key: 'move',
+                  label: 'Move to Page',
+                  icon: 'swap-horiz',
+                  onPress: () => {},
+                  subItems: dashboardPages.map((page) => ({
+                    key: page.id,
+                    label: page.name,
+                    onPress: () =>
+                      handleMoveStandardToPage(activeMenuStandard.id, page.id),
+                  })),
+                  selectedSubItemKey: standardPages.find((page) =>
+                    page.standards.some((standard) => standard.id === activeMenuStandard.id)
+                  )?.id,
+                },
+              ]
+            : []),
           {
             key: 'deactivate',
             label: 'Deactivate',
@@ -584,5 +785,45 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  pagerContainer: {
+    flex: 1,
+  },
+  pageBar: {
+    minHeight: 52,
+    paddingHorizontal: SCREEN_PADDING,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pageTitleBlock: {
+    flex: 1,
+    gap: 6,
+  },
+  pageTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  pageDots: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  pageDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  pageIconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  horizontalPager: {
+    flex: 1,
+  },
+  page: {
+    flex: 1,
   },
 });

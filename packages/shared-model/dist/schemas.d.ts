@@ -270,6 +270,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
     }>, "many">>;
     notes: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     orderIndex: z.ZodOptional<z.ZodNumber>;
+    dashboardPageId: z.ZodOptional<z.ZodString>;
+    dashboardOrderIndex: z.ZodOptional<z.ZodNumber>;
     hiddenFromGroup: z.ZodOptional<z.ZodBoolean>;
     activityId: z.ZodOptional<z.ZodString>;
     createdAtMs: z.ZodEffects<z.ZodNumber, number, number>;
@@ -325,6 +327,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    dashboardPageId?: string | undefined;
+    dashboardOrderIndex?: number | undefined;
     hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }, {
@@ -377,6 +381,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    dashboardPageId?: string | undefined;
+    dashboardOrderIndex?: number | undefined;
     hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }>, {
@@ -429,6 +435,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    dashboardPageId?: string | undefined;
+    dashboardOrderIndex?: number | undefined;
     hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }, {
@@ -481,6 +489,8 @@ export declare const standardSchema: z.ZodEffects<z.ZodObject<{
         } | undefined;
     }[] | undefined;
     orderIndex?: number | undefined;
+    dashboardPageId?: string | undefined;
+    dashboardOrderIndex?: number | undefined;
     hiddenFromGroup?: boolean | undefined;
     activityId?: string | undefined;
 }>;
@@ -514,6 +524,55 @@ export declare const activityLogSchema: z.ZodObject<{
     occurredAtMs: number;
     note: string | null;
     editedAtMs: number | null;
+}>;
+export declare const dashboardLayoutPageSchema: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    orderIndex: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    name: string;
+    orderIndex: number;
+}, {
+    id: string;
+    name: string;
+    orderIndex: number;
+}>;
+export declare const dashboardLayoutSchema: z.ZodObject<{
+    id: z.ZodString;
+    pages: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+        orderIndex: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        name: string;
+        orderIndex: number;
+    }, {
+        id: string;
+        name: string;
+        orderIndex: number;
+    }>, "many">;
+    pageSize: z.ZodLiteral<6>;
+    updatedAtMs: z.ZodEffects<z.ZodNumber, number, number>;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    updatedAtMs: number;
+    pages: {
+        id: string;
+        name: string;
+        orderIndex: number;
+    }[];
+    pageSize: 6;
+}, {
+    id: string;
+    updatedAtMs: number;
+    pages: {
+        id: string;
+        name: string;
+        orderIndex: number;
+    }[];
+    pageSize: 6;
 }>;
 export type ActivitySchema = z.infer<typeof activitySchema>;
 export type StandardSchema = z.infer<typeof standardSchema>;

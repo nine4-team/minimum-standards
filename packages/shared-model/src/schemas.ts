@@ -108,6 +108,8 @@ export const standardSchema = z.object({
   configEras: z.array(configEraSchema).optional(),
   notes: z.string().max(1000).nullable().default(null),
   orderIndex: z.number().int().nonnegative().optional(),
+  dashboardPageId: z.string().min(1).optional(),
+  dashboardOrderIndex: z.number().int().nonnegative().optional(),
   hiddenFromGroup: z.boolean().optional(),
   activityId: z.string().min(1).optional(), // Deprecated: kept for migration
   createdAtMs: timestampMsSchema,
@@ -131,6 +133,19 @@ export const activityLogSchema = z.object({
   createdAtMs: timestampMsSchema,
   updatedAtMs: timestampMsSchema,
   deletedAtMs: timestampMsSchema.nullable()
+});
+
+export const dashboardLayoutPageSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(40),
+  orderIndex: z.number().int().nonnegative(),
+});
+
+export const dashboardLayoutSchema = z.object({
+  id: z.string().min(1),
+  pages: z.array(dashboardLayoutPageSchema),
+  pageSize: z.literal(6),
+  updatedAtMs: timestampMsSchema,
 });
 
 export type ActivitySchema = z.infer<typeof activitySchema>;

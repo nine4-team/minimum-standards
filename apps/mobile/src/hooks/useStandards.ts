@@ -27,15 +27,6 @@ import { retryFirestoreWrite } from '../utils/retry';
 import { emitActivityLogMutation } from '../utils/activityLogEvents';
 import { recomputeActivityHistoryPeriod } from '../utils/activityHistoryRecompute';
 
-export const MAX_ACTIVE_STANDARDS = 6;
-
-export class ActiveCapExceededError extends Error {
-  constructor() {
-    super(`Active standards cap reached (${MAX_ACTIVE_STANDARDS}).`);
-    this.name = 'ActiveCapExceededError';
-  }
-}
-
 export interface CreateStandardInput {
   name: string;
   notes: string | null;
@@ -95,14 +86,12 @@ export interface UseStandardsResult {
   activeStandards: Standard[];
   archivedStandards: Standard[];
   orderedActiveStandards: Standard[];
-  activeCount: number;
-  isAtActiveCap: boolean;
   loading: boolean;
   error: Error | null;
-  createStandard: (input: CreateStandardInput, options?: { bypassCap?: boolean }) => Promise<Standard>;
+  createStandard: (input: CreateStandardInput) => Promise<Standard>;
   updateStandard: (input: UpdateStandardInput) => Promise<Standard>;
   archiveStandard: (standardId: string) => Promise<void>;
-  unarchiveStandard: (standardId: string, options?: { bypassCap?: boolean }) => Promise<void>;
+  unarchiveStandard: (standardId: string) => Promise<void>;
   deleteStandard: (standardId: string) => Promise<void>;
   createLogEntry: (input: CreateLogInput) => Promise<{ logEntryId: string }>;
   updateLogEntry: (input: UpdateLogInput) => Promise<void>;
@@ -196,7 +185,6 @@ export function useStandards(): UseStandardsResult {
   const createStandard = useCallback(
     async (
       input: CreateStandardInput,
-      options: { bypassCap?: boolean } = {}
     ): Promise<Standard> => {
       if (!userId) {
         throw new Error('User not authenticated');
@@ -206,10 +194,6 @@ export function useStandards(): UseStandardsResult {
         doc(firebaseFirestore, 'users', userId),
         'standards'
       );
-
-      if (!options.bypassCap && activeStandards.length >= MAX_ACTIVE_STANDARDS) {
-        throw new ActiveCapExceededError();
-      }
 
       const docRef = doc(standardsCollection);
 
@@ -252,7 +236,28 @@ export function useStandards(): UseStandardsResult {
       );
       return created;
     },
-    [userId, activeStandards.length]
+    [userId]
+  );
+
+  const triggerActivityHistoryRecompute = useCallback(
+    (standard: Standard, occurredAtMs: number, previousStandard?: Standard) => {
+      if (!userId) {
+        return;
+      }
+
+      void recomputeActivityHistoryPeriod({
+        userId,
+        standard,
+        occurredAtMs,
+        previousStandard,
+      }).catch((error) => {
+        console.error(
+          '[useStandards] Failed to recompute activity history period',
+          error
+        );
+      });
+    },
+    [userId]
   );
 
   const updateStandard = useCallback(
@@ -399,18 +404,9 @@ export function useStandards(): UseStandardsResult {
     async (
       standardId: string,
       shouldArchive: boolean,
-      options: { bypassCap?: boolean } = {}
     ): Promise<void> => {
       if (!userId) {
         throw new Error('User not authenticated');
-      }
-
-      if (
-        !shouldArchive &&
-        !options.bypassCap &&
-        activeStandards.length >= MAX_ACTIVE_STANDARDS
-      ) {
-        throw new ActiveCapExceededError();
       }
 
       const standardRef = doc(
@@ -428,7 +424,7 @@ export function useStandards(): UseStandardsResult {
         });
       });
     },
-    [userId, activeStandards.length]
+    [userId]
   );
 
   const archiveStandard = useCallback(
@@ -437,8 +433,7 @@ export function useStandards(): UseStandardsResult {
   );
 
   const unarchiveStandard = useCallback(
-    async (standardId: string, options: { bypassCap?: boolean } = {}) =>
-      updateArchiveState(standardId, false, options),
+    async (standardId: string) => updateArchiveState(standardId, false),
     [updateArchiveState]
   );
 
@@ -486,27 +481,6 @@ export function useStandards(): UseStandardsResult {
       return standard.state === 'active' && standard.archivedAtMs == null;
     },
     [standards]
-  );
-
-  const triggerActivityHistoryRecompute = useCallback(
-    (standard: Standard, occurredAtMs: number, previousStandard?: Standard) => {
-      if (!userId) {
-        return;
-      }
-
-      void recomputeActivityHistoryPeriod({
-        userId,
-        standard,
-        occurredAtMs,
-        previousStandard,
-      }).catch((error) => {
-        console.error(
-          '[useStandards] Failed to recompute activity history period',
-          error
-        );
-      });
-    },
-    [userId]
   );
 
   const createLogEntry = useCallback(
@@ -714,8 +688,6 @@ export function useStandards(): UseStandardsResult {
     activeStandards,
     archivedStandards,
     orderedActiveStandards,
-    activeCount: activeStandards.length,
-    isAtActiveCap: activeStandards.length >= MAX_ACTIVE_STANDARDS,
     loading,
     error,
     createStandard,

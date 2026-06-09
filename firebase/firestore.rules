@@ -160,6 +160,8 @@ service cloud.firestore {
         'deletedAt',
         'configEras',
         'orderIndex',
+        'dashboardPageId',
+        'dashboardOrderIndex',
         'hiddenFromGroup'
       ])
       && ('deletedAt' in request.resource.data)
@@ -210,6 +212,14 @@ service cloud.firestore {
       && (
         !('orderIndex' in request.resource.data)
         || (request.resource.data.orderIndex is number && request.resource.data.orderIndex >= 0)
+      )
+      && (
+        !('dashboardPageId' in request.resource.data)
+        || (request.resource.data.dashboardPageId is string && request.resource.data.dashboardPageId.size() >= 1 && request.resource.data.dashboardPageId.size() <= 120)
+      )
+      && (
+        !('dashboardOrderIndex' in request.resource.data)
+        || (request.resource.data.dashboardOrderIndex is number && request.resource.data.dashboardOrderIndex >= 0)
       );
     }
 
@@ -322,6 +332,25 @@ service cloud.firestore {
       // pinnedStandardIds can be updated
       return validDashboardPins() && 
         request.resource.data.updatedAt == request.time;
+    }
+
+    function validDashboardLayout() {
+      return hasOnlyKeys([
+        'pages',
+        'pageSize',
+        'updatedAt'
+      ])
+      && ('pages' in request.resource.data)
+      && request.resource.data.pages is list
+      && request.resource.data.pages.size() <= 100
+      && request.resource.data.pageSize == 6
+      && ('updatedAt' in request.resource.data)
+      && isTimestamp(request.resource.data.updatedAt);
+    }
+
+    function validDashboardLayoutWrite() {
+      return validDashboardLayout()
+        && request.resource.data.updatedAt == request.time;
     }
 
     function validActivityHistoryStandardSnapshot(snapshot) {
@@ -608,13 +637,15 @@ service cloud.firestore {
       }
 
       match /preferences/{preferenceId} {
-        allow read: if isOwner(uid) && preferenceId in ['dashboardPins', 'migrations'];
+        allow read: if isOwner(uid) && preferenceId in ['dashboardPins', 'dashboardLayout', 'migrations'];
         allow create: if isOwner(uid) && (
           (preferenceId == 'dashboardPins' && validDashboardPinsCreate())
+          || (preferenceId == 'dashboardLayout' && validDashboardLayoutWrite())
           || (preferenceId == 'migrations')
         );
         allow update: if isOwner(uid) && (
           (preferenceId == 'dashboardPins' && validDashboardPinsUpdate())
+          || (preferenceId == 'dashboardLayout' && validDashboardLayoutWrite())
           || (preferenceId == 'migrations')
         );
         allow delete: if false;

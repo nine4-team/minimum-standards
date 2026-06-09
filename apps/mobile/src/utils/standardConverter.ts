@@ -20,6 +20,8 @@ export type FirestoreStandardData = {
   periodStartPreference?: Standard['periodStartPreference'];
   configEras?: ConfigEra[];
   orderIndex?: number;
+  dashboardPageId?: string;
+  dashboardOrderIndex?: number;
   hiddenFromGroup?: boolean;
 };
 
@@ -59,6 +61,14 @@ export function fromFirestoreStandard(
     updatedAtMs: data.updatedAt?.toMillis() ?? Date.now(),
     deletedAtMs: data.deletedAt?.toMillis() ?? null,
     orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : undefined,
+    dashboardPageId:
+      typeof data.dashboardPageId === 'string' && data.dashboardPageId.length > 0
+        ? data.dashboardPageId
+        : undefined,
+    dashboardOrderIndex:
+      typeof data.dashboardOrderIndex === 'number'
+        ? data.dashboardOrderIndex
+        : undefined,
     hiddenFromGroup: data.hiddenFromGroup === true ? true : undefined,
   }) as Standard;
 }
