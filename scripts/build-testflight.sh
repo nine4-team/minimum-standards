@@ -11,13 +11,14 @@ Usage:
 
 Examples:
   scripts/build-testflight.sh
-  scripts/build-testflight.sh --external --groups "External Testers"
+  scripts/build-testflight.sh --external --groups "External Testing Group"
   scripts/build-testflight.sh 202605271530 --external --changelog "Fix group standards flows"
 
 Environment:
   APP_STORE_CONNECT_ISSUER_ID defaults to 4827880b-e626-4e8e-a16b-c66db4355e12.
   APP_STORE_CONNECT_KEY_ID defaults to X5SX4S7NW5.
   APP_STORE_CONNECT_KEY_FILEPATH defaults to ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8.
+  TESTFLIGHT_GROUPS defaults to External Testing Group.
 USAGE
 }
 

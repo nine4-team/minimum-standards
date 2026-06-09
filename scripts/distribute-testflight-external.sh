@@ -9,12 +9,13 @@ Usage:
   scripts/distribute-testflight-external.sh <build-number> [--groups "Group A,Group B"] [--version "1.0"] [--changelog "Text"]
 
 Examples:
-  scripts/distribute-testflight-external.sh 202605271403 --groups "External Testers"
+  scripts/distribute-testflight-external.sh 202605271403 --groups "External Testing Group"
 
 Environment:
   APP_STORE_CONNECT_ISSUER_ID defaults to 4827880b-e626-4e8e-a16b-c66db4355e12.
   APP_STORE_CONNECT_KEY_ID defaults to X5SX4S7NW5.
   APP_STORE_CONNECT_KEY_FILEPATH defaults to ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8.
+  TESTFLIGHT_GROUPS defaults to External Testing Group.
 USAGE
 }
 

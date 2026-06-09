@@ -12,7 +12,7 @@ The normal path can do both in one command.
 From the repo root:
 
 ```bash
-scripts/build-testflight.sh --external --groups "External Testers"
+scripts/build-testflight.sh --external --groups "External Testing Group"
 ```
 
 That command:
@@ -21,19 +21,19 @@ That command:
 - builds the Release archive for `MinimumStandardsMobile (Embedded)`,
 - uploads to App Store Connect/TestFlight,
 - waits for processing,
-- distributes the build to the `External Testers` group,
+- distributes the build to `External Testing Group`,
 - notifies external testers.
 
 To set an explicit build number:
 
 ```bash
-scripts/build-testflight.sh 202606091030 --external --groups "External Testers"
+scripts/build-testflight.sh 202606091030 --external --groups "External Testing Group"
 ```
 
 To set an explicit marketing version:
 
 ```bash
-scripts/build-testflight.sh 202606091030 --version "1.0" --external --groups "External Testers"
+scripts/build-testflight.sh 202606091030 --version "1.0" --external --groups "External Testing Group"
 ```
 
 ## Distribute an Already Uploaded Build
@@ -41,13 +41,13 @@ scripts/build-testflight.sh 202606091030 --version "1.0" --external --groups "Ex
 If the build was uploaded through Xcode or `xcodebuild -exportArchive`, attach it to external testers with:
 
 ```bash
-scripts/distribute-testflight-external.sh 202606081535 --groups "External Testers"
+scripts/distribute-testflight-external.sh 202606081535 --groups "External Testing Group"
 ```
 
 If the marketing version changes:
 
 ```bash
-scripts/distribute-testflight-external.sh 202606081535 --version "1.0" --groups "External Testers"
+scripts/distribute-testflight-external.sh 202606081535 --version "1.0" --groups "External Testing Group"
 ```
 
 ## Required Local Secret
@@ -66,7 +66,7 @@ The non-secret defaults are stored in `apps/mobile/fastlane/Fastfile`:
 - team id: `5VHL56HV63`
 - API key id: `X5SX4S7NW5`
 - issuer id: `4827880b-e626-4e8e-a16b-c66db4355e12`
-- external group: `External Testers`
+- external group: `External Testing Group`
 
 Override these only when needed:
 
@@ -74,7 +74,7 @@ Override these only when needed:
 APP_STORE_CONNECT_KEY_ID=...
 APP_STORE_CONNECT_ISSUER_ID=...
 APP_STORE_CONNECT_KEY_FILEPATH=...
-TESTFLIGHT_GROUPS="External Testers"
+TESTFLIGHT_GROUPS="External Testing Group"
 MARKETING_VERSION="1.0"
 BUILD_NUMBER=202606091030
 ```
@@ -90,6 +90,8 @@ Successfully distributed build to External testers
 ```
 
 for build `1.0 (202606081535)`.
+
+On June 9, 2026, App Store Connect API verification showed build `1.0 (202606081535)` attached to `External Testing Group`, beta review `APPROVED`, and external state `IN_BETA_TESTING`.
 
 ## Preflight Checks
 
