@@ -131,7 +131,9 @@ export function getFirstPageWithRoom(
   return pages.find((page) => page.standards.length < pageSize) ?? null;
 }
 
-export function createNextPage(pages: DashboardPage[]): DashboardLayoutPage {
+export function createNextPage<T extends DashboardStandardLike>(
+  pages: DashboardPage<T>[]
+): DashboardLayoutPage {
   const orderIndex = pages.length;
   return {
     id: `page-${Date.now()}-${orderIndex + 1}`,
@@ -150,6 +152,31 @@ export function buildPlacementUpdates<T extends DashboardStandardLike>(
       dashboardOrderIndex: index,
     }))
   );
+}
+
+export function areDashboardPagesEquivalent<T extends DashboardStandardLike>(
+  left: DashboardPage<T>[],
+  right: DashboardPage<T>[]
+): boolean {
+  if (left.length !== right.length) return false;
+
+  return left.every((leftPage, pageIndex) => {
+    const rightPage = right[pageIndex];
+    if (!rightPage) return false;
+    if (
+      leftPage.id !== rightPage.id ||
+      leftPage.name !== rightPage.name ||
+      leftPage.orderIndex !== rightPage.orderIndex ||
+      leftPage.standards.length !== rightPage.standards.length
+    ) {
+      return false;
+    }
+
+    return leftPage.standards.every(
+      (standard, standardIndex) =>
+        standard.id === rightPage.standards[standardIndex]?.id
+    );
+  });
 }
 
 export function reorderPageStandards<T extends DashboardStandardLike>(
@@ -223,6 +250,57 @@ export function moveStandardToPage<T extends DashboardStandardLike>(
   };
 }
 
+export function moveStandardInDashboardPages<T extends DashboardStandardLike>(
+  pages: DashboardPage<T>[],
+  standardId: string,
+  targetPageId: string,
+  targetIndex: number,
+  pageSize: number = DASHBOARD_PAGE_SIZE
+): { pages: DashboardPage<T>[]; error: string | null } {
+  const sourcePage = pages.find((page) =>
+    page.standards.some((standard) => standard.id === standardId)
+  );
+  const targetPage = pages.find((page) => page.id === targetPageId);
+
+  if (!sourcePage || !targetPage) {
+    return { pages, error: 'Page not found.' };
+  }
+
+  const movingStandard = sourcePage.standards.find(
+    (standard) => standard.id === standardId
+  );
+  if (!movingStandard) {
+    return { pages, error: 'Standard not found.' };
+  }
+
+  const movingWithinSamePage = sourcePage.id === targetPage.id;
+  if (!movingWithinSamePage && targetPage.standards.length >= pageSize) {
+    return { pages, error: 'That page is full.' };
+  }
+
+  return {
+    error: null,
+    pages: pages.map((page) => {
+      const withoutMovingStandard = page.standards.filter(
+        (standard) => standard.id !== standardId
+      );
+      if (page.id !== targetPageId) {
+        return page.id === sourcePage.id
+          ? { ...page, standards: withoutMovingStandard }
+          : page;
+      }
+
+      const boundedIndex = Math.max(
+        0,
+        Math.min(targetIndex, withoutMovingStandard.length)
+      );
+      const nextStandards = [...withoutMovingStandard];
+      nextStandards.splice(boundedIndex, 0, movingStandard);
+      return { ...page, standards: nextStandards };
+    }),
+  };
+}
+
 export function renameDashboardPage(
   pages: DashboardLayoutPage[],
   pageId: string,
@@ -233,6 +311,76 @@ export function renameDashboardPage(
   return pages.map((page) =>
     page.id === pageId ? { ...page, name: trimmed.slice(0, 40) } : page
   );
+}
+
+export function renameDashboardDraftPage<T extends DashboardStandardLike>(
+  pages: DashboardPage<T>[],
+  pageId: string,
+  name: string
+): DashboardPage<T>[] {
+  const renamedPages = renameDashboardPage(pages, pageId, name);
+  return pages.map((page) => ({
+    ...page,
+    name: renamedPages.find((renamedPage) => renamedPage.id === page.id)?.name ?? page.name,
+  }));
+}
+
+export function addDashboardDraftPage<T extends DashboardStandardLike>(
+  pages: DashboardPage<T>[],
+  createPage: (pages: DashboardPage<T>[]) => DashboardLayoutPage = createNextPage
+): DashboardPage<T>[] {
+  const nextPage = createPage(pages);
+  return [
+    ...pages,
+    {
+      ...nextPage,
+      orderIndex: pages.length,
+      standards: [],
+    },
+  ];
+}
+
+export function deleteEmptyDashboardDraftPage<T extends DashboardStandardLike>(
+  pages: DashboardPage<T>[],
+  pageId: string
+): { pages: DashboardPage<T>[]; error: string | null } {
+  if (pages.length <= 1) {
+    return { pages, error: 'At least one page is required.' };
+  }
+  const page = pages.find((candidate) => candidate.id === pageId);
+  if (!page) {
+    return { pages, error: 'Page not found.' };
+  }
+  if (page.standards.length > 0) {
+    return { pages, error: 'Only empty pages can be deleted.' };
+  }
+
+  return {
+    error: null,
+    pages: pages
+      .filter((candidate) => candidate.id !== pageId)
+      .map((candidate, index) => ({ ...candidate, orderIndex: index })),
+  };
+}
+
+export function reorderDashboardDraftPage<T extends DashboardStandardLike>(
+  pages: DashboardPage<T>[],
+  pageId: string,
+  direction: -1 | 1
+): DashboardPage<T>[] {
+  const index = pages.findIndex((page) => page.id === pageId);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= pages.length) {
+    return pages;
+  }
+
+  const nextPages = [...pages];
+  const [page] = nextPages.splice(index, 1);
+  nextPages.splice(targetIndex, 0, page);
+  return nextPages.map((candidate, nextIndex) => ({
+    ...candidate,
+    orderIndex: nextIndex,
+  }));
 }
 
 export function getVisiblePageDotIndexes(

@@ -9,6 +9,11 @@ import {
 import { GestureHandlerRootView, PanGestureHandler, State } from 'react-native-gesture-handler';
 import type { DashboardStandard } from '../hooks/useActiveStandardsDashboard';
 import { CARD_LIST_GAP, SCREEN_PADDING } from '@nine4/ui-kit';
+import {
+  haveSameGridItemOrder,
+  haveSameGridItemSet,
+  reconcileGridItems,
+} from '../utils/draggableGridItems';
 
 interface CellFrame {
   x: number;
@@ -51,32 +56,14 @@ export function DraggableStandardsGrid({
   useEffect(() => {
     if (dragActiveRef.current) return;
 
-    const currentIds = orderedItemsRef.current.map(i => i.standard.id);
-    const incomingIds = items.map(i => i.standard.id);
-    const sameSet =
-      currentIds.length === incomingIds.length &&
-      currentIds.every(id => incomingIds.includes(id));
-
-    if (!sameSet) {
-      // Items added or removed — full reset
-      const copy = [...items];
-      orderedItemsRef.current = copy;
-      setOrderedItems(copy);
-      return;
-    }
-
-    // Same items — refresh data (progress) in grid's current order
-    const itemMap = new Map(items.map(i => [i.standard.id, i]));
-    let changed = false;
-    const updated = orderedItemsRef.current.map(old => {
-      const incoming = itemMap.get(old.standard.id);
-      if (!incoming || incoming === old) return old;
-      if (incoming.progress !== old.progress) changed = true;
-      return incoming;
-    });
-    if (changed) {
-      orderedItemsRef.current = updated;
-      setOrderedItems(updated);
+    const nextItems = reconcileGridItems(orderedItemsRef.current, items);
+    if (
+      !haveSameGridItemSet(orderedItemsRef.current, nextItems) ||
+      !haveSameGridItemOrder(orderedItemsRef.current, nextItems) ||
+      nextItems.some((item, index) => item !== orderedItemsRef.current[index])
+    ) {
+      orderedItemsRef.current = nextItems;
+      setOrderedItems(nextItems);
     }
   }, [items]);
 

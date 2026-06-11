@@ -34,7 +34,7 @@ export type ScorecardStackParamList = {
 
 export type SettingsStackParamList = {
   SettingsRoot: undefined;
-  StandardsLibrary: undefined;
+  StandardsLibrary: { returnTo?: 'StandardsDashboard' } | undefined;
   Snapshots: undefined;
   SnapshotCreate: undefined;
   SnapshotDetail: { snapshotId: string };

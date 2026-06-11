@@ -11,6 +11,7 @@ export type FirestoreStandardData = {
   sessionConfig: Standard['sessionConfig'];
   defaultQuantity?: number;
   notes?: string | null;
+  categoryId?: string;
   /** @deprecated Kept for migration compatibility */
   activityId?: string;
   archivedAt: FirebaseFirestoreTypes.Timestamp | null;
@@ -83,5 +84,45 @@ export function toFirestoreStandardDelete(): {
   return {
     deletedAt: Timestamp.now(),
     updatedAt: serverTimestamp(),
+  };
+}
+
+export function toFirestoreStandardArchiveState(
+  data: FirestoreStandardData,
+  shouldArchive: boolean,
+  timestamp: FirebaseFirestoreTypes.FieldValue = serverTimestamp()
+): Record<string, unknown> {
+  return {
+    ...(typeof data.name === 'string' ? { name: data.name } : {}),
+    minimum: data.minimum,
+    unit: data.unit,
+    cadence: data.cadence,
+    state: shouldArchive ? 'archived' : 'active',
+    summary: data.summary,
+    sessionConfig: data.sessionConfig,
+    ...(data.periodStartPreference
+      ? { periodStartPreference: data.periodStartPreference }
+      : {}),
+    ...(typeof data.defaultQuantity === 'number' && data.defaultQuantity > 0
+      ? { defaultQuantity: data.defaultQuantity }
+      : {}),
+    ...(typeof data.notes === 'string' || data.notes === null
+      ? { notes: data.notes }
+      : {}),
+    ...(typeof data.categoryId === 'string' ? { categoryId: data.categoryId } : {}),
+    ...(typeof data.activityId === 'string' ? { activityId: data.activityId } : {}),
+    archivedAt: shouldArchive ? timestamp : null,
+    createdAt: data.createdAt,
+    updatedAt: timestamp,
+    deletedAt: data.deletedAt ?? null,
+    ...(Array.isArray(data.configEras) ? { configEras: data.configEras } : {}),
+    ...(typeof data.orderIndex === 'number' ? { orderIndex: data.orderIndex } : {}),
+    ...(typeof data.dashboardPageId === 'string' && data.dashboardPageId.length > 0
+      ? { dashboardPageId: data.dashboardPageId }
+      : {}),
+    ...(typeof data.dashboardOrderIndex === 'number'
+      ? { dashboardOrderIndex: data.dashboardOrderIndex }
+      : {}),
+    ...(data.hiddenFromGroup === true ? { hiddenFromGroup: true } : {}),
   };
 }

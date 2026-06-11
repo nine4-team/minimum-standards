@@ -62,8 +62,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearGoogleSession: async () => {
     console.log('[AuthStore] Clearing cached Google session on explicit request...');
     try {
-      if (await GoogleSignin.isSignedIn()) {
-        await GoogleSignin.signOut();
+      const googleSignin = GoogleSignin as unknown as {
+        isSignedIn?: () => Promise<boolean>;
+        signOut: () => Promise<void>;
+      };
+      if (!googleSignin.isSignedIn || (await googleSignin.isSignedIn())) {
+        await googleSignin.signOut();
       }
     } catch (error) {
       console.error('[AuthStore] Error clearing Google session:', error);
@@ -118,9 +122,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }, 10000);
 
     // Helper to attempt a Google silent sign-in if Firebase has no user
-    const attemptSilentGoogleSignIn = async () => {
+    const attemptSilentGoogleSignIn = async (): Promise<FirebaseAuthTypes.User | null> => {
       if (hasAttemptedSilentSignIn) {
-        return;
+        return null;
       }
       hasAttemptedSilentSignIn = true;
       console.log('[AuthStore] Attempting Google silent sign-in to restore session...');
@@ -133,12 +137,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         if (!idToken) {
           console.warn('[AuthStore] Silent sign-in succeeded but no ID token was returned');
-          return;
+          return null;
         }
 
         const credential = GoogleAuthProvider.credential(idToken, accessToken || undefined);
-        await firebaseAuth.signInWithCredential(credential);
+        const userCredential = await firebaseAuth.signInWithCredential(credential);
+        const restoredUser = userCredential?.user ?? firebaseAuth.currentUser ?? null;
         console.log('[AuthStore] Silent Google sign-in succeeded - Firebase credential applied');
+        return restoredUser;
       } catch (error: any) {
         const errorCode = error?.code;
         if (
@@ -150,6 +156,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         } else {
           console.warn('[AuthStore] Google silent sign-in failed:', errorCode, error?.message || error);
         }
+        return null;
       }
     };
 
@@ -163,13 +170,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           email: user?.email,
         });
         console.log('[AuthStore] [Remediation] onAuthStateChanged callback reached');
-        const uid = user?.uid;
+        let nextUser = user;
+        let uid = nextUser?.uid;
         console.log('[AuthStore] onAuthStateChanged callback fired:', uid ? `User ID: ${uid}` : 'No user');
         
         // If no Firebase user is found, try to sign in silently with Google
         // This handles cases where the Firebase session expired but the Google session is still valid
-        if (!user) {
-          await attemptSilentGoogleSignIn();
+        if (!nextUser) {
+          nextUser = await attemptSilentGoogleSignIn();
+          uid = nextUser?.uid;
         }
 
         if (uid) {
@@ -179,7 +188,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         
         clearTimeout(timeoutId);
-        set({ user, isInitialized: true });
+        set({ user: nextUser ?? null, isInitialized: true });
       });
       console.log('[AuthStore] onAuthStateChanged listener registered successfully');
     } catch (error) {

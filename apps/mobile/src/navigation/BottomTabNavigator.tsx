@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Pressable, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -31,6 +32,13 @@ const NAV_LABELS: Record<string, string> = {
   Groups: 'Groups tab',
   [SETTINGS_TAB_ROUTE_NAME]: 'Settings tab',
 };
+
+function isManageStandardsRoute(state: BottomTabBarProps['state']) {
+  const activeRoute = state.routes[state.index];
+  if (activeRoute?.name !== SETTINGS_TAB_ROUTE_NAME) return false;
+  const focusedRouteName = getFocusedRouteNameFromRoute(activeRoute as never) ?? 'Settings';
+  return focusedRouteName === 'StandardsLibrary';
+}
 
 function CreateMenu({ navigation, theme }: { navigation: any; theme: any }) {
   const [open, setOpen] = useState(false);
@@ -162,8 +170,13 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
   const navRoutes = state.routes.filter((r) => r.name !== 'Create');
   const activeRouteKey = state.routes[state.index]?.key;
+  const hideTabBar = isManageStandardsRoute(state);
 
   const fadeColor = theme.background.screen;
+
+  if (hideTabBar) {
+    return null;
+  }
 
   return (
     <View

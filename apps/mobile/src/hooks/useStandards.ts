@@ -20,6 +20,7 @@ import {
 import {
   FirestoreStandardData,
   fromFirestoreStandard,
+  toFirestoreStandardArchiveState,
   toFirestoreStandardDelete,
 } from '../utils/standardConverter';
 import { normalizeFirebaseError } from '../utils/errors';
@@ -415,13 +416,15 @@ export function useStandards(): UseStandardsResult {
       );
 
       await retryFirestoreWrite(async () => {
-        await standardRef.update({
-          state: shouldArchive ? 'archived' : 'active',
-          archivedAt: shouldArchive
-            ? serverTimestamp()
-            : null,
-          updatedAt: serverTimestamp(),
-        });
+        const snapshot = await standardRef.get();
+        const data = snapshot.data() as FirestoreStandardData | undefined;
+        if (!data) {
+          throw new Error('Standard not found');
+        }
+
+        await standardRef.set(
+          toFirestoreStandardArchiveState(data, shouldArchive)
+        );
       });
     },
     [userId]

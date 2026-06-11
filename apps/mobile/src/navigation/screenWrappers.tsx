@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  SETTINGS_TAB_ROUTE_NAME,
   StandardsStackParamList,
   ScorecardStackParamList,
   SettingsStackParamList,
@@ -44,6 +45,7 @@ export function ScorecardDetailScreenWrapper() {
 
 export function StandardsScreenWrapper() {
   const navigation = useNavigation<StandardsNavigationProp>();
+  const rootNavigation = useNavigation<any>();
   const { standards } = useStandards();
   return (
     <StandardsScreen
@@ -60,6 +62,12 @@ export function StandardsScreenWrapper() {
         useStandardsBuilderStore.getState().loadFromStandard(standard);
         (navigation as any).navigate('EditStandard');
       }}
+      onOrganizeStandards={() => {
+        rootNavigation.navigate(SETTINGS_TAB_ROUTE_NAME, {
+          screen: 'StandardsLibrary',
+          params: { returnTo: 'StandardsDashboard' },
+        });
+      }}
       backButtonLabel={undefined}
     />
   );
@@ -67,11 +75,22 @@ export function StandardsScreenWrapper() {
 
 export function StandardsLibraryScreenSettingsWrapper() {
   const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
+  const rootNavigation = useNavigation<any>();
+  const route = useRoute();
   const { standards } = useStandards();
+  const returnTo = (route.params as SettingsStackParamList['StandardsLibrary'])?.returnTo;
 
   return (
     <StandardsLibraryScreen
-      onBack={() => navigation.goBack()}
+      onBack={() => {
+        if (returnTo === 'StandardsDashboard') {
+          rootNavigation.navigate('Standards', {
+            screen: 'ActiveStandardsDashboard',
+          });
+          return;
+        }
+        navigation.goBack();
+      }}
       onNavigateToBuilder={() => {
         useStandardsBuilderStore.getState().reset();
         (navigation as any).navigate('CreateStandardFlow');
@@ -85,4 +104,3 @@ export function StandardsLibraryScreenSettingsWrapper() {
     />
   );
 }
-

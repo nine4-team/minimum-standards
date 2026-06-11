@@ -1,12 +1,18 @@
 import type { DashboardLayoutPage, Standard } from '@minimum-standards/shared-model';
 import {
   DASHBOARD_PAGE_SIZE,
+  addDashboardDraftPage,
+  areDashboardPagesEquivalent,
   buildDashboardPages,
   buildPlacementUpdates,
+  deleteEmptyDashboardDraftPage,
   getFirstPageWithRoom,
   getVisiblePageDotIndexes,
+  moveStandardInDashboardPages,
   moveStandardToPage,
+  renameDashboardDraftPage,
   renameDashboardPage,
+  reorderDashboardDraftPage,
   reorderPageStandards,
 } from '../dashboardPages';
 
@@ -208,11 +214,131 @@ describe('dashboardPages', () => {
     ]);
   });
 
+  test('moves standards between draft pages at a target index', () => {
+    const standards = [
+      makeStandard({
+        id: 'sleep',
+        name: 'Sleep',
+        dashboardPageId: 'health',
+        dashboardOrderIndex: 0,
+      }),
+      makeStandard({
+        id: 'walk',
+        name: 'Walk',
+        dashboardPageId: 'health',
+        dashboardOrderIndex: 1,
+      }),
+      makeStandard({
+        id: 'prospect',
+        name: 'Prospect',
+        dashboardPageId: 'work',
+        dashboardOrderIndex: 0,
+      }),
+    ];
+    const result = buildDashboardPages(standards, { pages });
+    const moved = moveStandardInDashboardPages(result, 'prospect', 'health', 1);
+
+    expect(moved.error).toBeNull();
+    expect(moved.pages[0].standards.map((standard) => standard.id)).toEqual([
+      'sleep',
+      'prospect',
+      'walk',
+    ]);
+    expect(moved.pages[1].standards).toEqual([]);
+  });
+
+  test('compares dashboard pages by visible page structure and standard ids', () => {
+    const result = buildDashboardPages(makeStandards(2), { pages });
+    const sameVisibleStructure = result.map((page) => ({
+      ...page,
+      standards: page.standards.map((standard) => ({
+        ...standard,
+        name: `${standard.name} updated`,
+        updatedAtMs: standard.updatedAtMs + 100,
+      })),
+    }));
+
+    expect(areDashboardPagesEquivalent(result, sameVisibleStructure)).toBe(true);
+  });
+
+  test('detects dashboard page ordering differences', () => {
+    const result = buildDashboardPages(makeStandards(3), null);
+    const moved = moveStandardInDashboardPages(result, 's1', 'page-1', 2);
+
+    expect(moved.error).toBeNull();
+    expect(areDashboardPagesEquivalent(result, moved.pages)).toBe(false);
+  });
+
+  test('reorders standards within draft pages', () => {
+    const result = buildDashboardPages(makeStandards(3), null);
+    const moved = moveStandardInDashboardPages(result, 's1', 'page-1', 2);
+
+    expect(moved.error).toBeNull();
+    expect(moved.pages[0].standards.map((standard) => standard.id)).toEqual([
+      's2',
+      's3',
+      's1',
+    ]);
+  });
+
   test('renames pages with trimmed text', () => {
     expect(renameDashboardPage(pages, 'health', ' Fitness ')[0].name).toBe(
       'Fitness'
     );
     expect(renameDashboardPage(pages, 'health', '   ')[0].name).toBe('Health');
+  });
+
+  test('renames draft pages without changing standards', () => {
+    const result = buildDashboardPages(makeStandards(2), { pages });
+    const renamed = renameDashboardDraftPage(result, 'health', ' Fitness ');
+
+    expect(renamed[0].name).toBe('Fitness');
+    expect(renamed[0].standards.map((standard) => standard.id)).toEqual([
+      's1',
+      's2',
+    ]);
+  });
+
+  test('adds draft pages locally', () => {
+    const result = buildDashboardPages(makeStandards(1), { pages });
+    const added = addDashboardDraftPage(result, () => ({
+      id: 'new-page',
+      name: 'Page 3',
+      orderIndex: 2,
+    }));
+
+    expect(added.map((page) => page.id)).toEqual(['health', 'work', 'new-page']);
+    expect(added[2].standards).toEqual([]);
+  });
+
+  test('deletes only empty draft pages', () => {
+    const result = addDashboardDraftPage(buildDashboardPages(makeStandards(1), { pages }), () => ({
+      id: 'empty',
+      name: 'Empty',
+      orderIndex: 2,
+    }));
+
+    expect(deleteEmptyDashboardDraftPage(result, 'health').error).toBe(
+      'Only empty pages can be deleted.'
+    );
+    const deleted = deleteEmptyDashboardDraftPage(result, 'empty');
+    expect(deleted.error).toBeNull();
+    expect(deleted.pages.map((page) => page.id)).toEqual(['health', 'work']);
+  });
+
+  test('reorders draft pages and normalizes order indexes', () => {
+    const result = addDashboardDraftPage(buildDashboardPages(makeStandards(1), { pages }), () => ({
+      id: 'new-page',
+      name: 'Page 3',
+      orderIndex: 2,
+    }));
+
+    const reordered = reorderDashboardDraftPage(result, 'new-page', -1);
+    expect(reordered.map((page) => [page.id, page.orderIndex])).toEqual([
+      ['health', 0],
+      ['new-page', 1],
+      ['work', 2],
+    ]);
   });
 
   test('returns all page dots when page count is within the visible cap', () => {

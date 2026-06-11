@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SignInScreen } from '../SignInScreen';
 import { logAuthErrorToCrashlytics } from '../../utils/crashlytics';
+import { useAuthStore } from '../../stores/authStore';
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {
@@ -54,6 +55,7 @@ const mockLogAuthErrorToCrashlytics = logAuthErrorToCrashlytics as jest.MockedFu
 describe('SignInScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useAuthStore.getState().setUser(null);
   });
 
   test('renders email/password fields and Google button', () => {
@@ -107,6 +109,22 @@ describe('SignInScreen', () => {
         expect.objectContaining({ code: 'auth/network-request-failed' }),
         'google_sign_in'
       );
+    });
+  });
+
+  test('stores Firebase user immediately after successful Google sign in', async () => {
+    const firebaseUser = {
+      uid: 'google-user-id',
+      email: 'test@example.com',
+    };
+    mockAuthInstance.signInWithCredential.mockResolvedValueOnce({ user: firebaseUser });
+
+    const { getByText } = render(<SignInScreen />);
+
+    fireEvent.press(getByText('Sign in with Google'));
+
+    await waitFor(() => {
+      expect(useAuthStore.getState().user).toEqual(firebaseUser);
     });
   });
 });

@@ -1,8 +1,15 @@
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useAuthStore } from '../authStore';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleAuthProvider, onAuthStateChanged } from '@react-native-firebase/auth';
+import { firebaseAuth } from '../../firebase/firebaseApp';
+
+const { __mockAuthInstance } = jest.requireMock('@react-native-firebase/auth');
 
 describe('authStore', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
+    __mockAuthInstance.currentUser = { uid: 'test-user-id' };
     // Reset store state before each test
     const { result } = renderHook(() => useAuthStore());
     act(() => {
@@ -60,5 +67,45 @@ describe('authStore', () => {
     });
 
     expect(result.current.user).toBeNull();
+  });
+
+  test('initialize restores a cached Google session without committing a null user', async () => {
+    const restoredUser = {
+      uid: 'restored-user-id',
+      email: 'restored@example.com',
+    } as any;
+
+    __mockAuthInstance.currentUser = null;
+    (firebaseAuth as any).currentUser = null;
+    (onAuthStateChanged as jest.Mock).mockImplementationOnce((_authInstance, callback) => {
+      callback(null);
+      return jest.fn();
+    });
+    (GoogleSignin.signInSilently as jest.Mock).mockResolvedValueOnce({
+      type: 'success',
+      data: {
+        idToken: 'restored-id-token',
+        accessToken: 'restored-access-token',
+      },
+    });
+    (firebaseAuth as any).signInWithCredential.mockResolvedValueOnce({ user: restoredUser });
+
+    const { result } = renderHook(() => useAuthStore());
+    let cleanup = () => {};
+
+    act(() => {
+      cleanup = result.current.initialize();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isInitialized).toBe(true);
+      expect(result.current.user).toEqual(restoredUser);
+    });
+    expect(GoogleAuthProvider.credential).toHaveBeenCalledWith(
+      'restored-id-token',
+      'restored-access-token'
+    );
+
+    cleanup();
   });
 });

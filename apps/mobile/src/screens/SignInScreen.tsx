@@ -23,6 +23,7 @@ import { useTheme } from '../theme/useTheme';
 import { typography } from '@nine4/ui-kit';
 import { firebaseAuth } from '../firebase/firebaseApp';
 import { normalizeGoogleSignInResult } from '../utils/googleSignInResult';
+import { useAuthStore } from '../stores/authStore';
 
 // Extend AuthError to handle Google Sign-In errors
 function createAuthErrorFromAnyError(err: any): AuthError {
@@ -52,6 +53,7 @@ type NavigationProp = NativeStackNavigationProp<AuthStackParamList>;
 export function SignInScreen() {
   const theme = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const setUser = useAuthStore((state) => state.setUser);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +73,8 @@ export function SignInScreen() {
     try {
       setLoading(true);
       setError(null);
-      await firebaseAuth.signInWithEmailAndPassword(data.email, data.password);
+      const userCredential = await firebaseAuth.signInWithEmailAndPassword(data.email, data.password);
+      setUser(userCredential?.user ?? firebaseAuth.currentUser ?? null);
       // Navigation will be handled by AppNavigator based on auth state
     } catch (err) {
       const authError = AuthError.fromFirebaseError(err);
@@ -148,7 +151,9 @@ export function SignInScreen() {
 
       // Sign in the user with the credential
       console.log('[Google Sign-In] Signing in with Firebase credential...');
-      await firebaseAuth.signInWithCredential(googleCredential);
+      const userCredential = await firebaseAuth.signInWithCredential(googleCredential);
+      const signedInUser = userCredential?.user ?? firebaseAuth.currentUser ?? null;
+      setUser(signedInUser);
       console.log('[Google Sign-In] Firebase currentUser after sign-in:', {
         uid: firebaseAuth.currentUser?.uid,
         email: firebaseAuth.currentUser?.email,

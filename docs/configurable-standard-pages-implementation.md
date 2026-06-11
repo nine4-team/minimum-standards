@@ -211,3 +211,38 @@ Update function tests:
 - Avoid changing group stats semantics.
 - Avoid deleting existing `orderIndex` immediately; use it as migration input.
 - If Firestore rules are present for `preferences`, update them to allow authenticated users to read/write only their own dashboard layout.
+
+## Implemented Manage Standards Surface
+
+The management experience is now consolidated into `Manage Standards`, backed by the existing `StandardsLibrary` route. The route keeps picker behavior for modal selection contexts, but the normal settings/dashboard entry renders the combined management surface.
+
+Implemented behavior:
+
+- Active standards render grouped by dashboard page, with each page showing its name, count, and a compact overflow menu.
+- Empty pages render as compact placeholders so inactive standard controls remain reachable on small simulator/device heights.
+- Inactive standards render below active pages with visible activate/deactivate controls.
+- Activating an inactive standard opens an explicit page picker instead of silently choosing a page.
+- Active standard row menus support edit, move to page, and delete.
+- Inactive standard row menus support edit, activate, and delete.
+- The header create button opens a single local create menu with `New Standard` and `New Page`.
+- The floating app tab bar is hidden while `Manage Standards` is focused, leaving the header create button as the only create affordance on this surface and avoiding bottom-control collisions.
+- Nameless legacy/test standards display as `Untitled Standard` so rows, switches, menus, and delete prompts do not render blank labels.
+
+Implementation files:
+
+- `apps/mobile/src/screens/StandardsLibraryScreen.tsx`
+- `apps/mobile/src/navigation/BottomTabNavigator.tsx`
+- `apps/mobile/src/navigation/screenWrappers.tsx`
+- `apps/mobile/src/screens/ActiveStandardsDashboardScreen.tsx`
+- `apps/mobile/src/utils/dashboardPages.ts`
+- `apps/mobile/src/utils/__tests__/dashboardPages.test.ts`
+
+Simulator verification covered:
+
+- Dashboard `Manage Standards` entry opens the combined screen.
+- Header create opens `New Standard` / `New Page`.
+- Page overflow exposes page actions.
+- Active row overflow exposes edit / move / delete.
+- Inactive row overflow exposes edit / activate / delete.
+- Activation opens the page picker with page capacity labels and `Create New Page`.
+- Test account data remained unchanged during verification.

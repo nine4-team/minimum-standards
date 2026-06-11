@@ -36,7 +36,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {
   buildDashboardPages,
   buildPlacementUpdates,
-  createNextPage,
   getVisiblePageDotIndexes,
   moveStandardToPage,
   reorderPageStandards,
@@ -48,6 +47,7 @@ export interface StandardsScreenProps {
   onOpenLogModal?: (standard: Standard) => void;
   onNavigateToDetail?: (standardId: string) => void;
   onEditStandard?: (standardId: string) => void;
+  onOrganizeStandards?: () => void;
   backButtonLabel?: string;
   title?: string;
 }
@@ -58,6 +58,7 @@ export function StandardsScreen({
   onOpenLogModal,
   onNavigateToDetail,
   onEditStandard,
+  onOrganizeStandards,
   backButtonLabel,
   title = 'Standards',
 }: StandardsScreenProps) {
@@ -387,21 +388,6 @@ export function StandardsScreen({
     [saveLayoutAndPlacements, standardPages]
   );
 
-  const handleAddPage = useCallback(async () => {
-    try {
-      const nextPage = createNextPage(standardPages);
-      const nextPages = [...standardPages, { ...nextPage, standards: [] }];
-      await saveLayoutAndPlacements(
-        nextPages.map(({ standards: _standards, ...page }) => page),
-        buildPlacementUpdates(nextPages)
-      );
-      setActivePageIndex(standardPages.length);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to add page');
-      console.error('Failed to add page:', err);
-    }
-  }, [saveLayoutAndPlacements, standardPages]);
-
   const handleMoveStandardToPage = useCallback(
     async (standardId: string, targetPageId: string) => {
       const result = moveStandardToPage(standardPages, standardId, targetPageId);
@@ -588,14 +574,14 @@ export function StandardsScreen({
           <Text style={[styles.headerTitle, { color: theme.text.primary }]} numberOfLines={1}>
             {title}
           </Text>
-          {showPageControls ? (
+          {showPageControls && onOrganizeStandards ? (
             <TouchableOpacity
-              onPress={handleAddPage}
+              onPress={onOrganizeStandards}
               style={styles.headerMenuButton}
               accessibilityRole="button"
-              accessibilityLabel="Add page"
+              accessibilityLabel="Manage Standards"
             >
-              <MaterialIcons name="add" size={22} color={theme.text.primary} />
+              <MaterialIcons name="edit" size={22} color={theme.text.secondary} />
             </TouchableOpacity>
           ) : (
             <View style={styles.headerMenuButton} />
@@ -746,6 +732,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingVertical: 4,
+    opacity: 0.5,
   },
   skeletonContainer: {
     padding: SCREEN_PADDING,
