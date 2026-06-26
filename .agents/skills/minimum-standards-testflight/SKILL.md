@@ -30,6 +30,8 @@ Build, upload, and distribute externally:
 scripts/build-testflight.sh --external --groups "External Testing Group"
 ```
 
+That script is the primary deployment process for this app. It archives with `xcodebuild`, uploads with explicit `app-store-connect` export options, then uses Fastlane only to attach the already-uploaded build to the external TestFlight group.
+
 Distribute an already-uploaded build externally:
 
 ```bash
@@ -42,66 +44,17 @@ The App Store Connect API key must stay local:
 ~/.appstoreconnect/private_keys/AuthKey_X5SX4S7NW5.p8
 ```
 
-## Manual Upload Fallback
+## Deployment Process
 
-If the Fastlane build lane fails during `gym` archive/export with a vague Xcode 65 or validation failure, use the Ledger-style fallback instead of guessing at signing settings. This app can be archived with automatic signing, uploaded through `xcodebuild -exportArchive`, and then attached to the external group with the existing Fastlane distribute-only lane.
+`scripts/build-testflight.sh` follows the same deployment shape as Ledger:
 
-Use a fresh timestamp build number:
+- Generate or accept a timestamp build number such as `202606261250`
+- Archive `MinimumStandardsMobile (Embedded)` with automatic signing
+- Generate an `ExportOptions.plist` with `destination=upload`, `method=app-store-connect`, `signingStyle=automatic`, `teamID=5VHL56HV63`, and `manageAppVersionAndBuildNumber=false`
+- Upload the archive with `xcodebuild -exportArchive`
+- When `--external` is supplied, run `scripts/distribute-testflight-external.sh <build-number> --groups "External Testing Group"`
 
-```bash
-BUILD_NUMBER="$(date +%Y%m%d%H%M)"
-ARCHIVE_PATH="$HOME/Library/Developer/Xcode/Archives/$(date +%Y-%m-%d)/MinimumStandardsMobile $(date +%Y-%m-%d) $BUILD_NUMBER.xcarchive"
-
-cd /Users/benjaminmackenzie/Dev/minimum_standards/apps/mobile
-xcodebuild archive \
-  -workspace ios/MinimumStandardsMobile.xcworkspace \
-  -scheme "MinimumStandardsMobile (Embedded)" \
-  -configuration Release \
-  -destination 'generic/platform=iOS' \
-  -archivePath "$ARCHIVE_PATH" \
-  DEVELOPMENT_TEAM=5VHL56HV63 \
-  CODE_SIGN_STYLE=Automatic \
-  MARKETING_VERSION=1.0 \
-  CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-  -allowProvisioningUpdates
-```
-
-Generate upload export options and upload the archive:
-
-```bash
-cd /Users/benjaminmackenzie/Dev/minimum_standards
-BUILD_DIR="$PWD/build/TestFlight/manual-$BUILD_NUMBER"
-EXPORT_PATH="$BUILD_DIR/export"
-OPTIONS_PLIST="$BUILD_DIR/ExportOptions.plist"
-rm -rf "$EXPORT_PATH" "$OPTIONS_PLIST"
-mkdir -p "$BUILD_DIR"
-
-/usr/libexec/PlistBuddy -c 'Clear dict' "$OPTIONS_PLIST" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c 'Add :destination string upload' "$OPTIONS_PLIST"
-/usr/libexec/PlistBuddy -c 'Add :manageAppVersionAndBuildNumber bool false' "$OPTIONS_PLIST"
-/usr/libexec/PlistBuddy -c 'Add :method string app-store-connect' "$OPTIONS_PLIST"
-/usr/libexec/PlistBuddy -c 'Add :signingStyle string automatic' "$OPTIONS_PLIST"
-/usr/libexec/PlistBuddy -c 'Add :teamID string 5VHL56HV63' "$OPTIONS_PLIST"
-/usr/libexec/PlistBuddy -c 'Add :uploadSymbols bool true' "$OPTIONS_PLIST"
-
-xcodebuild -exportArchive \
-  -archivePath "$ARCHIVE_PATH" \
-  -exportPath "$EXPORT_PATH" \
-  -exportOptionsPlist "$OPTIONS_PLIST" \
-  -allowProvisioningUpdates
-```
-
-After upload succeeds and App Store Connect begins processing, attach the uploaded build to the external group:
-
-```bash
-cd /Users/benjaminmackenzie/Dev/minimum_standards/apps/mobile
-/opt/homebrew/opt/ruby/bin/bundle exec fastlane ios distribute_existing_external \
-  build_number:"$BUILD_NUMBER" \
-  groups:"External Testing Group" \
-  changelog:"Minimum Standards beta update"
-```
-
-This fallback was used successfully on June 26, 2026 for build `1.0 (202606261250)`. App Store Connect verification showed `processingState=VALID`, `betaReviewState=APPROVED`, `externalBuildState=IN_BETA_TESTING`, and attachment to `External Testing Group`.
+This process was used successfully on June 26, 2026 for build `1.0 (202606261250)`. App Store Connect verification showed `processingState=VALID`, `betaReviewState=APPROVED`, `externalBuildState=IN_BETA_TESTING`, and attachment to `External Testing Group`.
 
 ## Mandatory Availability Check
 
@@ -125,3 +78,5 @@ https://testflight.apple.com/join/QdJfUy7T
 Fastlane's message `Successfully distributed build to External testers` is generic. It does not prove the build was attached to the intended project group. Always verify the actual group name through App Store Connect.
 
 On June 9, 2026, build `1.0 (202606081535)` was initially mistaken as external-ready because of that generic Fastlane line. API verification showed the first attach only included `Internal Testing Group`. Re-running distribution with `External Testing Group` fixed it; API state then showed `APPROVED` and `IN_BETA_TESTING`.
+
+On June 26, 2026, the old Fastlane `build_app` path failed during archive with Xcode 65. The `gym` log showed the app signed with `Apple Development: Ben Mackenzie (K85ZW2R9YD)` and `iOS Team Provisioning Profile: app.assiist.minimum-standards`, then `Validate ... -validate-for-store`, then Xcode reported `Build operation failed without specifying any errors`. A direct `xcodebuild archive` followed by `xcodebuild -exportArchive` with explicit `app-store-connect` export options uploaded the same app successfully. Keep `scripts/build-testflight.sh` on that xcodebuild archive/export/upload path; use Fastlane only for `distribute_existing_external`.
