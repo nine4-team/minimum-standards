@@ -22,6 +22,27 @@ export function buildGoogleSignInConfig({
   };
 }
 
+function cleanClientId(clientId: string | undefined): string {
+  return clientId?.trim() ?? '';
+}
+
+export function resolveGoogleSignInClientIds({
+  envWebClientId,
+  fallbackWebClientId,
+  envIosClientId,
+  fallbackIosClientId,
+}: {
+  envWebClientId?: string;
+  fallbackWebClientId: string;
+  envIosClientId?: string;
+  fallbackIosClientId: string;
+}) {
+  return {
+    webClientId: cleanClientId(envWebClientId) || cleanClientId(fallbackWebClientId),
+    iosClientId: cleanClientId(envIosClientId) || cleanClientId(fallbackIosClientId),
+  };
+}
+
 /**
  * Initializes Google Sign-In with Firebase configuration.
  * Call this once during app startup (e.g., in App.tsx).
@@ -31,10 +52,12 @@ export function buildGoogleSignInConfig({
  */
 export function initializeGoogleSignIn() {
   console.log('[Google Sign-In] Initializing Google Sign-In...');
-  const webClientId = Config.GOOGLE_SIGN_IN_WEB_CLIENT_ID || googleSignInWebClientId;
-  const iosClientId =
-    Config.GOOGLE_SIGN_IN_IOS_CLIENT_ID ||
-    '1055581806274-1n5keauch2qufmqirdcnvrdl8221q6m6.apps.googleusercontent.com';
+  const { webClientId, iosClientId } = resolveGoogleSignInClientIds({
+    envWebClientId: Config.GOOGLE_SIGN_IN_WEB_CLIENT_ID,
+    fallbackWebClientId: googleSignInWebClientId,
+    envIosClientId: Config.GOOGLE_SIGN_IN_IOS_CLIENT_ID,
+    fallbackIosClientId: '1055581806274-1n5keauch2qufmqirdcnvrdl8221q6m6.apps.googleusercontent.com',
+  });
 
   // `webClientId` is required to obtain a Google ID token for Firebase auth.
   if (!webClientId) {
