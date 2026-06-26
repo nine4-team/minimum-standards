@@ -42,6 +42,67 @@ The App Store Connect API key must stay local:
 ~/.appstoreconnect/private_keys/AuthKey_X5SX4S7NW5.p8
 ```
 
+## Manual Upload Fallback
+
+If the Fastlane build lane fails during `gym` archive/export with a vague Xcode 65 or validation failure, use the Ledger-style fallback instead of guessing at signing settings. This app can be archived with automatic signing, uploaded through `xcodebuild -exportArchive`, and then attached to the external group with the existing Fastlane distribute-only lane.
+
+Use a fresh timestamp build number:
+
+```bash
+BUILD_NUMBER="$(date +%Y%m%d%H%M)"
+ARCHIVE_PATH="$HOME/Library/Developer/Xcode/Archives/$(date +%Y-%m-%d)/MinimumStandardsMobile $(date +%Y-%m-%d) $BUILD_NUMBER.xcarchive"
+
+cd /Users/benjaminmackenzie/Dev/minimum_standards/apps/mobile
+xcodebuild archive \
+  -workspace ios/MinimumStandardsMobile.xcworkspace \
+  -scheme "MinimumStandardsMobile (Embedded)" \
+  -configuration Release \
+  -destination 'generic/platform=iOS' \
+  -archivePath "$ARCHIVE_PATH" \
+  DEVELOPMENT_TEAM=5VHL56HV63 \
+  CODE_SIGN_STYLE=Automatic \
+  MARKETING_VERSION=1.0 \
+  CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  -allowProvisioningUpdates
+```
+
+Generate upload export options and upload the archive:
+
+```bash
+cd /Users/benjaminmackenzie/Dev/minimum_standards
+BUILD_DIR="$PWD/build/TestFlight/manual-$BUILD_NUMBER"
+EXPORT_PATH="$BUILD_DIR/export"
+OPTIONS_PLIST="$BUILD_DIR/ExportOptions.plist"
+rm -rf "$EXPORT_PATH" "$OPTIONS_PLIST"
+mkdir -p "$BUILD_DIR"
+
+/usr/libexec/PlistBuddy -c 'Clear dict' "$OPTIONS_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c 'Add :destination string upload' "$OPTIONS_PLIST"
+/usr/libexec/PlistBuddy -c 'Add :manageAppVersionAndBuildNumber bool false' "$OPTIONS_PLIST"
+/usr/libexec/PlistBuddy -c 'Add :method string app-store-connect' "$OPTIONS_PLIST"
+/usr/libexec/PlistBuddy -c 'Add :signingStyle string automatic' "$OPTIONS_PLIST"
+/usr/libexec/PlistBuddy -c 'Add :teamID string 5VHL56HV63' "$OPTIONS_PLIST"
+/usr/libexec/PlistBuddy -c 'Add :uploadSymbols bool true' "$OPTIONS_PLIST"
+
+xcodebuild -exportArchive \
+  -archivePath "$ARCHIVE_PATH" \
+  -exportPath "$EXPORT_PATH" \
+  -exportOptionsPlist "$OPTIONS_PLIST" \
+  -allowProvisioningUpdates
+```
+
+After upload succeeds and App Store Connect begins processing, attach the uploaded build to the external group:
+
+```bash
+cd /Users/benjaminmackenzie/Dev/minimum_standards/apps/mobile
+/opt/homebrew/opt/ruby/bin/bundle exec fastlane ios distribute_existing_external \
+  build_number:"$BUILD_NUMBER" \
+  groups:"External Testing Group" \
+  changelog:"Minimum Standards beta update"
+```
+
+This fallback was used successfully on June 26, 2026 for build `1.0 (202606261250)`. App Store Connect verification showed `processingState=VALID`, `betaReviewState=APPROVED`, `externalBuildState=IN_BETA_TESTING`, and attachment to `External Testing Group`.
+
 ## Mandatory Availability Check
 
 Do not tell the user an external build is available just because Fastlane printed a success line. Verify App Store Connect state first.
