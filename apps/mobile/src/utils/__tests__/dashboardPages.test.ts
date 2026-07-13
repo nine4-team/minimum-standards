@@ -4,6 +4,7 @@ import {
   addDashboardDraftPage,
   areDashboardPagesEquivalent,
   buildDashboardPages,
+  buildNewStandardDashboardPlacement,
   buildPlacementUpdates,
   deleteEmptyDashboardDraftPage,
   getFirstPageWithRoom,
@@ -212,6 +213,54 @@ describe('dashboardPages', () => {
       { standardId: 'sleep', dashboardPageId: 'health', dashboardOrderIndex: 0 },
       { standardId: 'prospect', dashboardPageId: 'health', dashboardOrderIndex: 1 },
     ]);
+  });
+
+  test('builds only the new standard placement when adding to an existing page', () => {
+    const standards = makeStandards(2);
+    const newStandard = makeStandard({
+      id: 'new-standard',
+      name: 'New Standard',
+    });
+
+    const result = buildNewStandardDashboardPlacement(
+      standards,
+      null,
+      newStandard
+    );
+
+    expect(result.layoutPages).toEqual([{ id: 'page-1', name: 'Page 1', orderIndex: 0 }]);
+    expect(result.placement).toEqual({
+      standardId: 'new-standard',
+      dashboardPageId: 'page-1',
+      dashboardOrderIndex: 2,
+    });
+    expect(result.pages[0].standards.map((standard) => standard.id)).toEqual([
+      's1',
+      's2',
+      'new-standard',
+    ]);
+  });
+
+  test('creates a new page placement when existing dashboard pages are full', () => {
+    const standards = makeStandards(DASHBOARD_PAGE_SIZE);
+    const newStandard = makeStandard({
+      id: 'new-standard',
+      name: 'New Standard',
+    });
+
+    const result = buildNewStandardDashboardPlacement(
+      standards,
+      null,
+      newStandard
+    );
+
+    expect(result.layoutPages).toHaveLength(2);
+    expect(result.layoutPages[1].name).toBe('Page 2');
+    expect(result.placement).toEqual({
+      standardId: 'new-standard',
+      dashboardPageId: result.layoutPages[1].id,
+      dashboardOrderIndex: 0,
+    });
   });
 
   test('moves standards between draft pages at a target index', () => {

@@ -23,10 +23,7 @@ import { trackStandardEvent } from '../../utils/analytics';
 import { useSaveEdit } from './useSaveEdit';
 import { PeriodFields } from '../standard-fields/PeriodFields';
 import {
-  buildDashboardPages,
-  buildPlacementUpdates,
-  createNextPage,
-  getFirstPageWithRoom,
+  buildNewStandardDashboardPlacement,
 } from '../../utils/dashboardPages';
 
 type FlowNav = NativeStackNavigationProp<CreateStandardFlowParamList>;
@@ -80,25 +77,19 @@ export function SetPeriodStep() {
     setSubmitting(true);
     try {
       const newStandard = await createStandard(payload);
-      const pages = buildDashboardPages(activeStandards, layout);
-      const targetPage = getFirstPageWithRoom(pages);
-      const nextPages = targetPage
-        ? pages.map((page) =>
-            page.id === targetPage.id
-              ? { ...page, standards: [...page.standards, newStandard] }
-              : page
-          )
-        : [
-            ...pages,
-            {
-              ...createNextPage(pages),
-              standards: [newStandard],
-            },
-          ];
-      await saveLayoutAndPlacements(
-        nextPages.map(({ standards: _standards, ...page }) => page),
-        buildPlacementUpdates(nextPages)
-      );
+      try {
+        const { layoutPages, placement } = buildNewStandardDashboardPlacement(
+          activeStandards,
+          layout,
+          newStandard
+        );
+        await saveLayoutAndPlacements(layoutPages, [placement]);
+      } catch (placementError) {
+        console.warn(
+          '[SetPeriodStep] Standard created, but dashboard placement sync failed',
+          placementError
+        );
+      }
       trackStandardEvent('standard_create', { standardName: payload.name });
       // Tell the dashboard to scroll to the newly created standard's card
       setPendingScrollToStandardId(newStandard.id);

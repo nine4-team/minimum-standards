@@ -29,6 +29,12 @@ export type DashboardPlacement = {
   dashboardOrderIndex: number;
 };
 
+export type NewStandardDashboardPlacement<T extends DashboardStandardLike = Standard> = {
+  layoutPages: DashboardLayoutPage[];
+  placement: DashboardPlacement;
+  pages: DashboardPage<T>[];
+};
+
 function compareLegacyStandards<T extends DashboardStandardLike>(a: T, b: T): number {
   const aIdx = a.orderIndex ?? Number.MAX_SAFE_INTEGER;
   const bIdx = b.orderIndex ?? Number.MAX_SAFE_INTEGER;
@@ -124,10 +130,10 @@ export function buildDashboardPages<T extends DashboardStandardLike>(
   return pages.length > 0 ? pages : [{ ...createDefaultPage(0), standards: [] }];
 }
 
-export function getFirstPageWithRoom(
-  pages: DashboardPage[],
+export function getFirstPageWithRoom<T extends DashboardStandardLike>(
+  pages: DashboardPage<T>[],
   pageSize: number = DASHBOARD_PAGE_SIZE
-): DashboardPage | null {
+): DashboardPage<T> | null {
   return pages.find((page) => page.standards.length < pageSize) ?? null;
 }
 
@@ -152,6 +158,42 @@ export function buildPlacementUpdates<T extends DashboardStandardLike>(
       dashboardOrderIndex: index,
     }))
   );
+}
+
+export function buildNewStandardDashboardPlacement<T extends DashboardStandardLike>(
+  standards: T[],
+  layout: DashboardLayoutInput,
+  newStandard: T,
+  pageSize: number = DASHBOARD_PAGE_SIZE
+): NewStandardDashboardPlacement<T> {
+  const pages = buildDashboardPages(standards, layout, pageSize);
+  const targetPage = getFirstPageWithRoom(pages, pageSize);
+  const nextPages = targetPage
+    ? pages.map((page) =>
+        page.id === targetPage.id
+          ? { ...page, standards: [...page.standards, newStandard] }
+          : page
+      )
+    : [
+        ...pages,
+        {
+          ...createNextPage(pages),
+          standards: [newStandard],
+        },
+      ];
+  const placement = buildPlacementUpdates(nextPages).find(
+    (item) => item.standardId === newStandard.id
+  );
+
+  if (!placement) {
+    throw new Error('New standard placement could not be built.');
+  }
+
+  return {
+    pages: nextPages,
+    layoutPages: nextPages.map(({ standards: _standards, ...page }) => page),
+    placement,
+  };
 }
 
 export function areDashboardPagesEquivalent<T extends DashboardStandardLike>(
