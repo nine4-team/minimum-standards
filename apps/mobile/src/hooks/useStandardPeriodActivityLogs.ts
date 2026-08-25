@@ -11,7 +11,10 @@ import {
   limit,
 } from '@react-native-firebase/firestore';
 import { Standard, calculatePeriodWindow } from '@minimum-standards/shared-model';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
+import { useActivityLogOperationStore } from '../stores/activityLogOperationStore';
+import { decorateActivityLogsWithOperationStatus } from '../utils/activityLogMutations';
 
 export interface ActivityLog {
   id: string;
@@ -19,6 +22,8 @@ export interface ActivityLog {
   value: number;
   occurredAtMs: number;
   note: string | null;
+  hasPendingWrites?: boolean;
+  syncStatus?: 'pending' | 'synced';
 }
 
 export interface UseStandardPeriodActivityLogsResult {
@@ -45,7 +50,8 @@ export function useStandardPeriodActivityLogs(
   const [hasMore, setHasMore] = useState(false);
   const [lastDoc, setLastDoc] = useState<FirebaseFirestoreTypes.DocumentSnapshot | null>(null);
 
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
+  const operations = useActivityLogOperationStore((state) => state.operationsByLogId);
   const pageSize = 50; // Configurable page size
 
   // Calculate period boundaries if not provided
@@ -89,9 +95,10 @@ export function useStandardPeriodActivityLogs(
 
     const unsubscribe = onSnapshot(
       logsQuery,
+      { includeMetadataChanges: true },
       (snapshot) => {
         const nextLogs: ActivityLog[] = [];
-        snapshot.forEach((docSnap) => {
+        snapshot.forEach((docSnap: FirebaseFirestoreTypes.QueryDocumentSnapshot) => {
           const data = docSnap.data() as {
             standardId?: string;
             value?: number;
@@ -116,6 +123,7 @@ export function useStandardPeriodActivityLogs(
             value: data.value,
             occurredAtMs: data.occurredAt.toMillis(),
             note: data.note ?? null,
+            hasPendingWrites: docSnap.metadata?.hasPendingWrites ?? false,
           });
         });
 
@@ -152,9 +160,10 @@ export function useStandardPeriodActivityLogs(
 
     const unsubscribe = onSnapshot(
       logsQuery,
+      { includeMetadataChanges: true },
       (snapshot) => {
         const nextLogs: ActivityLog[] = [];
-        snapshot.forEach((docSnap) => {
+        snapshot.forEach((docSnap: FirebaseFirestoreTypes.QueryDocumentSnapshot) => {
           const data = docSnap.data() as {
             standardId?: string;
             value?: number;
@@ -179,6 +188,7 @@ export function useStandardPeriodActivityLogs(
             value: data.value,
             occurredAtMs: data.occurredAt.toMillis(),
             note: data.note ?? null,
+            hasPendingWrites: docSnap.metadata?.hasPendingWrites ?? false,
           });
         });
 
@@ -197,7 +207,7 @@ export function useStandardPeriodActivityLogs(
   };
 
   return {
-    logs,
+    logs: decorateActivityLogsWithOperationStatus(logs, operations),
     loading,
     error,
     hasMore,

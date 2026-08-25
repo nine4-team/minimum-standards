@@ -16,9 +16,11 @@ import { useStandardPeriodActivityLogs } from '../hooks/useStandardPeriodActivit
 import { useStandards } from '../hooks/useStandards';
 import { StandardPeriodHeader } from '../components/StandardPeriodHeader';
 import { ActivityLogsList } from '../components/ActivityLogsList';
-import { LogEntryModal } from '../components/LogEntryModal';
+import { LogEntryModal, LogEntryDraft } from '../components/LogEntryModal';
 import { ActivityLog } from '../hooks/useStandardPeriodActivityLogs';
 import { calculatePeriodWindow } from '@minimum-standards/shared-model';
+import { ActivityLogSyncBanner } from '../components/ActivityLogSyncBanner';
+import { ActivityLogOperation } from '../utils/activityLogMutations';
 
 type RouteProps = RouteProp<RootStackParamList, 'StandardPeriodActivityLogs'>;
 
@@ -33,9 +35,20 @@ export function StandardPeriodActivityLogsScreen() {
   // Modal state for editing logs
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingLog, setEditingLog] = useState<ActivityLog | null>(null);
+  const [failedDraft, setFailedDraft] = useState<{
+    operationId: string;
+    draft: LogEntryDraft;
+  } | null>(null);
 
   // Get standard information
-  const { standards, updateLogEntry, deleteLogEntry } = useStandards();
+  const {
+    standards,
+    createLogEntry,
+    updateLogEntry,
+    deleteLogEntry,
+    retryActivityLogOperation,
+    discardActivityLogOperation,
+  } = useStandards();
   const standard = useMemo(
     () => standards.find(s => s.id === standardId),
     [standards, standardId]
@@ -110,6 +123,7 @@ export function StandardPeriodActivityLogsScreen() {
   };
 
   const handleEditLog = (log: ActivityLog) => {
+    setFailedDraft(null);
     setEditingLog(log);
     setEditModalVisible(true);
   };
@@ -129,15 +143,38 @@ export function StandardPeriodActivityLogsScreen() {
         occurredAtMs,
         note,
       });
+    } else if (failedDraft) {
+      await createLogEntry({
+        standardId: logStandardId,
+        value,
+        occurredAtMs,
+        note,
+      });
+      discardActivityLogOperation(failedDraft.operationId);
     }
     // Close modal after save
     setEditModalVisible(false);
     setEditingLog(null);
+    setFailedDraft(null);
   };
 
   const handleModalClose = () => {
     setEditModalVisible(false);
     setEditingLog(null);
+    setFailedDraft(null);
+  };
+
+  const handleEditFailedLog = (operation: ActivityLogOperation) => {
+    setEditingLog(null);
+    setFailedDraft({
+      operationId: operation.payload.id,
+      draft: {
+        value: operation.payload.value,
+        occurredAtMs: operation.payload.occurredAtMs,
+        note: operation.payload.note,
+      },
+    });
+    setEditModalVisible(true);
   };
 
   const handleDeleteLog = async (log: ActivityLog) => {
@@ -198,6 +235,12 @@ export function StandardPeriodActivityLogsScreen() {
       </View>
 
       <ErrorBanner error={error} />
+      <ActivityLogSyncBanner
+        onRetry={retryActivityLogOperation}
+        onDiscard={discardActivityLogOperation}
+        onEdit={handleEditFailedLog}
+        standardId={standardId}
+      />
 
       {isReadOnly && (
         <View style={[styles.infoBanner, { backgroundColor: theme.background.chrome, borderBottomColor: theme.border.secondary }]}>
@@ -235,6 +278,7 @@ export function StandardPeriodActivityLogsScreen() {
           visible={editModalVisible}
           standard={standard!}
           logEntry={editingLog}
+          initialDraft={failedDraft?.draft}
           onClose={handleModalClose}
           onSave={handleLogSave}
           currentPeriodStartMs={periodInfo?.startMs}

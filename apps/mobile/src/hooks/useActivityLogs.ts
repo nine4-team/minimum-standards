@@ -10,7 +10,8 @@ import {
   where,
 } from '@react-native-firebase/firestore';
 import { Standard, calculatePeriodWindow } from '@minimum-standards/shared-model';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
 
 export interface ActivityLogSlice {
   id: string;
@@ -38,7 +39,7 @@ export function useActivityLogs(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [windowReferenceMs, setWindowReferenceMs] = useState(() => Date.now());
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeStandards = useMemo(
@@ -197,4 +198,3 @@ export function useActivityLogs(
     error,
   };
 }
-

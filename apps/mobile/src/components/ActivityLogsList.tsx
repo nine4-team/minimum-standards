@@ -51,6 +51,7 @@ export function ActivityLogsList({
       unit={unit}
       occurredAtMs={item.occurredAtMs}
       note={item.note}
+      syncStatus={item.syncStatus}
       onEdit={onEditLog ? () => onEditLog(item) : undefined}
       onDelete={onDeleteLog ? () => onDeleteLog(item) : undefined}
     />

@@ -85,7 +85,10 @@ export class FirestoreError extends NormalizedFirebaseError {
 
     // Firestore errors have a code property
     const firestoreError = error as FirebaseErrorLike;
-    const code = firestoreError.code || 'firestore/unknown-error';
+    const rawCode = firestoreError.code || 'firestore/unknown-error';
+    const code = rawCode.startsWith('firestore/')
+      ? rawCode
+      : `firestore/${rawCode}`;
     const message = getFirestoreErrorMessage(code);
     
     return new FirestoreError(code, message, error);

@@ -8,11 +8,23 @@ import {
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { firebaseAuth } from '../firebase/firebaseApp';
 import { normalizeGoogleSignInResult } from '../utils/googleSignInResult';
+import { useActivityLogOperationStore } from './activityLogOperationStore';
+
+export type AuthStatus =
+  | 'initializing'
+  | 'authenticated'
+  | 'recovering'
+  | 'signing-out'
+  | 'unauthenticated';
 
 export interface AuthState {
   // Current authenticated user
   user: FirebaseAuthTypes.User | null;
   setUser: (user: FirebaseAuthTypes.User | null) => void;
+
+  status: AuthStatus;
+  authenticatedUid: string | null;
+  recoveryUid: string | null;
 
   // Whether auth state has been initialized
   isInitialized: boolean;
@@ -30,17 +42,27 @@ export interface AuthState {
 const initialState = {
   user: null,
   isInitialized: false,
+  status: 'initializing' as AuthStatus,
+  authenticatedUid: null,
+  recoveryUid: null,
 };
 
 // Store the unsubscribe function globally to prevent duplicate listeners
 let unsubscribeAuthState: (() => void) | null = null;
 let hasAttemptedSilentSignIn = false;
+let explicitSignOutRequested = false;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   ...initialState,
 
   setUser: (user) => {
-    set({ user });
+    set({
+      user,
+      status: user ? 'authenticated' : 'unauthenticated',
+      authenticatedUid: user?.uid ?? null,
+      recoveryUid: null,
+      isInitialized: true,
+    });
   },
 
   setInitialized: (isInitialized) => {
@@ -49,14 +71,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     console.log('[AuthStore] Signing out...');
+    explicitSignOutRequested = true;
+    hasAttemptedSilentSignIn = true;
+    useActivityLogOperationStore.getState().clearAll();
+    set({ status: 'signing-out', recoveryUid: null });
     try {
       await firebaseSignOut(firebaseAuth);
     } catch (error) {
       console.error('[AuthStore] Error during Firebase sign out:', error);
     }
-    // Prevent background silent-sign-in retries until the next full initialize run.
-    hasAttemptedSilentSignIn = true;
-    set({ user: null });
+    set({
+      user: null,
+      status: 'unauthenticated',
+      authenticatedUid: null,
+      recoveryUid: null,
+      isInitialized: true,
+    });
   },
 
   clearGoogleSession: async () => {
@@ -76,8 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: () => {
     console.log('[AuthStore] Starting auth initialization...');
-    hasAttemptedSilentSignIn = false;
-    
+
     // Prevent duplicate listeners
     if (unsubscribeAuthState) {
       console.log('[AuthStore] Already initialized, skipping duplicate initialization');
@@ -86,6 +115,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Already initialized, cleanup handled elsewhere
       };
     }
+
+    hasAttemptedSilentSignIn = false;
+    explicitSignOutRequested = false;
+    set({ status: 'initializing' });
 
     // Check current user synchronously to set initial state immediately
     // This prevents showing the sign-in screen if user is already authenticated
@@ -97,7 +130,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (currentUser && uid) {
         console.log('[AuthStore] Authenticated user UID available for Firestore operations:', uid);
         console.log('[AuthStore] Setting initial state with current user');
-        set({ user: currentUser, isInitialized: true });
+        set({
+          user: currentUser,
+          isInitialized: true,
+          status: 'authenticated',
+          authenticatedUid: uid,
+          recoveryUid: null,
+        });
       } else {
         console.warn('[AuthStore] No authenticated user found in synchronous check');
       }
@@ -115,7 +154,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const state = get();
       if (!state.isInitialized) {
         console.warn('[AuthStore] Auth initialization timeout - proceeding without auth state');
-        set({ user: null, isInitialized: true });
+        useActivityLogOperationStore.getState().clearAll();
+        set({
+          user: null,
+          isInitialized: true,
+          status: 'unauthenticated',
+          authenticatedUid: null,
+          recoveryUid: null,
+        });
       } else {
         console.log('[AuthStore] Timeout fired but already initialized, ignoring');
       }
@@ -173,7 +219,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         let nextUser = user;
         let uid = nextUser?.uid;
         console.log('[AuthStore] onAuthStateChanged callback fired:', uid ? `User ID: ${uid}` : 'No user');
-        
+
+        if (explicitSignOutRequested) {
+          clearTimeout(timeoutId);
+          set({
+            user: null,
+            isInitialized: true,
+            status: 'unauthenticated',
+            authenticatedUid: null,
+            recoveryUid: null,
+          });
+          return;
+        }
+
+        const priorUid = get().authenticatedUid ?? get().user?.uid ?? null;
+
+        // Publish recovery before awaiting Google so stale private UI cannot mutate.
+        if (!nextUser && priorUid) {
+          set({
+            status: 'recovering',
+            recoveryUid: priorUid,
+            authenticatedUid: null,
+            isInitialized: true,
+          });
+        }
+
         // If no Firebase user is found, try to sign in silently with Google
         // This handles cases where the Firebase session expired but the Google session is still valid
         if (!nextUser) {
@@ -186,16 +256,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         } else {
           console.warn('[AuthStore] No authenticated user - Firestore operations will fail');
         }
-        
+
         clearTimeout(timeoutId);
-        set({ user: nextUser ?? null, isInitialized: true });
+        if (nextUser && (!priorUid || nextUser.uid === priorUid)) {
+          set({
+            user: nextUser,
+            isInitialized: true,
+            status: 'authenticated',
+            authenticatedUid: nextUser.uid,
+            recoveryUid: null,
+          });
+          return;
+        }
+
+        // A failed or cross-account recovery must not expose or replay prior UID state.
+        if (priorUid) {
+          useActivityLogOperationStore.getState().clearForUser(priorUid);
+        }
+        set({
+          user: null,
+          isInitialized: true,
+          status: 'unauthenticated',
+          authenticatedUid: null,
+          recoveryUid: null,
+        });
       });
       console.log('[AuthStore] onAuthStateChanged listener registered successfully');
     } catch (error) {
       console.error('[AuthStore] ERROR: Failed to set up onAuthStateChanged listener:', error);
       // Clear timeout and set initialized to true to prevent infinite loading
       clearTimeout(timeoutId);
-      set({ user: null, isInitialized: true });
+      useActivityLogOperationStore.getState().clearAll();
+      set({
+        user: null,
+        isInitialized: true,
+        status: 'unauthenticated',
+        authenticatedUid: null,
+        recoveryUid: null,
+      });
     }
 
     // Return cleanup function

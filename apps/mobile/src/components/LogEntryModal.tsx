@@ -19,6 +19,7 @@ import {
   AppState,
   AppStateStatus,
   useColorScheme,
+  AccessibilityInfo,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import KeepAwake from 'react-native-keep-awake';
@@ -40,10 +41,13 @@ export interface EditLogEntry {
   note: string | null;
 }
 
+export type LogEntryDraft = Omit<EditLogEntry, 'id'>;
+
 export interface LogEntryModalProps {
   visible: boolean;
   standard: Standard | null | undefined;
   logEntry?: EditLogEntry | null; // Optional log entry for edit mode
+  initialDraft?: LogEntryDraft | null;
   onClose: () => void;
   onSave: (standardId: string, value: number, occurredAtMs: number, note?: string | null, logEntryId?: string) => Promise<void>;
   onCreateStandard?: () => void; // Callback to create a new standard from empty state
@@ -58,6 +62,7 @@ export function LogEntryModal({
   visible,
   standard,
   logEntry,
+  initialDraft,
   onClose,
   onSave,
   onCreateStandard,
@@ -321,6 +326,15 @@ export function LogEntryModal({
       setShowWhen(false);
       setSelectedDate(new Date(logEntry.occurredAtMs));
       setSelectedStandard(standard ?? null);
+    } else if (initialDraft) {
+      // A rejected create can be reopened as an editable draft. It remains a create,
+      // never an update of a document that may not exist.
+      setValue(String(initialDraft.value));
+      setNote(initialDraft.note || '');
+      setShowNote(!!initialDraft.note);
+      setShowWhen(false);
+      setSelectedDate(new Date(initialDraft.occurredAtMs));
+      setSelectedStandard(standard ?? null);
     } else {
       // Create mode: reset all form state
       setValue('');
@@ -336,7 +350,7 @@ export function LogEntryModal({
       setActivityNotes(standard.notes ?? '');
     }
     setSaveError(null);
-  }, [visible, standard, logEntry]);
+  }, [visible, standard, logEntry, initialDraft]);
 
   // Auto-focus the value input when entering the logging form
   useEffect(() => {
@@ -441,9 +455,7 @@ export function LogEntryModal({
       if (Platform.OS === 'android') {
         ToastAndroid.show(successMessage, ToastAndroid.SHORT);
       } else {
-        setAffirmationMessage(successMessage);
-        await new Promise(resolve => setTimeout(resolve, 900));
-        setAffirmationMessage(null);
+        AccessibilityInfo.announceForAccessibility(successMessage);
       }
 
       // Reset form

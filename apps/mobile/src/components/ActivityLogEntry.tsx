@@ -17,6 +17,7 @@ export interface ActivityLogEntryProps {
   unit: string;
   occurredAtMs: number;
   note: string | null;
+  syncStatus?: 'pending' | 'synced';
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -26,6 +27,7 @@ export function ActivityLogEntry({
   unit,
   occurredAtMs,
   note,
+  syncStatus = 'synced',
   onEdit,
   onDelete,
 }: ActivityLogEntryProps) {
@@ -99,6 +101,14 @@ export function ActivityLogEntry({
             <Text style={[styles.timestamp, { color: theme.text.tertiary }]}>
               {formattedTimestamp}
             </Text>
+            {syncStatus === 'pending' && (
+              <Text
+                style={[styles.syncStatus, { color: theme.text.secondary }]}
+                accessibilityLabel="Waiting to sync"
+              >
+                Waiting to sync
+              </Text>
+            )}
           </View>
           {showMenu && (
             <View ref={menuButtonRef}>
@@ -211,6 +221,10 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 13,
+    fontWeight: '500',
+  },
+  syncStatus: {
+    fontSize: 12,
     fontWeight: '500',
   },
   note: {

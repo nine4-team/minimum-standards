@@ -9,7 +9,8 @@ import {
   where,
   orderBy,
 } from '@react-native-firebase/firestore';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
 import {
   subscribeToActivityLogMutations,
   ActivityLogMutation,
@@ -84,7 +85,7 @@ export function useActivityRangeLogs(
   startMs: number,
   endMs: number
 ): UseActivityRangeLogsResult {
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
   const prevCacheKeyRef = useRef<string | null>(null);
   const listenerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const chunkResultsRef = useRef<Map<number, ActivityLogSlice[]>>(new Map());

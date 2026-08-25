@@ -7,7 +7,8 @@ import {
   query,
   where,
 } from '@react-native-firebase/firestore';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
 import { TimestampMs } from '@minimum-standards/shared-model';
 
 export type PeriodLogEntry = {
@@ -41,7 +42,7 @@ export function usePeriodLogs(
   const [logs, setLogs] = useState<PeriodLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
 
   useEffect(() => {
     if (!userId || !standardId || periodStartMs === null || periodEndMs === null) {

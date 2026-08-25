@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityHistoryDoc } from '@minimum-standards/shared-model';
-import { firebaseAuth } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
 import { listenActivityHistoryForStandard } from '../utils/activityHistoryFirestore';
 
 export type ActivityHistoryRow = ActivityHistoryDoc;
@@ -19,7 +19,7 @@ export function useActivityHistory(standardId: string | null): UseActivityHistor
   const [rows, setRows] = useState<ActivityHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
 
   useEffect(() => {
     if (!userId || !standardId) {

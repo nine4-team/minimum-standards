@@ -13,13 +13,14 @@ import { GroupJoinPrompt } from '../components/GroupJoinPrompt';
 import { navigationRef } from './navigationRef';
 import { useTheme } from '../theme/useTheme';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
+import { AuthRecoveryOverlay } from '../components/AuthRecoveryOverlay';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 console.log('[AppNavigator] Module evaluation started');
 
 export function AppNavigator() {
-  const { user, isInitialized } = useAuthStore();
+  const { user, isInitialized, status } = useAuthStore();
   useSnapshotImportFlow();
   console.log('[AppNavigator] Render start', {
     isInitialized,
@@ -69,6 +70,9 @@ export function AppNavigator() {
         />
       </RootStack.Navigator>
       <GroupJoinPrompt />
+      {(status === 'recovering' || status === 'signing-out') && (
+        <AuthRecoveryOverlay />
+      )}
     </NavigationContainer>
   );
 }

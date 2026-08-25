@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ActivityHistoryDoc } from '@minimum-standards/shared-model';
 import type { TimeRange } from '../components/RangeFilterDrawer';
-import { firebaseAuth } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
 import { useStandards } from './useStandards';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { listenActivityHistoryForStandard } from '../utils/activityHistoryFirestore';
@@ -34,7 +34,7 @@ export function useScorecardSummary(): {
   loading: boolean;
   error: Error | null;
 } {
-  const userId = firebaseAuth.currentUser?.uid ?? null;
+  const userId = useAuthStore((state) => state.authenticatedUid);
   const { standards, loading: standardsLoading, error: standardsError } = useStandards();
   const scorecardTimeRange = useUIPreferencesStore((s) => s.scorecardTimeRange);
   const scorecardSort = useUIPreferencesStore((s) => s.scorecardSort);

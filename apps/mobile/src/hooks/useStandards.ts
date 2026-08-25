@@ -4,11 +4,10 @@ import {
   doc,
   query,
   serverTimestamp,
-  Timestamp,
   where,
   deleteField,
 } from '@react-native-firebase/firestore';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
 import {
   Standard,
   StandardCadence,
@@ -25,8 +24,10 @@ import {
 } from '../utils/standardConverter';
 import { normalizeFirebaseError } from '../utils/errors';
 import { retryFirestoreWrite } from '../utils/retry';
-import { emitActivityLogMutation } from '../utils/activityLogEvents';
 import { recomputeActivityHistoryPeriod } from '../utils/activityHistoryRecompute';
+import { useAuthStore } from '../stores/authStore';
+import { useActivityLogOperationStore } from '../stores/activityLogOperationStore';
+import { useActivityLogMutation } from './useActivityLogMutation';
 
 export interface CreateStandardInput {
   name: string;
@@ -98,6 +99,8 @@ export interface UseStandardsResult {
   updateLogEntry: (input: UpdateLogInput) => Promise<void>;
   deleteLogEntry: (input: DeleteLogInput) => Promise<void>;
   restoreLogEntry: (input: RestoreLogInput) => Promise<void>;
+  retryActivityLogOperation: (logEntryId: string) => Promise<void>;
+  discardActivityLogOperation: (logEntryId: string) => void;
   canLogStandard: (standardId: string) => boolean;
   saveStandardOrder: (orderedIds: string[]) => Promise<void>;
 }
@@ -110,7 +113,7 @@ export function useStandards(): UseStandardsResult {
   const [standards, setStandards] = useState<Standard[]>([]);
   const [standardsLoading, setStandardsLoading] = useState(true);
   const [standardsError, setStandardsError] = useState<Error | null>(null);
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
 
   useEffect(() => {
     if (!userId) {
@@ -486,181 +489,15 @@ export function useStandards(): UseStandardsResult {
     [standards]
   );
 
-  const createLogEntry = useCallback(
-    async ({ standardId, value, occurredAtMs, note = null }: CreateLogInput) => {
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-
-      const target = standards.find((standard) => standard.id === standardId);
-      if (!target) {
-        throw new Error('Standard not found');
-      }
-      if (!canLogStandard(standardId)) {
-        throw new Error(
-          'This Standard is inactive. Activate it to resume logging.'
-        );
-      }
-
-      const logsRef = doc(
-        collection(doc(firebaseFirestore, 'users', userId), 'activityLogs')
-      );
-
-      await retryFirestoreWrite(async () => {
-        await logsRef.set({
-          standardId,
-          value,
-          occurredAt: Timestamp.fromMillis(occurredAtMs),
-          note,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          editedAt: null,
-          deletedAt: null,
-        });
-      });
-
-      emitActivityLogMutation({
-        type: 'create',
-        standardId,
-        activityId: target.activityId,
-        occurredAtMs,
-        logEntryId: logsRef.id,
-      });
-
-      triggerActivityHistoryRecompute(target, occurredAtMs);
-
-      return { logEntryId: logsRef.id };
-    },
-    [userId, standards, canLogStandard, triggerActivityHistoryRecompute]
-  );
-
-  const updateLogEntry = useCallback(
-    async ({ logEntryId, standardId, value, occurredAtMs, note = null }: UpdateLogInput) => {
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-
-      const standard = standards.find((item) => item.id === standardId);
-      if (!standard) {
-        throw new Error('Standard not found');
-      }
-
-      if (!canLogStandard(standardId)) {
-        throw new Error(
-          'This Standard is inactive. Activate it to edit logs.'
-        );
-      }
-
-      const logRef = doc(
-        collection(doc(firebaseFirestore, 'users', userId), 'activityLogs'),
-        logEntryId
-      );
-
-      await retryFirestoreWrite(async () => {
-        await logRef.update({
-          value,
-          occurredAt: Timestamp.fromMillis(occurredAtMs),
-          note,
-          editedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      });
-
-      emitActivityLogMutation({
-        type: 'update',
-        standardId,
-        activityId: standard.activityId,
-        occurredAtMs,
-        logEntryId,
-      });
-
-      triggerActivityHistoryRecompute(standard, occurredAtMs);
-    },
-    [userId, standards, canLogStandard, triggerActivityHistoryRecompute]
-  );
-
-  const deleteLogEntry = useCallback(
-    async ({ logEntryId, standardId, occurredAtMs }: DeleteLogInput) => {
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-
-      const standard = standards.find((item) => item.id === standardId);
-      if (!standard) {
-        throw new Error('Standard not found');
-      }
-
-      if (!canLogStandard(standardId)) {
-        throw new Error(
-          'This Standard is inactive. Activate it to delete logs.'
-        );
-      }
-
-      const logRef = doc(
-        collection(doc(firebaseFirestore, 'users', userId), 'activityLogs'),
-        logEntryId
-      );
-
-      await retryFirestoreWrite(async () => {
-        await logRef.update({
-          deletedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      });
-
-      emitActivityLogMutation({
-        type: 'delete',
-        standardId,
-        activityId: standard.activityId,
-        occurredAtMs,
-        logEntryId,
-      });
-
-      triggerActivityHistoryRecompute(standard, occurredAtMs);
-    },
-    [userId, standards, canLogStandard, triggerActivityHistoryRecompute]
-  );
-
-  const restoreLogEntry = useCallback(
-    async ({ logEntryId, standardId, occurredAtMs }: RestoreLogInput) => {
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-
-      const standard = standards.find((item) => item.id === standardId);
-      if (!standard) {
-        throw new Error('Standard not found');
-      }
-
-      if (!canLogStandard(standardId)) {
-        throw new Error(
-          'This Standard is inactive. Activate it to restore logs.'
-        );
-      }
-
-      const logRef = doc(
-        collection(doc(firebaseFirestore, 'users', userId), 'activityLogs'),
-        logEntryId
-      );
-
-      await retryFirestoreWrite(async () => {
-        await logRef.update({
-          deletedAt: null,
-          updatedAt: serverTimestamp(),
-        });
-      });
-
-      emitActivityLogMutation({
-        type: 'restore',
-        standardId,
-        activityId: standard.activityId,
-        occurredAtMs,
-        logEntryId,
-      });
-
-      triggerActivityHistoryRecompute(standard, occurredAtMs);
-    },
-    [userId, standards, canLogStandard, triggerActivityHistoryRecompute]
+  const {
+    createLogEntry,
+    updateLogEntry,
+    deleteLogEntry,
+    restoreLogEntry,
+    retryActivityLogOperation,
+  } = useActivityLogMutation(standards);
+  const discardActivityLogOperation = useActivityLogOperationStore(
+    (state) => state.discard
   );
 
   const saveStandardOrder = useCallback(
@@ -702,6 +539,8 @@ export function useStandards(): UseStandardsResult {
     updateLogEntry,
     deleteLogEntry,
     restoreLogEntry,
+    retryActivityLogOperation,
+    discardActivityLogOperation,
     canLogStandard,
     saveStandardOrder,
   };

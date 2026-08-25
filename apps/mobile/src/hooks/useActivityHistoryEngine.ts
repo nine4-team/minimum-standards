@@ -10,7 +10,8 @@ import {
   Timestamp,
   getDocs,
 } from '@react-native-firebase/firestore';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
 import { useStandards } from './useStandards';
 import {
   Standard,
@@ -36,7 +37,7 @@ import {
  */
 export function useActivityHistoryEngine() {
   const { orderedActiveStandards } = useStandards();
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRunningCatchUpRef = useRef(false);
@@ -434,4 +435,3 @@ export function useActivityHistoryEngine() {
     };
   }, [userId, runCatchUp, scheduleNextBoundary]);
 }
-

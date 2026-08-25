@@ -8,7 +8,7 @@ import {
   query,
   where,
 } from '@react-native-firebase/firestore';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
 import {
   Standard,
   calculatePeriodWindow,
@@ -19,6 +19,7 @@ import {
   DashboardProgress,
   buildDashboardProgressMap,
 } from '../utils/dashboardProgress';
+import { useAuthStore } from '../stores/authStore';
 
 export type DashboardStandard = {
   standard: Standard;
@@ -60,7 +61,7 @@ export function useActiveStandardsDashboard() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [windowReferenceMs, setWindowReferenceMs] = useState(() => Date.now());
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nowTickRef = useRef<ReturnType<typeof setInterval> | null>(null);

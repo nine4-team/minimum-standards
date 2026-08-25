@@ -24,8 +24,9 @@ import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useQuickLog } from '../hooks/useQuickLog';
 import { useUIPreferencesStore } from '../stores/uiPreferencesStore';
 import { trackStandardEvent } from '../utils/analytics';
-import { LogEntryModal } from '../components/LogEntryModal';
+import { LogEntryModal, LogEntryDraft } from '../components/LogEntryModal';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { ActivityLogSyncBanner } from '../components/ActivityLogSyncBanner';
 import { CircularStandardCard } from '../components/CircularStandardCard';
 import { BottomSheetMenu } from '../components/BottomSheetMenu';
 import { BottomSheetConfirmation } from '../components/BottomSheetConfirmation';
@@ -40,6 +41,7 @@ import {
   moveStandardToPage,
   reorderPageStandards,
 } from '../utils/dashboardPages';
+import { ActivityLogOperation } from '../utils/activityLogMutations';
 
 export interface StandardsScreenProps {
   onBack?: () => void;
@@ -69,6 +71,10 @@ export function StandardsScreen({
   const pagerRef = useRef<ScrollView | null>(null);
   const [selectedStandard, setSelectedStandard] = useState<Standard | null>(null);
   const [logModalVisible, setLogModalVisible] = useState(false);
+  const [failedDraft, setFailedDraft] = useState<{
+    operationId: string;
+    draft: LogEntryDraft;
+  } | null>(null);
   const {
     dashboardStandards,
     loading,
@@ -79,6 +85,8 @@ export function StandardsScreen({
     refreshStandards,
     archiveStandard,
     nowMs,
+    retryActivityLogOperation,
+    discardActivityLogOperation,
   } = useActiveStandardsDashboard();
 
   const {
@@ -188,6 +196,7 @@ export function StandardsScreen({
       if (onOpenLogModal) {
         onOpenLogModal(entry.standard);
       } else {
+        setFailedDraft(null);
         setSelectedStandard(entry.standard);
         setLogModalVisible(true);
       }
@@ -203,16 +212,44 @@ export function StandardsScreen({
       } else {
         // Create mode: use createLogEntry
         await createLogEntry({ standardId, value, occurredAtMs, note });
+        if (failedDraft) {
+          discardActivityLogOperation(failedDraft.operationId);
+          setFailedDraft(null);
+        }
       }
       // Firestore listener will automatically update the UI
     },
-    [createLogEntry, updateLogEntry]
+    [createLogEntry, discardActivityLogOperation, failedDraft, updateLogEntry]
   );
 
   const handleLogModalClose = useCallback(() => {
     setLogModalVisible(false);
     setSelectedStandard(null);
+    setFailedDraft(null);
   }, []);
+
+  const handleEditFailedLog = useCallback(
+    (operation: ActivityLogOperation) => {
+      const target = dashboardStandards.find(
+        (entry) => entry.standard.id === operation.payload.standardId
+      )?.standard;
+      if (!target) {
+        Alert.alert('Entry unavailable', 'The Standard for this entry is no longer active.');
+        return;
+      }
+      setSelectedStandard(target);
+      setFailedDraft({
+        operationId: operation.payload.id,
+        draft: {
+          value: operation.payload.value,
+          occurredAtMs: operation.payload.occurredAtMs,
+          note: operation.payload.note,
+        },
+      });
+      setLogModalVisible(true);
+    },
+    [dashboardStandards]
+  );
 
   const handleRetry = useCallback(() => {
     refreshProgress();
@@ -590,12 +627,18 @@ export function StandardsScreen({
       </View>
 
       <ErrorBanner error={error} onRetry={handleRetry} />
+      <ActivityLogSyncBanner
+        onRetry={retryActivityLogOperation}
+        onDiscard={discardActivityLogOperation}
+        onEdit={handleEditFailedLog}
+      />
 
       {content}
 
       <LogEntryModal
         visible={logModalVisible}
         standard={selectedStandard}
+        initialDraft={failedDraft?.draft}
         onClose={handleLogModalClose}
         onSave={handleLogSave}
         onDeleteLogEntry={async (logEntryId, standardId, occurredAtMs) => {

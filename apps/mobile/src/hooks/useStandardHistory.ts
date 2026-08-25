@@ -6,7 +6,8 @@ import {
   query,
   where,
 } from '@react-native-firebase/firestore';
-import { firebaseAuth, firebaseFirestore } from '../firebase/firebaseApp';
+import { firebaseFirestore } from '../firebase/firebaseApp';
+import { useAuthStore } from '../stores/authStore';
 import { useStandards } from './useStandards';
 import {
   computeStandardHistory,
@@ -38,7 +39,7 @@ export function useStandardHistory(
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState<Error | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
-  const userId = firebaseAuth.currentUser?.uid;
+  const userId = useAuthStore((state) => state.authenticatedUid);
   const resolvedTimezone =
     timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 
