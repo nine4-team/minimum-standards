@@ -7,6 +7,7 @@ const BASE_SESSION_CONFIG = { sessionLabel: 'session', sessionsPerCadence: 1, vo
 function makeStandard(overrides: Partial<Standard> = {}): Standard {
   return {
     id: 'std1',
+    name: 'Weekly movement',
     activityId: 'act1',
     minimum: 10,
     unit: 'minutes',
@@ -15,7 +16,7 @@ function makeStandard(overrides: Partial<Standard> = {}): Standard {
     summary: '10 minutes / week',
     archivedAtMs: null,
     sessionConfig: BASE_SESSION_CONFIG,
-    categoryId: null,
+    notes: null,
     createdAtMs: 1000,
     updatedAtMs: 1000,
     deletedAtMs: null,

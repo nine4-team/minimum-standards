@@ -14,7 +14,7 @@ describe('period-calculator', () => {
       expect(result.startMs).toBe(new Date('2025-12-11T00:00:00Z').getTime());
       expect(result.endMs).toBe(new Date('2025-12-12T00:00:00Z').getTime());
       expect(result.periodKey).toBe('2025-12-11');
-      expect(result.label).toBe('December 11, 2025');
+      expect(result.label).toBe('Dec 11');
     });
 
     test('daily boundary behavior at end-of-day transition', () => {
@@ -47,7 +47,7 @@ describe('period-calculator', () => {
       
       // In EST, this should still be December 11
       expect(result.periodKey).toBe('2025-12-11');
-      expect(result.label).toBe('December 11, 2025');
+      expect(result.label).toBe('Dec 11');
     });
   });
 
@@ -63,8 +63,7 @@ describe('period-calculator', () => {
       
       expect(result.startMs).toBe(monday);
       expect(result.endMs).toBe(nextMonday);
-      expect(result.label).toContain('December 8');
-      expect(result.label).toContain('December 14'); // End is exclusive, so show day before
+      expect(result.label).toBe('Dec 8 - Dec 14'); // End is exclusive, so show day before
     });
 
     test('weekly boundary behavior - Sunday to Monday transition', () => {
@@ -107,7 +106,7 @@ describe('period-calculator', () => {
       expect(result.startMs).toBe(new Date('2025-12-01T00:00:00Z').getTime());
       expect(result.endMs).toBe(new Date('2026-01-01T00:00:00Z').getTime());
       expect(result.periodKey).toBe('2025-12');
-      expect(result.label).toBe('December 2025');
+      expect(result.label).toBe('Dec');
     });
 
     test('monthly boundary behavior - end of month to start of next', () => {
@@ -213,7 +212,7 @@ describe('period-calculator', () => {
       expect(window.startMs).toBe(new Date('2025-12-10T00:00:00Z').getTime());
       expect(window.endMs).toBe(new Date('2025-12-17T00:00:00Z').getTime());
       expect(window.periodKey).toBe('2025-12-10');
-      expect(window.label).toContain('December 10');
+      expect(window.label).toBe('Dec 10 - Dec 16');
     });
 
   });
@@ -274,4 +273,3 @@ describe('period-calculator', () => {
     });
   });
 });
-
